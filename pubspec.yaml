@@ -1,0 +1,81 @@
+name: smile_concept_web
+description: Dental Practice Management System - Flutter Frontend
+publish_to: 'none'
+version: 1.0.0+1
+
+environment:
+  sdk: ^3.5.0
+  flutter: ">=3.24.0"
+
+dependencies:
+  flutter:
+    sdk: flutter
+
+  # UI Components
+  table_calendar: ^3.1.2
+
+  # State Management
+  flutter_riverpod: ^2.5.1
+  riverpod_annotation: ^2.3.5
+
+  # HTTP & API
+  dio: ^5.7.0
+  retrofit: ^4.3.0
+
+  # Networking & Caching
+  dio_cache_interceptor: ^3.5.0
+  cached_network_image: ^3.4.1
+
+  # Local Storage
+  hive: ^2.2.3
+  hive_flutter: ^1.1.0
+  shared_preferences: ^2.3.2
+  flutter_secure_storage: ^9.2.2
+
+  # Authentication
+  jwt_decoder: ^2.0.1
+
+  # Routing
+  go_router: ^14.6.0
+
+  # UI/UX
+  flutter_svg: ^2.0.16
+  intl: ^0.19.0
+  get_time_ago: ^2.3.2
+
+  # Forms
+  formz: ^0.7.0
+
+  # Logging & Crash
+  logger: ^2.5.0
+  firebase_crashlytics: ^5.2.4
+
+  # Notifications
+  flutter_local_notifications: ^18.0.0
+  timezone: ^0.9.4
+
+  # PDF & Files
+  pdf: ^3.12.0
+  printing: ^5.13.0
+  file_picker: ^8.1.5
+
+  # Images
+  image_picker: ^1.1.2
+  image_cropper: ^8.1.0
+
+  # Biometrics
+  local_auth: ^2.3.0
+
+dev_dependencies:
+  flutter_test:
+    sdk: flutter
+  build_runner: ^2.4.12
+  riverpod_generator: ^2.6.2
+  retrofit_generator: ^9.0.0
+  json_serializable: ^6.8.0
+
+flutter:
+  uses-material-design: true
+
+  assets:
+    - assets/images/
