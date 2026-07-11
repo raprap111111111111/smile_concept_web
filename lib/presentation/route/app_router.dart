@@ -31,6 +31,10 @@ import '/../../presentation/pages/users/users_page.dart';
 import '/../../presentation/pages/branch/branches_page.dart';
 
 import '/../../presentation/pages/doctor_schedules/doctor_schedules_pages.dart';
+// lib/presentation/route/app_router.dart
+
+// Add import
+import '../pages/profile/profile_page.dart';
 import 'route_names.dart';
 
 final routerProvider = Provider<GoRouter>((ref) {
@@ -174,6 +178,12 @@ final routerProvider = Provider<GoRouter>((ref) {
                 },
               ),
             ],
+          ),
+
+          GoRoute(
+            path: '/profile',
+            name: RouteNames.profile,
+            builder: (context, state) => const ProfilePage(),
           ),
           GoRoute(
             path: '/settings',

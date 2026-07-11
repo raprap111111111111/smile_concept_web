@@ -33,9 +33,9 @@ class RouteNames {
 
   // ── Clinical ──────────────────────────────────────────────────────────
   static const String clinical = 'clinical';
-  static const String prescriptions = 'prescriptions';       // ✅ ADDED
-  static const String treatmentPlans = 'treatment-plans';    // ✅ ADDED
-  static const String treatments = 'treatments';             // ✅ ADDED
+  static const String prescriptions = 'prescriptions'; // ✅ ADDED
+  static const String treatmentPlans = 'treatment-plans'; // ✅ ADDED
+  static const String treatments = 'treatments'; // ✅ ADDED
 
   // ── Services ──────────────────────────────────────────────────────────
   static const String services = 'services';
@@ -63,4 +63,7 @@ class RouteNames {
   static const String myProfile = 'my-profile';
   static const String myAppointments = 'my-appointments';
   static const String myInvoices = 'my-invoices';
+  
+  // lib/presentation/route/route_names.dart
+  static const String profile = 'profile';
 }
