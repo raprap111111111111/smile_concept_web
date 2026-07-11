@@ -29,6 +29,9 @@ import '../../presentation/pages/patients/patient_detail_page.dart';
 import '../../presentation/pages/patients/patient_form_page.dart';
 import '/../../presentation/pages/users/users_page.dart';
 import '/../../presentation/pages/branch/branches_page.dart';
+import '../pages/prescriptions/prescriptions_page.dart';
+import '../pages/prescriptions/prescription_form_page.dart';
+import '../pages/prescriptions/prescription_detail_page.dart';
 
 import '/../../presentation/pages/doctor_schedules/doctor_schedules_pages.dart';
 // lib/presentation/route/app_router.dart
@@ -180,6 +183,35 @@ final routerProvider = Provider<GoRouter>((ref) {
             ],
           ),
 
+          GoRoute(
+            path: '/prescriptions',
+            name: RouteNames.prescriptions,
+            builder: (context, state) => const PrescriptionsPage(),
+            routes: [
+              // ✅ Create new prescription
+              GoRoute(
+                path: 'new',
+                name: RouteNames.prescriptionCreate,
+                builder: (context, state) {
+                  final extra = state.extra as Map<String, dynamic>?;
+                  return PrescriptionFormPage(
+                    patientId: extra?['patient_id'] as int?,
+                    appointmentId: extra?['appointment_id'] as int?,
+                  );
+                },
+              ),
+              // ✅ Detail page
+              GoRoute(
+                path: ':id',
+                name: RouteNames.prescriptionDetail,
+                builder: (context, state) {
+                  final id = int.parse(state.pathParameters['id']!);
+                  return PrescriptionDetailPage(prescriptionId: id);
+                },
+              ),
+            ],
+          ),
+          
           GoRoute(
             path: '/profile',
             name: RouteNames.profile,
