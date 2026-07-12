@@ -89,12 +89,12 @@ class PrescriptionCard extends StatelessWidget {
                   'Doctor: Dr. ${prescription.doctor!.displayName}',
                   style: theme.textTheme.bodyMedium,
                 ),
-                if (prescription.doctor!.specialization != null &&
-                    prescription.doctor!.specialization!.trim().isNotEmpty)
+                if (prescription.doctor!.specialty != null &&
+                    prescription.doctor!.specialty!.trim().isNotEmpty)
                   Padding(
                     padding: const EdgeInsets.only(top: 4),
                     child: Text(
-                      prescription.doctor!.specialization!,
+                      prescription.doctor!.specialty!,
                       style: theme.textTheme.bodySmall?.copyWith(
                         color: Colors.grey.shade600,
                       ),

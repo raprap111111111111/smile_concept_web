@@ -26,12 +26,24 @@ class UserModel {
     this.emailVerifiedAt,
     this.createdAt,
     this.updatedAt,
-    this.roles = const [],
+    this.roles       = const [],
     this.permissions = const [],
     this.socialAccounts = const [],
   });
 
+  // ── Role ──────────────────────────────────────────────────
   String get role => roles.isNotEmpty ? roles.first.name : 'user';
+
+  String get displayRole {
+    return switch (role.toLowerCase()) {
+      'super-admin'  => 'Super Admin',
+      'admin'        => 'Admin',
+      'dentist'      => 'Dentist',
+      'receptionist' => 'Receptionist',
+      'patient'      => 'Patient',
+      _              => role,
+    };
+  }
 
   bool get isSuperAdmin {
     final normalizedRole = role.toLowerCase();
@@ -39,8 +51,26 @@ class UserModel {
         normalizedRole == 'super admin';
   }
 
+  bool get isAdmin        => role == 'admin';
+  bool get isDentist      => role == 'dentist';
+  bool get isReceptionist => role == 'receptionist';
+  bool get isPatient      => role == 'patient';
+  bool get isStaff        =>
+      isSuperAdmin || isAdmin || isDentist || isReceptionist;
+
+  // ── Avatar ────────────────────────────────────────────────
   String? get avatarUrl => profilePhotoUrl ?? profilePhoto;
 
+  String get initials {
+    final parts = name.trim().split(' ');
+    if (parts.length >= 2) {
+      return '${parts.first[0]}${parts.last[0]}'.toUpperCase();
+    }
+    return name.isNotEmpty ? name[0].toUpperCase() : '?';
+  }
+
+  // ── Core permission checks ────────────────────────────────
+  // super-admin bypasses all permission checks
   bool can(String permission) {
     if (isSuperAdmin) return true;
     return permissions.contains(permission);
@@ -56,39 +86,57 @@ class UserModel {
     return items.every(permissions.contains);
   }
 
+  // ── Prescription permissions ──────────────────────────────
+  // From RolePermissionSeeder:
+  // dentist      → viewAny, view, create, update, delete, print, send
+  // admin        → viewAny, view, print
+  // patient      → view only
+  // receptionist → NONE
+  bool get canViewPrescriptions =>
+      canAny(['prescription.viewAny', 'prescription.view']);
+
+  bool get canCreatePrescription => can('prescription.create');
+  bool get canUpdatePrescription => can('prescription.update');
+  bool get canDeletePrescription => can('prescription.delete');
+  bool get canPrintPrescription  => can('prescription.print');
+  bool get canSendPrescription   => can('prescription.send');
+
+  // ── fromJson ──────────────────────────────────────────────
   factory UserModel.fromJson(Map<String, dynamic> json) {
     return UserModel(
-      id: _asInt(json['id']),
-      name: _asString(json['name']),
-      email: _asString(json['email']),
-      phone: json['phone']?.toString(),
-      profilePhoto: json['profile_photo']?.toString(),
+      id:              _asInt(json['id']),
+      name:            _asString(json['name']),
+      email:           _asString(json['email']),
+      phone:           json['phone']?.toString(),
+      profilePhoto:    json['profile_photo']?.toString(),
       profilePhotoUrl: json['profile_photo_url']?.toString(),
-      branchId: _asIntOrNull(json['branch_id']),
+      branchId:        _asIntOrNull(json['branch_id']),
       emailVerifiedAt: json['email_verified_at']?.toString(),
-      createdAt: json['created_at']?.toString(),
-      updatedAt: json['updated_at']?.toString(),
-      roles: _parseRoles(json['roles'], json['role']),
-      permissions: _parsePermissions(json['permissions']),
-      socialAccounts: json['social_accounts'] is List
+      createdAt:       json['created_at']?.toString(),
+      updatedAt:       json['updated_at']?.toString(),
+      roles:           _parseRoles(json['roles'], json['role']),
+      permissions:     _parsePermissions(json['permissions']),
+      socialAccounts:  json['social_accounts'] is List
           ? json['social_accounts'] as List
           : const [],
     );
   }
 
+  // ── toJson ────────────────────────────────────────────────
   Map<String, dynamic> toJson() => {
-        'id': id,
-        'name': name,
-        'email': email,
-        'phone': phone,
-        'profile_photo': profilePhoto,
+        'id':               id,
+        'name':             name,
+        'email':            email,
+        'phone':            phone,
+        'profile_photo':    profilePhoto,
         'profile_photo_url': profilePhotoUrl,
-        'branch_id': branchId,
-        'roles': roles.map((role) => role.toJson()).toList(),
-        'permissions': permissions,
-        'social_accounts': socialAccounts,
+        'branch_id':        branchId,
+        'roles':            roles.map((r) => r.toJson()).toList(),
+        'permissions':      permissions,
+        'social_accounts':  socialAccounts,
       };
 
+  // ── Private parsers ───────────────────────────────────────
   static int _asInt(dynamic value) {
     if (value == null) return 0;
     if (value is int) return value;
@@ -107,37 +155,32 @@ class UserModel {
     return null;
   }
 
-  static String _asString(dynamic value) {
-    return value?.toString() ?? '';
-  }
+  static String _asString(dynamic value) =>
+      value?.toString() ?? '';
 
   static List<RoleModel> _parseRoles(
     dynamic rolesValue,
     dynamic singleRoleValue,
   ) {
+    // ── List of role objects/strings ───────────────────────
     if (rolesValue is List && rolesValue.isNotEmpty) {
       return rolesValue.map<RoleModel>((role) {
         if (role is Map<String, dynamic>) {
           return RoleModel.fromJson(role);
         }
-
         if (role is Map) {
-          return RoleModel.fromJson(Map<String, dynamic>.from(role));
+          return RoleModel.fromJson(
+              Map<String, dynamic>.from(role));
         }
-
-        return RoleModel(
-          id: 0,
-          name: role.toString(),
-        );
+        // Plain string role name
+        return RoleModel(id: 0, name: role.toString());
       }).toList();
     }
 
+    // ── Single role string ─────────────────────────────────
     if (singleRoleValue != null) {
       return [
-        RoleModel(
-          id: 0,
-          name: singleRoleValue.toString(),
-        ),
+        RoleModel(id: 0, name: singleRoleValue.toString()),
       ];
     }
 
@@ -148,20 +191,26 @@ class UserModel {
     if (value is! List) return const [];
 
     return value.map<String>((permission) {
+      // Object with 'name' field
       if (permission is Map<String, dynamic> &&
           permission['name'] != null) {
         return permission['name'].toString();
       }
-
       if (permission is Map && permission['name'] != null) {
         return permission['name'].toString();
       }
-
+      // Plain string
       return permission.toString();
-    }).toList();
+    }).where((p) => p.isNotEmpty).toList();
   }
+
+  @override
+  String toString() =>
+      'UserModel(id: $id, name: $name, '
+      'role: $role, permissions: ${permissions.length})';
 }
 
+// ─── Role Model ───────────────────────────────────────────────
 class RoleModel {
   final int id;
   final String name;
@@ -179,20 +228,20 @@ class RoleModel {
 
   factory RoleModel.fromJson(Map<String, dynamic> json) {
     return RoleModel(
-      id: _asInt(json['id']),
-      name: json['name']?.toString() ?? '',
+      id:          _asInt(json['id']),
+      name:        json['name']?.toString() ?? '',
       description: json['description']?.toString(),
-      isActive: _asBool(json['is_active'], fallback: true),
-      guardName: json['guard_name']?.toString(),
+      isActive:    _asBool(json['is_active'], fallback: true),
+      guardName:   json['guard_name']?.toString(),
     );
   }
 
   Map<String, dynamic> toJson() => {
-        'id': id,
-        'name': name,
+        'id':          id,
+        'name':        name,
         'description': description,
-        'is_active': isActive,
-        'guard_name': guardName,
+        'is_active':   isActive,
+        'guard_name':  guardName,
       };
 
   static int _asInt(dynamic value) {
@@ -210,7 +259,9 @@ class RoleModel {
     if (value is String) {
       return value == '1' || value.toLowerCase() == 'true';
     }
-
     return fallback;
   }
+
+  @override
+  String toString() => 'RoleModel(id: $id, name: $name)';
 }

@@ -1,3 +1,5 @@
+// lib/data/models/prescription/prescription_model.dart
+
 import 'prescription_item_model.dart';
 
 class PrescriptionModel {
@@ -29,26 +31,29 @@ class PrescriptionModel {
 
   factory PrescriptionModel.fromJson(Map<String, dynamic> json) {
     return PrescriptionModel(
-      id: json['id'] as int,
-      appointmentId: json['appointment_id'] as int?,
-      doctorId: json['doctor_id'] as int,
-      userId: json['user_id'] as int,
-      notes: json['notes'] as String?,
-      deletedAt: json['deleted_at'] as String?,
-      createdAt: DateTime.parse(json['created_at'].toString()),
-      updatedAt: DateTime.parse(json['updated_at'].toString()),
+      id: (json['id'] as num?)?.toInt() ?? 0,
+      appointmentId: (json['appointment_id'] as num?)?.toInt(),
+      doctorId: (json['doctor_id'] as num?)?.toInt() ?? 0,
+      userId: (json['user_id'] as num?)?.toInt() ?? 0,
+      notes: json['notes']?.toString(),
+      deletedAt: json['deleted_at']?.toString(),
+      createdAt: json['created_at'] != null
+          ? DateTime.tryParse(json['created_at'].toString()) ?? DateTime.now()
+          : DateTime.now(),
+      updatedAt: json['updated_at'] != null
+          ? DateTime.tryParse(json['updated_at'].toString()) ?? DateTime.now()
+          : DateTime.now(),
       items: (json['items'] as List<dynamic>? ?? [])
-          .map((e) => PrescriptionItemModel.fromJson(e as Map<String, dynamic>))
+          .map((e) =>
+              PrescriptionItemModel.fromJson(_toStringMap(e as Map)))
           .toList(),
       patient: json['patient'] != null
           ? PrescriptionPatientModel.fromJson(
-              json['patient'] as Map<String, dynamic>,
-            )
+              _toStringMap(json['patient'] as Map))
           : null,
       doctor: json['doctor'] != null
           ? PrescriptionDoctorModel.fromJson(
-              json['doctor'] as Map<String, dynamic>,
-            )
+              _toStringMap(json['doctor'] as Map))
           : null,
     );
   }
@@ -73,74 +78,67 @@ class PrescriptionModel {
     ];
     return '${months[createdAt.month - 1]} ${createdAt.day}, ${createdAt.year}';
   }
+
+  static Map<String, dynamic> _toStringMap(Map source) {
+    final result = <String, dynamic>{};
+    source.forEach((k, v) => result[k.toString()] = v);
+    return result;
+  }
 }
 
+// ─────────────────────────────────────────────────────────────
+// Patient nested model — from your API: { id, name, email, phone }
+// ─────────────────────────────────────────────────────────────
 class PrescriptionPatientModel {
   final int id;
   final String name;
   final String email;
+  final String? phone;
   final String? profilePhotoUrl;
 
   const PrescriptionPatientModel({
     required this.id,
     required this.name,
     required this.email,
+    this.phone,
     this.profilePhotoUrl,
   });
 
   factory PrescriptionPatientModel.fromJson(Map<String, dynamic> json) {
     return PrescriptionPatientModel(
-      id: json['id'] as int,
-      name: json['name'] as String? ?? '',
-      email: json['email'] as String? ?? '',
-      profilePhotoUrl: json['profile_photo_url'] as String?,
+      id: (json['id'] as num?)?.toInt() ?? 0,
+      name: json['name']?.toString() ?? 'Unknown',
+      email: json['email']?.toString() ?? '',
+      phone: json['phone']?.toString(),
+      profilePhotoUrl: json['profile_photo_url']?.toString(),
     );
   }
 }
 
+// ─────────────────────────────────────────────────────────────
+// Doctor nested model — from your API: { id, name, specialty, license_number }
+// ─────────────────────────────────────────────────────────────
 class PrescriptionDoctorModel {
   final int id;
-  final String? specialization;
-  final PrescriptionDoctorUserModel? user;
+  final String name;
+  final String? specialty;
+  final String? licenseNumber;
 
   const PrescriptionDoctorModel({
     required this.id,
-    this.specialization,
-    this.user,
+    required this.name,
+    this.specialty,
+    this.licenseNumber,
   });
 
-  String get displayName => user?.name ?? 'Unknown Doctor';
-  String? get profilePhotoUrl => user?.profilePhotoUrl;
+  String get displayName => name;
 
   factory PrescriptionDoctorModel.fromJson(Map<String, dynamic> json) {
     return PrescriptionDoctorModel(
-      id: json['id'] as int,
-      specialization: json['specialization'] as String?,
-      user: json['user'] != null
-          ? PrescriptionDoctorUserModel.fromJson(
-              json['user'] as Map<String, dynamic>,
-            )
-          : null,
-    );
-  }
-}
-
-class PrescriptionDoctorUserModel {
-  final int id;
-  final String name;
-  final String? profilePhotoUrl;
-
-  const PrescriptionDoctorUserModel({
-    required this.id,
-    required this.name,
-    this.profilePhotoUrl,
-  });
-
-  factory PrescriptionDoctorUserModel.fromJson(Map<String, dynamic> json) {
-    return PrescriptionDoctorUserModel(
-      id: json['id'] as int,
-      name: json['name'] as String? ?? '',
-      profilePhotoUrl: json['profile_photo_url'] as String?,
+      id: (json['id'] as num?)?.toInt() ?? 0,
+      name: json['name']?.toString() ?? 'Unknown Doctor',
+      specialty: json['specialty']?.toString() ?? json['specialization']?.toString(),
+      licenseNumber: json['license_number']?.toString(),
     );
   }
 }

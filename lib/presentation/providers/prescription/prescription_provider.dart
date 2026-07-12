@@ -1,13 +1,14 @@
+// lib/presentation/providers/prescription/prescription_provider.dart
+
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../data/models/prescription/prescription_model.dart';
 import '../../../data/repositories/prescription_repository.dart';
 import '../../../data/datasources/remote/prescription_remote_datasource.dart';
-import '../../../core/network/dio_client.dart'; // ✅ use your existing dio
+import '../../../core/network/dio_client.dart';
 
-// ─── Dependency Providers ─────────────────────────────────────
 final prescriptionRemoteDataSourceProvider =
     Provider<PrescriptionRemoteDataSource>((ref) {
-  final dio = ref.read(dioProvider); // ✅ your existing dio provider
+  final dio = ref.read(dioProvider);
   return PrescriptionRemoteDataSource(dio: dio);
 });
 
@@ -44,7 +45,8 @@ class PrescriptionState {
   bool get hasListError => listError != null;
   bool get hasDetailError => detailError != null;
   bool get hasMore => currentPage < lastPage;
-  bool get isEmpty => !isListLoading && prescriptions.isEmpty && listError == null;
+  bool get isEmpty =>
+      !isListLoading && prescriptions.isEmpty && listError == null;
 
   PrescriptionState copyWith({
     List<PrescriptionModel>? prescriptions,
@@ -83,7 +85,6 @@ class PrescriptionNotifier extends StateNotifier<PrescriptionState> {
 
   PrescriptionNotifier(this._repository) : super(const PrescriptionState());
 
-  // ─── Load List ──────────────────────────────────────────────
   Future<void> loadPrescriptions({
     int? patientId,
     int? doctorId,
@@ -120,7 +121,6 @@ class PrescriptionNotifier extends StateNotifier<PrescriptionState> {
     }
   }
 
-  // ─── Load More ──────────────────────────────────────────────
   Future<void> loadMore() async {
     if (state.isLoadingMore || !state.hasMore) return;
 
@@ -147,7 +147,6 @@ class PrescriptionNotifier extends StateNotifier<PrescriptionState> {
     }
   }
 
-  // ─── Load Single ────────────────────────────────────────────
   Future<void> loadById(int id, {bool forceRefresh = false}) async {
     state = state.copyWith(
       isDetailLoading: true,
@@ -173,14 +172,33 @@ class PrescriptionNotifier extends StateNotifier<PrescriptionState> {
     }
   }
 
-  // ─── Refresh ────────────────────────────────────────────────
+  // ─── DELETE PRESCRIPTION ────────────────────────────────────
+  Future<bool> deletePrescription(int id) async {
+    try {
+      await _repository.remoteDataSource.deletePrescription(id);
+
+      // Optimistic update - remove from list immediately
+      state = state.copyWith(
+        prescriptions:
+            state.prescriptions.where((p) => p.id != id).toList(),
+      );
+
+      _repository.clearCache();
+      return true;
+    } catch (e) {
+      state = state.copyWith(
+        listError: e.toString().replaceAll('Exception: ', ''),
+      );
+      return false;
+    }
+  }
+
   Future<void> refresh() => loadPrescriptions(
         patientId: _filterPatientId,
         doctorId: _filterDoctorId,
         forceRefresh: true,
       );
 
-  // ─── Reset ──────────────────────────────────────────────────
   void reset() {
     state = const PrescriptionState();
   }

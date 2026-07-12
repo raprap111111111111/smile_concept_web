@@ -1,7 +1,11 @@
+// lib/presentation/pages/prescriptions/prescription_detail_page.dart
+
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:go_router/go_router.dart';
 
 import '../../../data/models/prescription/prescription_model.dart';
+import '../../providers/auth/auth_provider.dart';
 import '../../providers/prescription/prescription_provider.dart';
 import 'widgets/prescription_item_tile.dart';
 
@@ -30,20 +34,140 @@ class _PrescriptionDetailPageState
     });
   }
 
+  // ── Auth helper ────────────────────────────────────────────
+  AuthState get _auth => ref.read(authStateProvider);
+
+  // ── Permission-Guarded Delete ──────────────────────────────
+  Future<void> _confirmAndDelete() async {
+    // ✅ Step 1: Check permission FIRST — before showing any UI
+    if (!_auth.canDeletePrescription) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text(
+            '❌ You do not have permission to delete prescriptions',
+          ),
+          backgroundColor: Colors.red,
+        ),
+      );
+      return; // ← hard stop
+    }
+
+    // ✅ Step 2: Confirm dialog
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (dialogCtx) => AlertDialog(
+        title: const Row(
+          children: [
+            Icon(Icons.warning_amber_rounded, color: Colors.red),
+            SizedBox(width: 8),
+            Text('Delete Prescription'),
+          ],
+        ),
+        content: Text(
+          'Are you sure you want to delete '
+          'Prescription #${widget.prescriptionId}?\n\n'
+          'This will also delete all medicines inside it. '
+          'This action cannot be undone.',
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(dialogCtx, false),
+            child: const Text('Cancel'),
+          ),
+          TextButton(
+            onPressed: () => Navigator.pop(dialogCtx, true),
+            style:
+                TextButton.styleFrom(foregroundColor: Colors.red),
+            child: const Text('Delete'),
+          ),
+        ],
+      ),
+    );
+
+    if (confirmed != true || !mounted) return;
+
+    // ✅ Step 3: Loading indicator
+    showDialog(
+      context: context,
+      barrierDismissible: false,
+      builder: (_) =>
+          const Center(child: CircularProgressIndicator()),
+    );
+
+    // ✅ Step 4: Execute delete
+    final success = await ref
+        .read(prescriptionProvider.notifier)
+        .deletePrescription(widget.prescriptionId);
+
+    if (!mounted) return;
+    Navigator.pop(context); // close loading dialog
+
+    if (success) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('✅ Prescription deleted successfully'),
+          backgroundColor: Colors.green,
+        ),
+      );
+      context.pop();
+    } else {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(
+            ref.read(prescriptionProvider).listError ??
+                'Failed to delete prescription',
+          ),
+          backgroundColor: Colors.red,
+        ),
+      );
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
-    final state = ref.watch(prescriptionProvider);
+    final state     = ref.watch(prescriptionProvider);
+    final authState = ref.watch(authStateProvider);
+
+    // ✅ Inline permission checks — no widget needed
+    final canDelete = authState.canDeletePrescription;
+    final canPrint  = authState.canPrintPrescription;
 
     return Scaffold(
       appBar: AppBar(
         title: const Text('Prescription Details'),
         actions: [
+          // ── Refresh: always visible ────────────────────
           IconButton(
             onPressed: () => ref
                 .read(prescriptionProvider.notifier)
-                .loadById(widget.prescriptionId, forceRefresh: true),
+                .loadById(widget.prescriptionId,
+                    forceRefresh: true),
             icon: const Icon(Icons.refresh),
+            tooltip: 'Refresh',
           ),
+
+          // ✅ Print: only for dentist/admin
+          if (canPrint)
+            IconButton(
+              onPressed: () {
+                // TODO: implement print
+                ScaffoldMessenger.of(context).showSnackBar(
+                  const SnackBar(
+                      content: Text('🖨️ Print coming soon')),
+                );
+              },
+              icon: const Icon(Icons.print_outlined),
+              tooltip: 'Print Prescription',
+            ),
+
+          // ✅ Delete: only if user has permission
+          if (canDelete)
+            IconButton(
+              onPressed: _confirmAndDelete,
+              icon: const Icon(Icons.delete_outline,
+                  color: Colors.red),
+              tooltip: 'Delete Prescription',
+            ),
         ],
       ),
       body: _buildBody(context, state),
@@ -51,12 +175,12 @@ class _PrescriptionDetailPageState
   }
 
   Widget _buildBody(BuildContext context, PrescriptionState state) {
-    // ── Loading ──────────────────────────────────────────
+    // ── Loading ────────────────────────────────────────────
     if (state.isDetailLoading) {
       return const Center(child: CircularProgressIndicator());
     }
 
-    // ── Error ────────────────────────────────────────────
+    // ── Error ──────────────────────────────────────────────
     if (state.hasDetailError) {
       return Center(
         child: Padding(
@@ -64,17 +188,20 @@ class _PrescriptionDetailPageState
           child: Column(
             mainAxisAlignment: MainAxisAlignment.center,
             children: [
-              const Icon(Icons.error_outline, size: 48, color: Colors.red),
+              const Icon(Icons.error_outline,
+                  size: 48, color: Colors.red),
               const SizedBox(height: 12),
               Text(
-                state.detailError ?? 'Failed to load prescription',
+                state.detailError ??
+                    'Failed to load prescription',
                 textAlign: TextAlign.center,
               ),
               const SizedBox(height: 16),
               ElevatedButton.icon(
                 onPressed: () => ref
                     .read(prescriptionProvider.notifier)
-                    .loadById(widget.prescriptionId, forceRefresh: true),
+                    .loadById(widget.prescriptionId,
+                        forceRefresh: true),
                 icon: const Icon(Icons.refresh),
                 label: const Text('Retry'),
               ),
@@ -84,13 +211,11 @@ class _PrescriptionDetailPageState
       );
     }
 
-    // ── Empty ────────────────────────────────────────────
+    // ── Empty ──────────────────────────────────────────────
     final prescription = state.selected;
-    if (prescription == null) {
-      return const SizedBox.shrink();
-    }
+    if (prescription == null) return const SizedBox.shrink();
 
-    // ── Content ──────────────────────────────────────────
+    // ── Content ────────────────────────────────────────────
     return SingleChildScrollView(
       padding: const EdgeInsets.all(16),
       child: Column(
@@ -101,9 +226,10 @@ class _PrescriptionDetailPageState
 
           Text(
             'Medicines',
-            style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                  fontWeight: FontWeight.w700,
-                ),
+            style:
+                Theme.of(context).textTheme.titleMedium?.copyWith(
+                      fontWeight: FontWeight.w700,
+                    ),
           ),
           const SizedBox(height: 12),
 
@@ -121,9 +247,10 @@ class _PrescriptionDetailPageState
             const SizedBox(height: 20),
             Text(
               "Doctor's Notes",
-              style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                    fontWeight: FontWeight.w700,
-                  ),
+              style: Theme.of(context)
+                  .textTheme
+                  .titleMedium
+                  ?.copyWith(fontWeight: FontWeight.w700),
             ),
             const SizedBox(height: 10),
             Container(
@@ -138,9 +265,10 @@ class _PrescriptionDetailPageState
               ),
               child: Text(
                 prescription.notes!,
-                style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                      fontStyle: FontStyle.italic,
-                    ),
+                style: Theme.of(context)
+                    .textTheme
+                    .bodyMedium
+                    ?.copyWith(fontStyle: FontStyle.italic),
               ),
             ),
           ],
@@ -152,10 +280,9 @@ class _PrescriptionDetailPageState
   }
 }
 
-// ─────────────────────────────────────────────────────────────
+// ── Header Card & Info Row remain the same as before ──────────
 class _HeaderCard extends StatelessWidget {
   final PrescriptionModel prescription;
-
   const _HeaderCard({required this.prescription});
 
   @override
@@ -180,10 +307,8 @@ class _HeaderCard extends StatelessWidget {
                   radius: 24,
                   backgroundColor:
                       colorScheme.primary.withValues(alpha: 0.12),
-                  child: Icon(
-                    Icons.medication_rounded,
-                    color: colorScheme.primary,
-                  ),
+                  child: Icon(Icons.medication_rounded,
+                      color: colorScheme.primary),
                 ),
                 const SizedBox(width: 12),
                 Expanded(
@@ -192,16 +317,14 @@ class _HeaderCard extends StatelessWidget {
                     children: [
                       Text(
                         'Prescription #${prescription.id}',
-                        style: theme.textTheme.titleMedium?.copyWith(
-                          fontWeight: FontWeight.w700,
-                        ),
+                        style: theme.textTheme.titleMedium
+                            ?.copyWith(fontWeight: FontWeight.w700),
                       ),
                       const SizedBox(height: 4),
                       Text(
                         prescription.formattedDate,
                         style: theme.textTheme.bodySmall?.copyWith(
-                          color: Colors.grey.shade600,
-                        ),
+                            color: Colors.grey.shade600),
                       ),
                     ],
                   ),
@@ -211,14 +334,12 @@ class _HeaderCard extends StatelessWidget {
             const SizedBox(height: 16),
             const Divider(),
             const SizedBox(height: 10),
-
             if (prescription.doctor != null)
               _InfoRow(
                 label: 'Doctor',
                 value: 'Dr. ${prescription.doctor!.displayName}',
-                subValue: prescription.doctor!.specialization,
+                subValue: prescription.doctor!.specialty,
               ),
-
             if (prescription.patient != null) ...[
               const SizedBox(height: 10),
               _InfoRow(
@@ -227,7 +348,6 @@ class _HeaderCard extends StatelessWidget {
                 subValue: prescription.patient!.email,
               ),
             ],
-
             if (prescription.appointmentId != null) ...[
               const SizedBox(height: 10),
               _InfoRow(
@@ -242,7 +362,6 @@ class _HeaderCard extends StatelessWidget {
   }
 }
 
-// ─────────────────────────────────────────────────────────────
 class _InfoRow extends StatelessWidget {
   final String label;
   final String value;
@@ -257,7 +376,6 @@ class _InfoRow extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
-
     return Row(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
@@ -265,9 +383,8 @@ class _InfoRow extends StatelessWidget {
           width: 90,
           child: Text(
             label,
-            style: theme.textTheme.bodySmall?.copyWith(
-              color: Colors.grey.shade600,
-            ),
+            style: theme.textTheme.bodySmall
+                ?.copyWith(color: Colors.grey.shade600),
           ),
         ),
         Expanded(
@@ -276,18 +393,16 @@ class _InfoRow extends StatelessWidget {
             children: [
               Text(
                 value,
-                style: theme.textTheme.bodyMedium?.copyWith(
-                  fontWeight: FontWeight.w600,
-                ),
+                style: theme.textTheme.bodyMedium
+                    ?.copyWith(fontWeight: FontWeight.w600),
               ),
               if (subValue != null && subValue!.trim().isNotEmpty)
                 Padding(
                   padding: const EdgeInsets.only(top: 2),
                   child: Text(
                     subValue!,
-                    style: theme.textTheme.bodySmall?.copyWith(
-                      color: Colors.grey.shade600,
-                    ),
+                    style: theme.textTheme.bodySmall
+                        ?.copyWith(color: Colors.grey.shade600),
                   ),
                 ),
             ],

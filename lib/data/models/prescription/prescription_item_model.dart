@@ -1,3 +1,5 @@
+// lib/data/models/prescription/prescription_item_model.dart
+
 class PrescriptionItemModel {
   final int id;
   final int prescriptionId;
@@ -23,13 +25,13 @@ class PrescriptionItemModel {
 
   factory PrescriptionItemModel.fromJson(Map<String, dynamic> json) {
     return PrescriptionItemModel(
-      id: json['id'] as int,
-      prescriptionId: json['prescription_id'] as int,
-      medicineName: json['medicine_name'] as String,
-      dosage: json['dosage'] as String,
-      frequency: json['frequency'] as String,
-      durationDays: json['duration_days'] as int,
-      instructions: json['instructions'] as String?,
+      id: (json['id'] as num?)?.toInt() ?? 0,
+      prescriptionId: (json['prescription_id'] as num?)?.toInt() ?? 0,
+      medicineName: json['medicine_name']?.toString() ?? '',
+      dosage: json['dosage']?.toString() ?? '',
+      frequency: json['frequency']?.toString() ?? '',
+      durationDays: (json['duration_days'] as num?)?.toInt() ?? 0,
+      instructions: json['instructions']?.toString(),
       createdAt: json['created_at'] != null
           ? DateTime.tryParse(json['created_at'].toString())
           : null,

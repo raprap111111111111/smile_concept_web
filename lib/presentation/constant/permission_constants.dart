@@ -64,9 +64,17 @@ class Perm {
   static const String treatmentPlanAccept = 'treatment-plan.accept';
   static const String treatmentPlanReject = 'treatment-plan.reject';
 
-  // ── Prescriptions ─────────────────────────────────────────────────────
+
+  // ── Prescriptions ─────────────────────────────────
   static const String prescriptionViewAny = 'prescription.viewAny';
-  static const String prescriptionView = 'prescription.view';
+  static const String prescriptionView    = 'prescription.view';
+  static const String prescriptionCreate  = 'prescription.create';
+  static const String prescriptionUpdate  = 'prescription.update';
+  static const String prescriptionDelete  = 'prescription.delete';
+  static const String prescriptionPrint   = 'prescription.print';
+  static const String prescriptionSend    = 'prescription.send';
+
+
 
   // ── Invoices ──────────────────────────────────────────────────────────
   static const String invoiceViewAny = 'invoice.viewAny';
