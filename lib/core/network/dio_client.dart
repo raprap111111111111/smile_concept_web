@@ -1,15 +1,17 @@
 // lib/core/network/dio_client.dart
 import 'package:dio/dio.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import '../config/api_config.dart';
 import '../services/secure_storage_service.dart';
 import 'interceptors/auth_interceptor.dart';
+import 'interceptors/error_interceptor.dart';
 import 'interceptors/logging_interceptor.dart';
 
 final dioProvider = Provider<Dio>((ref) {
   final storage = ref.watch(secureStorageProvider);
 
   final dio = Dio(BaseOptions(
-    baseUrl: 'http://localhost/api/v1', // ← YOUR URL
+    baseUrl: ApiConfig.baseUrlDevelopment,
     connectTimeout: const Duration(seconds: 15),
     receiveTimeout: const Duration(seconds: 15),
     headers: {
@@ -20,6 +22,7 @@ final dioProvider = Provider<Dio>((ref) {
 
   // ONE auth interceptor only
   dio.interceptors.add(AuthInterceptor(storage, dio));
+  dio.interceptors.add(ErrorInterceptor());
   dio.interceptors.add(LoggingInterceptor());
 
   return dio;

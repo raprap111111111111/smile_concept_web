@@ -2,7 +2,10 @@ class ApiConfig {
   // API Base URLs - MATCH YOUR POSTMAN CONFIG
   static const String baseUrlProduction = 'https://api.dpms.com/api';
   static const String baseUrlStaging = 'https://staging-api.dpms.com/api';
-  static const String baseUrlDevelopment = 'http://localhost/api/v1';
+  static const String baseUrlDevelopment = String.fromEnvironment(
+    'API_BASE_URL',
+    defaultValue: 'http://localhost:8000/api/v1',
+  );
 
   // Endpoints (these are appended to base URL)
   static const String authLogin = '/auth/login';

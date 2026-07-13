@@ -16,16 +16,22 @@ class ErrorInterceptor extends Interceptor {
         );
         break;
       case DioExceptionType.badResponse:
+        final responseData = err.response?.data;
         exception = ApiException(
-          message: err.response?.data?['message'] ?? 'Server error',
-          code: err.response?.data?['code'] ?? 'SERVER_ERROR',
+          message: responseData is Map<String, dynamic>
+              ? responseData['message']?.toString() ?? 'Server error'
+              : 'Server error',
+          code: responseData is Map<String, dynamic>
+              ? responseData['code']?.toString() ?? 'SERVER_ERROR'
+              : 'SERVER_ERROR',
           statusCode: err.response?.statusCode,
         );
         break;
       case DioExceptionType.connectionError:
         exception = const ApiException(
-          message: 'No internet connection',
-          code: 'NO_INTERNET',
+          message:
+              'Cannot reach the API. Check the Laravel URL, port, and CORS settings.',
+          code: 'API_CONNECTION_ERROR',
         );
         break;
       default:
