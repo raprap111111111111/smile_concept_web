@@ -35,7 +35,7 @@ class PrescriptionCard extends StatelessWidget {
                 children: [
                   CircleAvatar(
                     radius: 22,
-                    backgroundColor: colorScheme.primary.withOpacity(0.12),
+                    backgroundColor: colorScheme.primary.withValues(alpha:0.12),
                     child: Icon(
                       Icons.medication_rounded,
                       color: colorScheme.primary,
@@ -70,7 +70,7 @@ class PrescriptionCard extends StatelessWidget {
                       ),
                       decoration: BoxDecoration(
                         borderRadius: BorderRadius.circular(20),
-                        color: colorScheme.primary.withOpacity(0.10),
+                        color: colorScheme.primary.withValues(alpha:0.10),
                       ),
                       child: Text(
                         '${prescription.items.length} med${prescription.items.length > 1 ? 's' : ''}',

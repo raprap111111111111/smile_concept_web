@@ -21,7 +21,7 @@ class PrescriptionEmptyState extends StatelessWidget {
           children: [
             CircleAvatar(
               radius: 46,
-              backgroundColor: colorScheme.primary.withOpacity(0.12),
+              backgroundColor: colorScheme.primary.withValues(alpha:0.12),
               child: Icon(
                 Icons.medication_outlined,
                 size: 42,

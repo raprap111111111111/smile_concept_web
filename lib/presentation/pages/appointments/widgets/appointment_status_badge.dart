@@ -111,7 +111,7 @@ class AppointmentStatusBadge extends StatelessWidget {
         borderRadius: BorderRadius.circular(10),
         border: isClickable
             ? Border.all(
-                color: _textColor.withOpacity(0.4),
+                color: _textColor.withValues(alpha:0.4),
                 width: 1,
               )
             : null,
@@ -169,13 +169,13 @@ class AppointmentStatusBadge extends StatelessWidget {
   Color get _bgColor {
     switch (status) {
       case AppointmentStatus.pending:
-        return Colors.orange.withOpacity(0.15);
+        return Colors.orange.withValues(alpha:0.15);
       case AppointmentStatus.confirmed:
-        return Colors.blue.withOpacity(0.15);
+        return Colors.blue.withValues(alpha:0.15);
       case AppointmentStatus.completed:
-        return Colors.green.withOpacity(0.15);
+        return Colors.green.withValues(alpha:0.15);
       case AppointmentStatus.cancelled:
-        return Colors.red.withOpacity(0.15);
+        return Colors.red.withValues(alpha:0.15);
     }
   }
 

@@ -150,7 +150,6 @@ class _PrescriptionDetailPageState
           if (canPrint)
             IconButton(
               onPressed: () {
-                // TODO: implement print
                 ScaffoldMessenger.of(context).showSnackBar(
                   const SnackBar(
                       content: Text('🖨️ Print coming soon')),

@@ -182,7 +182,7 @@ class _PrescriptionFormPageState
             children: [
               // ── Role badge (for context) ─────────────────
               if (authState.role != null)
-                _RoleBadge(role: authState.role!),
+                _RoleBadge(role: authState.role),
 
               const SizedBox(height: 16),
 
@@ -204,7 +204,7 @@ class _PrescriptionFormPageState
                     );
                   }
                   return DropdownButtonFormField<int>(
-                    value: _selectedDoctorId,
+                    initialValue: _selectedDoctorId,
                     isExpanded: true,
                     decoration: const InputDecoration(
                       labelText: 'Doctor *',
@@ -249,7 +249,7 @@ class _PrescriptionFormPageState
                 const _EmptyField(label: 'No patients available')
               else
                 DropdownButtonFormField<int>(
-                  value: _selectedPatientId,
+                  initialValue: _selectedPatientId,
                   isExpanded: true,
                   decoration: const InputDecoration(
                     labelText: 'Patient *',

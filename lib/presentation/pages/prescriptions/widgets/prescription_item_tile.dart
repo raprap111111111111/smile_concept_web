@@ -31,7 +31,7 @@ class PrescriptionItemTile extends StatelessWidget {
             children: [
               CircleAvatar(
                 radius: 14,
-                backgroundColor: colorScheme.primary.withOpacity(0.12),
+                backgroundColor: colorScheme.primary.withValues(alpha:0.12),
                 child: Text(
                   '$index',
                   style: TextStyle(
@@ -64,7 +64,7 @@ class PrescriptionItemTile extends StatelessWidget {
               width: double.infinity,
               padding: const EdgeInsets.all(10),
               decoration: BoxDecoration(
-                color: colorScheme.primary.withOpacity(0.08),
+                color: colorScheme.primary.withValues(alpha:0.08),
                 borderRadius: BorderRadius.circular(10),
               ),
               child: Text(

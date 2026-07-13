@@ -124,7 +124,7 @@ class AppointmentCalendarCard extends StatelessWidget {
                                     vertical: 2,
                                   ),
                                   decoration: BoxDecoration(
-                                    color: Colors.blue.withOpacity(0.15),
+                                    color: Colors.blue.withValues(alpha:0.15),
                                     borderRadius: BorderRadius.circular(4),
                                   ),
                                   child: const Text(
@@ -198,7 +198,7 @@ class AppointmentCalendarCard extends StatelessWidget {
                       Container(
                         padding: const EdgeInsets.all(6),
                         decoration: BoxDecoration(
-                          color: Colors.red.withOpacity(0.08),
+                          color: Colors.red.withValues(alpha:0.08),
                           borderRadius: BorderRadius.circular(4),
                         ),
                         child: Row(

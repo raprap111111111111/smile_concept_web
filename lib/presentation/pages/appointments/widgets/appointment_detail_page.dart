@@ -186,7 +186,7 @@ class AppointmentDetailPage extends StatelessWidget {
                   else
                     FilledButton.icon(
                       onPressed: () {
-                        // TODO: Navigate to Create Invoice page
+
                       },
                       icon: const Icon(Icons.add),
                       label: const Text('Create Invoice'),
