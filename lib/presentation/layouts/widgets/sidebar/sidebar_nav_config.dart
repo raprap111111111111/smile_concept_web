@@ -1,10 +1,10 @@
 // lib/presentation/layouts/widgets/sidebar/sidebar_nav_config.dart
+
 import 'package:flutter/material.dart';
 import '../../../constant/permission_constants.dart';
 import '../../../providers/auth/permission_provider.dart';
 import '../../../route/route_names.dart';
 
-/// A single navigation item in the sidebar
 class NavItem {
   final IconData icon;
   final String title;
@@ -19,7 +19,6 @@ class NavItem {
   });
 }
 
-/// A group of navigation items (with a section header)
 class NavSection {
   final String title;
   final List<NavItem> items;
@@ -27,19 +26,14 @@ class NavSection {
   const NavSection({required this.title, required this.items});
 }
 
-// ─────────────────────────────────────────────────────────────────────────────
-// Navigation Configuration
-// Modify menu items HERE — no need to touch layout code
-// ─────────────────────────────────────────────────────────────────────────────
 class SidebarNavConfig {
-  SidebarNavConfig._(); // prevent instantiation
+  SidebarNavConfig._();
 
-  /// Build all sections based on user's role
   static List<NavSection> buildFor(PermissionService perm) {
     final isPatient = perm.role == 'patient';
 
     return [
-      // ═══ MAIN ═══════════════════════════════════════════════════════════
+      // ═══ MAIN ═══════════════════════════════════════════════
       NavSection(
         title: 'MAIN',
         items: [
@@ -61,17 +55,17 @@ class SidebarNavConfig {
         ],
       ),
 
-      // ═══ MY HEALTH (patient only) ═══════════════════════════════════════
-      const NavSection(
+      // ═══ MY HEALTH (patient only) ════════════════════════════
+      NavSection(
         title: 'MY HEALTH',
         items: [
-          NavItem(
+          const NavItem(
             icon: Icons.medication_outlined,
             title: 'My Prescriptions',
             routeName: RouteNames.prescriptions,
             permissions: [Perm.prescriptionView],
           ),
-          NavItem(
+          const NavItem(
             icon: Icons.assignment_outlined,
             title: 'My Treatment Plans',
             routeName: RouteNames.treatmentPlans,
@@ -80,9 +74,9 @@ class SidebarNavConfig {
         ],
       ),
 
-      // ═══ CLINIC ═════════════════════════════════════════════════════════
+      // ═══ CLINICAL ════════════════════════════════════════════
       NavSection(
-        title: 'CLINIC',
+        title: 'CLINICAL',
         items: [
           const NavItem(
             icon: Icons.people_outline,
@@ -102,12 +96,37 @@ class SidebarNavConfig {
             routeName: RouteNames.doctorSchedules,
             permissions: [Perm.doctorScheduleViewAny],
           ),
+
           const NavItem(
             icon: Icons.healing_outlined,
-            title: 'Services',
-            routeName: RouteNames.services,
-            permissions: [Perm.serviceViewAny, Perm.serviceView],
+            title: 'Treatments',
+            routeName: RouteNames.treatments,
+            permissions: [
+              Perm.treatmentViewAny,
+              Perm.treatmentView,
+            ],
           ),
+
+          const NavItem(
+            icon: Icons.assignment_turned_in_outlined,
+            title: 'Treatment Plans',
+            routeName: RouteNames.treatmentPlans,
+            permissions: [
+              Perm.treatmentPlanViewAny,
+              Perm.treatmentPlanView,
+            ],
+          ),
+
+          const NavItem(
+            icon: Icons.medication_liquid_outlined,
+            title: 'Prescriptions',
+            routeName: RouteNames.prescriptions,
+            permissions: [
+              Perm.prescriptionViewAny,
+              Perm.prescriptionView,
+            ],
+          ),
+
           NavItem(
             icon: Icons.folder_shared_outlined,
             title: isPatient ? 'My Records' : 'Clinical Records',
@@ -121,7 +140,7 @@ class SidebarNavConfig {
         ],
       ),
 
-      // ═══ BILLING ════════════════════════════════════════════════════════
+      // ═══ BILLING ═════════════════════════════════════════════
       NavSection(
         title: 'BILLING',
         items: [
@@ -129,18 +148,24 @@ class SidebarNavConfig {
             icon: Icons.receipt_long_outlined,
             title: isPatient ? 'My Invoices' : 'Invoices',
             routeName: RouteNames.invoices,
-            permissions: const [Perm.invoiceViewAny, Perm.invoiceView],
+            permissions: const [
+              Perm.invoiceViewAny,
+              Perm.invoiceView,
+            ],
           ),
           NavItem(
             icon: Icons.payments_outlined,
             title: isPatient ? 'My Payments' : 'Payments',
             routeName: RouteNames.payments,
-            permissions: const [Perm.paymentViewAny, Perm.paymentView],
+            permissions: const [
+              Perm.paymentViewAny,
+              Perm.paymentView,
+            ],
           ),
         ],
       ),
 
-      // ═══ OPERATIONS (staff) ═════════════════════════════════════════════
+      // ═══ OPERATIONS ══════════════════════════════════════════
       const NavSection(
         title: 'OPERATIONS',
         items: [
@@ -165,7 +190,7 @@ class SidebarNavConfig {
         ],
       ),
 
-      // ═══ SYSTEM (admin) ═════════════════════════════════════════════════
+      // ═══ SYSTEM ══════════════════════════════════════════════
       const NavSection(
         title: 'SYSTEM',
         items: [
