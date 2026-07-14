@@ -1,197 +1,271 @@
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
-import '../../theme/app_colors.dart';
-import '../../theme/app_text_styles.dart';
-import '../../theme/app_dimensions.dart';
+
 import '../../route/route_names.dart';
 
 class LandingPage extends StatelessWidget {
   const LandingPage({super.key});
 
+  static const _ink = Color(0xFF12313A);
+  static const _muted = Color(0xFF5F7480);
+  static const _line = Color(0xFFDDE9ED);
+  static const _surface = Color(0xFFF7FBFC);
+  static const _primary = Color(0xFF0E8FA3);
+  static const _primaryDark = Color(0xFF096577);
+  static const _accent = Color(0xFF8BCBC1);
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: AppColors.backgroundDark,
+      backgroundColor: Colors.white,
       body: SingleChildScrollView(
         child: Column(
           children: [
-            _buildNavigationBar(context),
-            _buildHeroSection(context),
-            _buildServicesBanner(context),
-            _buildFeaturesSection(context),
-            _buildCTASection(context),
-            _buildFooter(context),
+            _Navigation(onBook: () => _book(context)),
+            _HeroSection(onBook: () => _book(context)),
+            const _TrustStrip(),
+            const _ServicesSection(),
+            const _CareSection(),
+            _AppointmentSection(onBook: () => _book(context)),
+            const _Footer(),
           ],
         ),
       ),
     );
   }
 
-  Widget _buildNavigationBar(BuildContext context) {
-    return Container(
-      padding: EdgeInsets.symmetric(
-        horizontal: AppDimensions.screenPaddingHorizontal * 2,
-        vertical: 20,
-      ),
-      decoration: BoxDecoration(
-        color: AppColors.secondaryDark,
-        border: Border(
-          bottom: BorderSide(
-              color: AppColors.primary.withValues(alpha: 0.3), width: 1),
-        ),
-      ),
-      child: Row(
-        mainAxisAlignment: MainAxisAlignment.spaceBetween,
-        children: [
-          Expanded(
-            child: Row(
-              children: [
-                _buildNavButton(context, 'Home'),
-                _buildNavButton(context, 'Services'),
-                _buildNavButton(context, 'About'),
-              ],
-            ),
-          ),
-
-          // SmileConcept Logo
-          Padding(
-            padding:
-                EdgeInsets.symmetric(horizontal: AppDimensions.paddingXLarge),
-            child: Row(
-              children: [
-                Image.asset(
-                  'assets/images/smile.jpg',
-                  height: 48,
-                  fit: BoxFit.contain,
-                ),
-                const SizedBox(width: 12),
-                Text(
-                  'SmileConcept',
-                  style: AppTextStyles.titleMedium.copyWith(
-                    color: AppColors.primary,
-                    fontWeight: FontWeight.bold,
-                    letterSpacing: 1,
-                  ),
-                ),
-              ],
-            ),
-          ),
-
-          Expanded(
-            child: Row(
-              mainAxisAlignment: MainAxisAlignment.end,
-              children: [
-                _buildNavButton(context, 'Login', isPrimary: true),
-                SizedBox(width: AppDimensions.paddingMedium),
-                _buildNavButton(context, 'Register', isPrimary: true),
-              ],
-            ),
-          ),
-        ],
-      ),
-    );
+  void _book(BuildContext context) {
+    context.pushNamed(RouteNames.register);
   }
+}
 
-  Widget _buildNavButton(BuildContext context, String text,
-      {bool isPrimary = false}) {
-    return TextButton(
-      onPressed: () {
-        if (text == 'Login') context.pushNamed(RouteNames.login);
-        if (text == 'Register') context.pushNamed(RouteNames.register);
-      },
-      style: TextButton.styleFrom(
-        padding: EdgeInsets.symmetric(
-          horizontal: AppDimensions.paddingMedium,
-          vertical: AppDimensions.paddingSmall,
-        ),
-      ),
-      child: Text(
-        text.toUpperCase(),
-        style: AppTextStyles.labelMedium.copyWith(
-          color: isPrimary ? AppColors.primary : AppColors.textSecondary,
-          fontWeight: isPrimary ? FontWeight.w600 : FontWeight.w400,
-          letterSpacing: 1.5,
-        ),
-      ),
-    );
-  }
+class _Navigation extends StatelessWidget {
+  const _Navigation({required this.onBook});
 
-  Widget _buildHeroSection(BuildContext context) {
+  final VoidCallback onBook;
+
+  @override
+  Widget build(BuildContext context) {
     return Container(
-      height: 650,
-      width: double.infinity,
-      decoration: BoxDecoration(
-        image: const DecorationImage(
-          image: NetworkImage(
-              'https://images.unsplash.com/photo-1606811841689-23dfddce3e95?w=2000'),
-          fit: BoxFit.cover,
-        ),
+      decoration: const BoxDecoration(
+        color: Colors.white,
+        border: Border(bottom: BorderSide(color: LandingPage._line)),
       ),
-      child: Container(
-        decoration: BoxDecoration(
-          gradient: LinearGradient(
-            begin: Alignment.centerLeft,
-            end: Alignment.centerRight,
-            colors: [
-              AppColors.secondaryDark.withValues(alpha: 0.95),
-              AppColors.secondaryDark.withValues(alpha: 0.7),
-            ],
-          ),
-        ),
-        child: Row(
-          children: [
-            const Expanded(flex: 1, child: SizedBox()),
-            Expanded(
-              flex: 1,
-              child: Padding(
-                padding: EdgeInsets.all(AppDimensions.paddingXLarge * 2),
-                child: Column(
-                  mainAxisAlignment: MainAxisAlignment.center,
-                  crossAxisAlignment: CrossAxisAlignment.start,
+      child: Center(
+        child: ConstrainedBox(
+          constraints: const BoxConstraints(maxWidth: 1180),
+          child: Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 16),
+            child: LayoutBuilder(
+              builder: (context, constraints) {
+                final isCompact = constraints.maxWidth < 760;
+
+                return Wrap(
+                  spacing: 18,
+                  runSpacing: 16,
+                  alignment: WrapAlignment.spaceBetween,
+                  crossAxisAlignment: WrapCrossAlignment.center,
                   children: [
-                    Text(
-                      'ELEVATE Your Life',
-                      style: AppTextStyles.headlineLarge.copyWith(
-                        color: AppColors.primary,
-                        fontWeight: FontWeight.w300,
-                        letterSpacing: 4,
-                      ),
+                    Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        ClipRRect(
+                          borderRadius: BorderRadius.circular(8),
+                          child: Image.asset(
+                            'assets/images/smile.jpg',
+                            height: 44,
+                            width: 44,
+                            fit: BoxFit.cover,
+                          ),
+                        ),
+                        const SizedBox(width: 12),
+                        const Text(
+                          'SmileConcept',
+                          style: TextStyle(
+                            color: LandingPage._ink,
+                            fontSize: 20,
+                            fontWeight: FontWeight.w800,
+                          ),
+                        ),
+                      ],
                     ),
-                    const SizedBox(height: 8),
-                    Text(
-                      'With A Signature Smile!',
-                      style: AppTextStyles.headlineLarge.copyWith(
-                        color: AppColors.primary,
-                        fontWeight: FontWeight.bold,
-                        letterSpacing: 2,
-                      ),
-                    ),
-                    const SizedBox(height: 24),
-                    Text(
-                      'An artistry of care. Experience the SmileConcept difference.',
-                      style: AppTextStyles.bodyLarge.copyWith(
-                        color: AppColors.textSecondary,
-                        height: 1.6,
-                      ),
-                    ),
-                    const SizedBox(height: 48),
-                    ElevatedButton(
-                      onPressed: () => context.pushNamed(RouteNames.login),
-                      style: ElevatedButton.styleFrom(
-                        backgroundColor: AppColors.primary,
-                        foregroundColor: AppColors.secondaryDark,
-                        padding: const EdgeInsets.symmetric(
-                            horizontal: 48, vertical: 20),
-                        shape: RoundedRectangleBorder(
-                            borderRadius: BorderRadius.circular(50)),
-                      ),
-                      child: const Row(
+                    if (!isCompact)
+                      const Row(
                         mainAxisSize: MainAxisSize.min,
                         children: [
-                          Text('DISCOVER THE EXPERIENCE'),
-                          SizedBox(width: 12),
-                          Icon(Icons.arrow_forward),
+                          _NavLink(label: 'Services'),
+                          _NavLink(label: 'Doctors'),
+                          _NavLink(label: 'Care'),
+                          _NavLink(label: 'Contact'),
                         ],
+                      ),
+                    Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        TextButton(
+                          onPressed: () => context.pushNamed(RouteNames.login),
+                          child: const Text('Login'),
+                        ),
+                        const SizedBox(width: 8),
+                        _PrimaryButton(
+                            label: 'Book an appointment', onTap: onBook),
+                      ],
+                    ),
+                  ],
+                );
+              },
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+class _HeroSection extends StatelessWidget {
+  const _HeroSection({required this.onBook});
+
+  final VoidCallback onBook;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      color: LandingPage._surface,
+      child: Center(
+        child: ConstrainedBox(
+          constraints: const BoxConstraints(maxWidth: 1180),
+          child: Padding(
+            padding: const EdgeInsets.fromLTRB(24, 56, 24, 40),
+            child: LayoutBuilder(
+              builder: (context, constraints) {
+                final isCompact = constraints.maxWidth < 860;
+                final content = _HeroCopy(onBook: onBook);
+                final image = const _HeroImage();
+
+                if (isCompact) {
+                  return Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      content,
+                      const SizedBox(height: 32),
+                      image,
+                    ],
+                  );
+                }
+
+                return Row(
+                  children: [
+                    Expanded(child: content),
+                    const SizedBox(width: 52),
+                    Expanded(child: image),
+                  ],
+                );
+              },
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+class _HeroCopy extends StatelessWidget {
+  const _HeroCopy({required this.onBook});
+
+  final VoidCallback onBook;
+
+  @override
+  Widget build(BuildContext context) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        const _Pill(text: 'Modern family dental clinic'),
+        const SizedBox(height: 22),
+        const Text(
+          'Confident smiles start with calm, expert care.',
+          style: TextStyle(
+            color: LandingPage._ink,
+            fontSize: 56,
+            height: 1.05,
+            fontWeight: FontWeight.w800,
+          ),
+        ),
+        const SizedBox(height: 22),
+        const Text(
+          'SmileConcept combines preventive dentistry, cosmetic treatments, and simple online booking in one welcoming clinic experience.',
+          style: TextStyle(
+            color: LandingPage._muted,
+            fontSize: 18,
+            height: 1.65,
+          ),
+        ),
+        const SizedBox(height: 30),
+        Wrap(
+          spacing: 14,
+          runSpacing: 14,
+          crossAxisAlignment: WrapCrossAlignment.center,
+          children: [
+            _PrimaryButton(label: 'Book an appointment', onTap: onBook),
+            OutlinedButton.icon(
+              onPressed: () => context.pushNamed(RouteNames.login),
+              icon: const Icon(Icons.lock_outline, size: 18),
+              label: const Text('Patient login'),
+              style: OutlinedButton.styleFrom(
+                foregroundColor: LandingPage._primaryDark,
+                side: const BorderSide(color: LandingPage._line),
+                padding:
+                    const EdgeInsets.symmetric(horizontal: 20, vertical: 18),
+                shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(8)),
+              ),
+            ),
+          ],
+        ),
+      ],
+    );
+  }
+}
+
+class _HeroImage extends StatelessWidget {
+  const _HeroImage();
+
+  @override
+  Widget build(BuildContext context) {
+    return AspectRatio(
+      aspectRatio: 1.04,
+      child: ClipRRect(
+        borderRadius: BorderRadius.circular(8),
+        child: Stack(
+          fit: StackFit.expand,
+          children: [
+            Image.network(
+              'https://images.unsplash.com/photo-1606811971618-4486d14f3f99?w=1400',
+              fit: BoxFit.cover,
+            ),
+            Positioned(
+              left: 20,
+              right: 20,
+              bottom: 20,
+              child: Container(
+                padding: const EdgeInsets.all(18),
+                decoration: BoxDecoration(
+                  color: Colors.white.withValues(alpha: 0.94),
+                  borderRadius: BorderRadius.circular(8),
+                  border: Border.all(color: LandingPage._line),
+                ),
+                child: const Row(
+                  children: [
+                    _IconBadge(icon: Icons.verified_outlined),
+                    SizedBox(width: 14),
+                    Expanded(
+                      child: Text(
+                        'Gentle treatment planning for every age and smile goal.',
+                        style: TextStyle(
+                          color: LandingPage._ink,
+                          fontSize: 15,
+                          height: 1.35,
+                          fontWeight: FontWeight.w700,
+                        ),
                       ),
                     ),
                   ],
@@ -203,239 +277,573 @@ class LandingPage extends StatelessWidget {
       ),
     );
   }
+}
 
-  Widget _buildServicesBanner(BuildContext context) {
+class _TrustStrip extends StatelessWidget {
+  const _TrustStrip();
+
+  @override
+  Widget build(BuildContext context) {
     return Container(
-      padding: EdgeInsets.symmetric(
-        vertical: AppDimensions.paddingXLarge,
-        horizontal: AppDimensions.screenPaddingHorizontal,
-      ),
-      decoration: BoxDecoration(gradient: AppColors.goldGradient),
-      child: Wrap(
-        spacing: 16,
-        runSpacing: 16,
-        alignment: WrapAlignment.center,
-        children: [
-          _buildServiceRibbon('GENERAL WELLNESS', Icons.medical_services, true),
-          _buildServiceRibbon('ARTISTRY VENEERS', Icons.auto_awesome, false),
-          _buildServiceRibbon('PERFECTED ALIGNMENT', Icons.straighten, true),
-          _buildServiceRibbon('GUM HEALTH ART', Icons.water_drop, false),
-          _buildServiceRibbon('RESTORATIVE CROWNS', Icons.shield, true),
-        ],
+      color: Colors.white,
+      child: Center(
+        child: ConstrainedBox(
+          constraints: const BoxConstraints(maxWidth: 1180),
+          child: Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 26),
+            child: Wrap(
+              spacing: 16,
+              runSpacing: 16,
+              alignment: WrapAlignment.spaceBetween,
+              children: const [
+                _TrustItem(value: '24/7', label: 'online scheduling'),
+                _TrustItem(value: '15+', label: 'dental services'),
+                _TrustItem(value: 'Secure', label: 'patient records'),
+                _TrustItem(value: 'Clear', label: 'treatment estimates'),
+              ],
+            ),
+          ),
+        ),
       ),
     );
   }
+}
 
-  Widget _buildServiceRibbon(String title, IconData icon, bool isLight) {
+class _ServicesSection extends StatelessWidget {
+  const _ServicesSection();
+
+  @override
+  Widget build(BuildContext context) {
+    final services = [
+      const _ServiceCard(
+        icon: Icons.health_and_safety_outlined,
+        title: 'Preventive Care',
+        body:
+            'Routine checkups, cleanings, oral exams, and gum health support.',
+      ),
+      const _ServiceCard(
+        icon: Icons.auto_awesome_outlined,
+        title: 'Cosmetic Dentistry',
+        body:
+            'Whitening, veneers, and smile design with natural-looking results.',
+      ),
+      const _ServiceCard(
+        icon: Icons.straighten_outlined,
+        title: 'Alignment',
+        body:
+            'Modern orthodontic options for healthier bite and cleaner smiles.',
+      ),
+      const _ServiceCard(
+        icon: Icons.medical_services_outlined,
+        title: 'Restorative Dentistry',
+        body: 'Crowns, fillings, and treatment plans that restore comfort.',
+      ),
+    ];
+
+    return _Section(
+      title: 'Complete dental care, thoughtfully organized',
+      body:
+          'Clear services, gentle communication, and a clinic workflow designed around patient comfort.',
+      child: LayoutBuilder(
+        builder: (context, constraints) {
+          final columns = constraints.maxWidth < 720 ? 1 : 4;
+
+          return GridView.count(
+            crossAxisCount: columns,
+            shrinkWrap: true,
+            physics: const NeverScrollableScrollPhysics(),
+            crossAxisSpacing: 16,
+            mainAxisSpacing: 16,
+            childAspectRatio: columns == 1 ? 3.2 : 0.88,
+            children: services,
+          );
+        },
+      ),
+    );
+  }
+}
+
+class _CareSection extends StatelessWidget {
+  const _CareSection();
+
+  @override
+  Widget build(BuildContext context) {
     return Container(
-      width: 180,
-      height: 140,
-      decoration: BoxDecoration(
-        color: isLight ? AppColors.primary : AppColors.secondaryDark,
-        border: Border.all(
-            color: AppColors.primary.withValues(alpha: 0.5), width: 2),
-        borderRadius: BorderRadius.circular(12),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withValues(alpha: 0.3),
-            blurRadius: 10,
-            offset: const Offset(0, 4),
+      color: LandingPage._surface,
+      child: Center(
+        child: ConstrainedBox(
+          constraints: const BoxConstraints(maxWidth: 1180),
+          child: Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 72),
+            child: LayoutBuilder(
+              builder: (context, constraints) {
+                final isCompact = constraints.maxWidth < 820;
+
+                final content = Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: const [
+                    _Pill(text: 'Patient-first experience'),
+                    SizedBox(height: 18),
+                    Text(
+                      'A calmer visit from booking to follow-up.',
+                      style: TextStyle(
+                        color: LandingPage._ink,
+                        fontSize: 36,
+                        height: 1.15,
+                        fontWeight: FontWeight.w800,
+                      ),
+                    ),
+                    SizedBox(height: 18),
+                    Text(
+                      'The landing experience now reflects what patients expect from a professional dental clinic: clarity, trust, fast action, and reassurance before they book.',
+                      style: TextStyle(
+                        color: LandingPage._muted,
+                        fontSize: 16,
+                        height: 1.65,
+                      ),
+                    ),
+                  ],
+                );
+
+                final list = Column(
+                  children: const [
+                    _CarePoint(
+                      icon: Icons.event_available_outlined,
+                      title: 'Simple appointment flow',
+                      body:
+                          'A direct booking CTA appears in the header, hero, and final section.',
+                    ),
+                    _CarePoint(
+                      icon: Icons.description_outlined,
+                      title: 'Transparent treatment planning',
+                      body:
+                          'Patients can understand services before creating an account.',
+                    ),
+                    _CarePoint(
+                      icon: Icons.notifications_active_outlined,
+                      title: 'Helpful reminders',
+                      body:
+                          'A clean bridge into the patient portal and clinic management system.',
+                    ),
+                  ],
+                );
+
+                if (isCompact) {
+                  return Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      content,
+                      const SizedBox(height: 30),
+                      list,
+                    ],
+                  );
+                }
+
+                return Row(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Expanded(child: content),
+                    const SizedBox(width: 48),
+                    Expanded(child: list),
+                  ],
+                );
+              },
+            ),
           ),
-        ],
+        ),
+      ),
+    );
+  }
+}
+
+class _AppointmentSection extends StatelessWidget {
+  const _AppointmentSection({required this.onBook});
+
+  final VoidCallback onBook;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      color: LandingPage._primaryDark,
+      child: Center(
+        child: ConstrainedBox(
+          constraints: const BoxConstraints(maxWidth: 1180),
+          child: Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 58),
+            child: Wrap(
+              spacing: 24,
+              runSpacing: 24,
+              alignment: WrapAlignment.spaceBetween,
+              crossAxisAlignment: WrapCrossAlignment.center,
+              children: [
+                const SizedBox(
+                  width: 620,
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        'Ready for your next dental visit?',
+                        style: TextStyle(
+                          color: Colors.white,
+                          fontSize: 34,
+                          height: 1.15,
+                          fontWeight: FontWeight.w800,
+                        ),
+                      ),
+                      SizedBox(height: 12),
+                      Text(
+                        'Book an appointment and let the team prepare a smooth, personal visit.',
+                        style: TextStyle(
+                          color: Color(0xFFD7F1F3),
+                          fontSize: 16,
+                          height: 1.6,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+                ElevatedButton.icon(
+                  onPressed: onBook,
+                  icon: const Icon(Icons.calendar_month_outlined),
+                  label: const Text('Book an appointment'),
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: Colors.white,
+                    foregroundColor: LandingPage._primaryDark,
+                    padding: const EdgeInsets.symmetric(
+                        horizontal: 24, vertical: 20),
+                    textStyle: const TextStyle(
+                      fontWeight: FontWeight.w800,
+                      fontSize: 15,
+                    ),
+                    shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(8)),
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+class _Footer extends StatelessWidget {
+  const _Footer();
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      color: Colors.white,
+      child: Center(
+        child: ConstrainedBox(
+          constraints: const BoxConstraints(maxWidth: 1180),
+          child: Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 28),
+            child: Wrap(
+              spacing: 16,
+              runSpacing: 12,
+              alignment: WrapAlignment.spaceBetween,
+              crossAxisAlignment: WrapCrossAlignment.center,
+              children: const [
+                Text(
+                  'SmileConcept Dental',
+                  style: TextStyle(
+                    color: LandingPage._ink,
+                    fontWeight: FontWeight.w800,
+                  ),
+                ),
+                Text(
+                  'Modern care for healthier, brighter smiles.',
+                  style: TextStyle(color: LandingPage._muted),
+                ),
+              ],
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+class _Section extends StatelessWidget {
+  const _Section({
+    required this.title,
+    required this.body,
+    required this.child,
+  });
+
+  final String title;
+  final String body;
+  final Widget child;
+
+  @override
+  Widget build(BuildContext context) {
+    return Center(
+      child: ConstrainedBox(
+        constraints: const BoxConstraints(maxWidth: 1180),
+        child: Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 72),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              SizedBox(
+                width: 680,
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      title,
+                      style: const TextStyle(
+                        color: LandingPage._ink,
+                        fontSize: 38,
+                        height: 1.15,
+                        fontWeight: FontWeight.w800,
+                      ),
+                    ),
+                    const SizedBox(height: 14),
+                    Text(
+                      body,
+                      style: const TextStyle(
+                        color: LandingPage._muted,
+                        fontSize: 16,
+                        height: 1.6,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              const SizedBox(height: 34),
+              child,
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+class _ServiceCard extends StatelessWidget {
+  const _ServiceCard({
+    required this.icon,
+    required this.title,
+    required this.body,
+  });
+
+  final IconData icon;
+  final String title;
+  final String body;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.all(22),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(8),
+        border: Border.all(color: LandingPage._line),
       ),
       child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
         mainAxisAlignment: MainAxisAlignment.center,
         children: [
-          Icon(icon,
-              color: isLight ? AppColors.secondaryDark : AppColors.primary,
-              size: 42),
-          const SizedBox(height: 12),
+          _IconBadge(icon: icon),
+          const SizedBox(height: 18),
           Text(
             title,
-            textAlign: TextAlign.center,
-            style: AppTextStyles.labelLarge.copyWith(
-              color: isLight ? AppColors.secondaryDark : AppColors.primary,
-              fontWeight: FontWeight.bold,
-              letterSpacing: 1.2,
+            style: const TextStyle(
+              color: LandingPage._ink,
+              fontSize: 18,
+              fontWeight: FontWeight.w800,
+            ),
+          ),
+          const SizedBox(height: 10),
+          Text(
+            body,
+            style: const TextStyle(
+              color: LandingPage._muted,
+              height: 1.5,
             ),
           ),
         ],
       ),
     );
   }
+}
 
-  Widget _buildFeaturesSection(BuildContext context) {
+class _CarePoint extends StatelessWidget {
+  const _CarePoint({
+    required this.icon,
+    required this.title,
+    required this.body,
+  });
+
+  final IconData icon;
+  final String title;
+  final String body;
+
+  @override
+  Widget build(BuildContext context) {
     return Container(
-      padding: EdgeInsets.symmetric(
-        horizontal: AppDimensions.screenPaddingHorizontal * 2,
-        vertical: AppDimensions.paddingXLarge * 2,
+      margin: const EdgeInsets.only(bottom: 14),
+      padding: const EdgeInsets.all(20),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(8),
+        border: Border.all(color: LandingPage._line),
       ),
-      color: AppColors.secondaryDark,
-      child: Column(
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Text(
-            'THE SMILECONCEPT DISTINCTION',
-            style: AppTextStyles.titleLarge.copyWith(
-              color: AppColors.primary,
-              fontWeight: FontWeight.bold,
-              letterSpacing: 4,
-            ),
-          ),
-          const SizedBox(height: 8),
-          Container(width: 100, height: 2, color: AppColors.primary),
-          const SizedBox(height: AppDimensions.paddingXLarge * 2),
-          Row(
-            mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-            children: [
-              _buildFeatureItem(Icons.schedule, 'SEAMLESS BOOKING',
-                  'Schedule appointments online 24/7'),
-              _buildFeatureItem(Icons.lock, 'SECURE RECORDS',
-                  'Your medical data is protected'),
-              _buildFeatureItem(Icons.notifications_active, 'SMART REMINDERS',
-                  'Never miss an appointment'),
-              _buildFeatureItem(Icons.account_balance_wallet,
-                  'TRANSPARENT BILLING', 'Clear & easy payments'),
-            ],
-          ),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildFeatureItem(IconData icon, String title, String subtitle) {
-    return Column(
-      children: [
-        Container(
-          padding: const EdgeInsets.all(AppDimensions.paddingLarge),
-          decoration: BoxDecoration(
-            shape: BoxShape.circle,
-            border: Border.all(color: AppColors.primary, width: 2),
-            boxShadow: [
-              BoxShadow(
-                color: AppColors.primary.withValues(alpha: 0.3),
-                blurRadius: 15,
-                spreadRadius: 2,
-              ),
-            ],
-          ),
-          child: Icon(icon, color: AppColors.primary, size: 40),
-        ),
-        const SizedBox(height: AppDimensions.paddingLarge),
-        Text(
-          title,
-          style: AppTextStyles.titleSmall.copyWith(
-            color: AppColors.textPrimary,
-            fontWeight: FontWeight.bold,
-            letterSpacing: 1.5,
-          ),
-        ),
-        const SizedBox(height: AppDimensions.paddingSmall),
-        SizedBox(
-          width: 200,
-          child: Text(
-            subtitle,
-            textAlign: TextAlign.center,
-            style: AppTextStyles.bodySmall.copyWith(
-              color: AppColors.textSecondary,
-              height: 1.6,
-            ),
-          ),
-        ),
-      ],
-    );
-  }
-
-  Widget _buildCTASection(BuildContext context) {
-    return Container(
-      padding: EdgeInsets.symmetric(
-        horizontal: AppDimensions.screenPaddingHorizontal * 2,
-        vertical: AppDimensions.paddingXLarge * 2,
-      ),
-      decoration: BoxDecoration(gradient: AppColors.goldGradient),
-      child: Column(
-        children: [
-          Text(
-            'READY TO TRANSFORM YOUR SMILE?',
-            style: AppTextStyles.headlineMedium.copyWith(
-              color: AppColors.secondaryDark,
-              fontWeight: FontWeight.bold,
-              letterSpacing: 2,
-            ),
-          ),
-          const SizedBox(height: AppDimensions.paddingMedium),
-          Text(
-            'Book your appointment today and experience the SmileConcept difference',
-            textAlign: TextAlign.center,
-            style: AppTextStyles.bodyLarge.copyWith(
-              color: AppColors.secondaryDark,
-              height: 1.6,
-            ),
-          ),
-          const SizedBox(height: AppDimensions.paddingXLarge),
-          Container(
-            decoration: BoxDecoration(
-              border: Border.all(color: AppColors.secondaryDark, width: 2),
-              borderRadius: BorderRadius.circular(50),
-            ),
-            child: ElevatedButton(
-              onPressed: () => context.pushNamed(RouteNames.register),
-              style: ElevatedButton.styleFrom(
-                backgroundColor: AppColors.secondaryDark,
-                foregroundColor: AppColors.primary,
-                padding: EdgeInsets.symmetric(
-                  horizontal: AppDimensions.paddingXLarge * 2,
-                  vertical: AppDimensions.paddingMedium,
+          _IconBadge(icon: icon),
+          const SizedBox(width: 16),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  title,
+                  style: const TextStyle(
+                    color: LandingPage._ink,
+                    fontSize: 17,
+                    fontWeight: FontWeight.w800,
+                  ),
                 ),
-                shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(50)),
-              ),
-              child: Text(
-                'GET STARTED NOW',
-                style: AppTextStyles.labelLarge
-                    .copyWith(fontWeight: FontWeight.bold, letterSpacing: 2),
-              ),
+                const SizedBox(height: 7),
+                Text(
+                  body,
+                  style: const TextStyle(
+                    color: LandingPage._muted,
+                    height: 1.5,
+                  ),
+                ),
+              ],
             ),
           ),
         ],
       ),
     );
   }
+}
 
-  Widget _buildFooter(BuildContext context) {
-    return Container(
-      padding: EdgeInsets.symmetric(
-        horizontal: AppDimensions.screenPaddingHorizontal,
-        vertical: AppDimensions.paddingLarge,
-      ),
-      color: AppColors.secondaryDark,
-      child: Column(
+class _TrustItem extends StatelessWidget {
+  const _TrustItem({required this.value, required this.label});
+
+  final String value;
+  final String label;
+
+  @override
+  Widget build(BuildContext context) {
+    return SizedBox(
+      width: 250,
+      child: Row(
         children: [
-          Row(
-            mainAxisAlignment: MainAxisAlignment.center,
+          const _IconBadge(icon: Icons.check_circle_outline),
+          const SizedBox(width: 12),
+          Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Image.asset(
-                'assets/images/smile.jpg',
-                height: 48,
-                fit: BoxFit.contain,
-              ),
-              const SizedBox(width: 12),
               Text(
-                'SmileConcept',
-                style: AppTextStyles.titleMedium.copyWith(
-                  color: AppColors.primary,
-                  fontWeight: FontWeight.bold,
+                value,
+                style: const TextStyle(
+                  color: LandingPage._ink,
+                  fontSize: 18,
+                  fontWeight: FontWeight.w800,
                 ),
               ),
+              Text(label, style: const TextStyle(color: LandingPage._muted)),
             ],
-          ),
-          const SizedBox(height: AppDimensions.paddingMedium),
-          Text(
-            '© 2024 SmileConcept Dental. All rights reserved.',
-            textAlign: TextAlign.center,
-            style: AppTextStyles.bodySmall.copyWith(color: AppColors.textMuted),
           ),
         ],
       ),
+    );
+  }
+}
+
+class _PrimaryButton extends StatelessWidget {
+  const _PrimaryButton({required this.label, required this.onTap});
+
+  final String label;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    return ElevatedButton.icon(
+      onPressed: onTap,
+      icon: const Icon(Icons.calendar_month_outlined, size: 19),
+      label: Text(label),
+      style: ElevatedButton.styleFrom(
+        backgroundColor: LandingPage._primary,
+        foregroundColor: Colors.white,
+        elevation: 0,
+        padding: const EdgeInsets.symmetric(horizontal: 22, vertical: 18),
+        textStyle: const TextStyle(fontWeight: FontWeight.w800, fontSize: 15),
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+      ),
+    );
+  }
+}
+
+class _NavLink extends StatelessWidget {
+  const _NavLink({required this.label});
+
+  final String label;
+
+  @override
+  Widget build(BuildContext context) {
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 8),
+      child: Text(
+        label,
+        style: const TextStyle(
+          color: LandingPage._muted,
+          fontWeight: FontWeight.w700,
+        ),
+      ),
+    );
+  }
+}
+
+class _Pill extends StatelessWidget {
+  const _Pill({required this.text});
+
+  final String text;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
+      decoration: BoxDecoration(
+        color: LandingPage._accent.withValues(alpha: 0.22),
+        borderRadius: BorderRadius.circular(8),
+        border: Border.all(color: LandingPage._accent.withValues(alpha: 0.5)),
+      ),
+      child: Text(
+        text,
+        style: const TextStyle(
+          color: LandingPage._primaryDark,
+          fontWeight: FontWeight.w800,
+        ),
+      ),
+    );
+  }
+}
+
+class _IconBadge extends StatelessWidget {
+  const _IconBadge({required this.icon});
+
+  final IconData icon;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      height: 44,
+      width: 44,
+      decoration: BoxDecoration(
+        color: LandingPage._accent.withValues(alpha: 0.22),
+        borderRadius: BorderRadius.circular(8),
+      ),
+      child: Icon(icon, color: LandingPage._primaryDark, size: 23),
     );
   }
 }
