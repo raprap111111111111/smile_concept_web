@@ -1,11 +1,47 @@
+import 'package:flutter_dotenv/flutter_dotenv.dart';
+
 class ApiConfig {
-  // API Base URLs - MATCH YOUR POSTMAN CONFIG
-  static const String baseUrlProduction = 'https://api.dpms.com/api';
-  static const String baseUrlStaging = 'https://staging-api.dpms.com/api';
-  static const String baseUrlDevelopment = String.fromEnvironment(
-    'API_BASE_URL',
-    defaultValue: 'http://localhost:8000/api/v1',
-  );
+  // ── Environment Detection ─────────────────────────────
+  static String get environment => dotenv.env['ENVIRONMENT'] ?? 'development';
+
+  static bool get isDevelopment => environment == 'development';
+  static bool get isStaging => environment == 'staging';
+  static bool get isProduction => environment == 'production';
+
+  // ── Base URL (from .env) ──────────────────────────────
+  static String get baseUrl {
+    final url = dotenv.env['API_BASE_URL'];
+
+    if (url == null || url.isEmpty) {
+      throw Exception(
+        'API_BASE_URL not found in .env file!\n\n'
+        'Fix:\n'
+        '1. Create a .env file in project root\n'
+        '2. Copy from .env.example: cp .env.example .env\n'
+        '3. Set your backend URL\n'
+        '4. Restart the app',
+      );
+    }
+
+    return url;
+  }
+
+  // ── Timeouts ──────────────────────────────────────────
+  static const Duration connectTimeout = Duration(seconds: 30);
+  static const Duration sendTimeout = Duration(seconds: 30);
+
+  // ── Debug helper ──────────────────────────────────────
+  static void printConfig() {
+    // ignore: avoid_print
+    print('''
+╔════════════════════════════════════╗
+║       API CONFIGURATION            ║
+╠════════════════════════════════════╣
+║ Environment : $environment
+║ Base URL    : $baseUrl
+╚════════════════════════════════════╝
+''');
+  }
 
   // Endpoints (these are appended to base URL)
   static const String authLogin = '/auth/login';

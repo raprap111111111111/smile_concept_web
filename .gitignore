@@ -44,3 +44,13 @@ app.*.map.json
 /android/app/debug
 /android/app/profile
 /android/app/release
+
+# Environment files (KEEP LOCAL)
+.env
+.env.local
+.env.development
+.env.staging
+.env.production
+
+# Keep the example file
+!.env.example
