@@ -107,26 +107,6 @@ class SidebarNavConfig {
             ],
           ),
 
-          const NavItem(
-            icon: Icons.assignment_turned_in_outlined,
-            title: 'Treatment Plans',
-            routeName: RouteNames.treatmentPlans,
-            permissions: [
-              Perm.treatmentPlanViewAny,
-              Perm.treatmentPlanView,
-            ],
-          ),
-
-          const NavItem(
-            icon: Icons.medication_liquid_outlined,
-            title: 'Prescriptions',
-            routeName: RouteNames.prescriptions,
-            permissions: [
-              Perm.prescriptionViewAny,
-              Perm.prescriptionView,
-            ],
-          ),
-
           NavItem(
             icon: Icons.folder_shared_outlined,
             title: isPatient ? 'My Records' : 'Clinical Records',
