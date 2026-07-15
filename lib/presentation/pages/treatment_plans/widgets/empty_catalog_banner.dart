@@ -1,46 +1,60 @@
 // lib/presentation/pages/treatment_plans/widgets/empty_catalog_banner.dart
-
 import 'package:flutter/material.dart';
+
+import '../../../theme/app_colors.dart';
+import '../../../theme/app_dimensions.dart';
+import '../../../theme/app_text_styles.dart';
 
 class EmptyCatalogBanner extends StatelessWidget {
   const EmptyCatalogBanner({super.key});
 
   @override
   Widget build(BuildContext context) {
-    final theme = Theme.of(context);
     return Container(
-      padding: const EdgeInsets.all(20),
+      padding: const EdgeInsets.all(AppDimensions.paddingLarge),
       decoration: BoxDecoration(
-        color: Colors.orange.withValues(alpha: 0.1),
-        borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: Colors.orange.withValues(alpha: 0.3)),
+        color: AppColors.warning.withValues(alpha: 0.08),
+        borderRadius: BorderRadius.circular(AppDimensions.borderRadius),
+        border: Border.all(
+          color: AppColors.warning.withValues(alpha: 0.3),
+        ),
       ),
       child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Container(
-            padding: const EdgeInsets.all(10),
+            padding: const EdgeInsets.all(8),
             decoration: BoxDecoration(
-              color: Colors.orange.withValues(alpha: 0.2),
-              shape: BoxShape.circle,
+              color: AppColors.warning.withValues(alpha: 0.15),
+              borderRadius:
+                  BorderRadius.circular(AppDimensions.borderRadius),
             ),
-            child: const Icon(Icons.warning_amber_rounded,
-                color: Colors.orange, size: 24),
+            child: const Icon(
+              Icons.warning_amber_rounded,
+              color: AppColors.warning,
+              size: 22,
+            ),
           ),
-          const SizedBox(width: 16),
+          const SizedBox(width: 14),
           Expanded(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                const Text(
-                  'No treatments in catalog',
-                  style: TextStyle(
-                      fontWeight: FontWeight.bold, fontSize: 14),
+                Text(
+                  'No treatments available',
+                  style: AppTextStyles.titleSmall.copyWith(
+                    color: AppColors.ink,
+                    fontWeight: FontWeight.w800,
+                  ),
                 ),
                 const SizedBox(height: 4),
-                Text(
-                  'Add treatments from the Treatments page first before creating a plan.',
+                const Text(
+                  'Add treatments to the catalog before creating a plan.',
                   style: TextStyle(
-                      fontSize: 12, color: theme.hintColor),
+                    color: AppColors.textSecondary,
+                    fontSize: 13,
+                    height: 1.4,
+                  ),
                 ),
               ],
             ),

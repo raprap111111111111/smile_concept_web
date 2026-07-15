@@ -106,15 +106,15 @@ class _AppointmentFormPageState extends ConsumerState<AppointmentFormPage> {
     final currentUser = ref.read(authStateProvider).user;
 
     final canCreateSelf = permissionService.can(
-      AppPermissions.appointmentCreate,
+      Perm.appointmentCreate,
     );
 
     final canCreateForOthers = permissionService.can(
-      AppPermissions.appointmentCreateForOthers,
+      Perm.appointmentCreateForOthers,
     );
 
     final canUpdateStatus = permissionService.can(
-      AppPermissions.appointmentUpdateStatus,
+      Perm.appointmentUpdateStatus,
     );
 
     if (!canCreateSelf && !canCreateForOthers) {
@@ -254,11 +254,11 @@ class _AppointmentFormPageState extends ConsumerState<AppointmentFormPage> {
     |--------------------------------------------------------------------------
     */
     final canCreateForOthers = permissionService.can(
-      AppPermissions.appointmentCreateForOthers,
+      Perm.appointmentCreateForOthers,
     );
 
     final canUpdateStatus = permissionService.can(
-      AppPermissions.appointmentUpdateStatus,
+      Perm.appointmentUpdateStatus,
     );
 
     debugPrint('Appointment form permissions:');
