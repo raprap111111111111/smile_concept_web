@@ -6,6 +6,9 @@ import 'package:go_router/go_router.dart';
 import '../../../core/utils/validators.dart';
 import '../../providers/auth/auth_provider.dart';
 import '../../route/route_names.dart';
+import '../../theme/app_colors.dart';
+import '../../theme/app_dimensions.dart';
+import '../../theme/app_text_styles.dart';
 import 'auth_page_widgets.dart';
 
 class LoginPage extends ConsumerStatefulWidget {
@@ -59,7 +62,7 @@ class _LoginPageState extends ConsumerState<LoginPage> {
               validator: Validators.validateEmail,
               prefixIcon: Icons.email_outlined,
             ),
-            const SizedBox(height: 16),
+            const SizedBox(height: AppDimensions.paddingMedium),
             AuthTextField(
               controller: _passwordController,
               label: 'Password',
@@ -73,28 +76,29 @@ class _LoginPageState extends ConsumerState<LoginPage> {
                   _obscurePassword
                       ? Icons.visibility_off_outlined
                       : Icons.visibility_outlined,
+                  color: AppColors.textMuted,
                 ),
                 onPressed: () {
                   setState(() => _obscurePassword = !_obscurePassword);
                 },
               ),
             ),
-            const SizedBox(height: 8),
+            const SizedBox(height: AppDimensions.paddingXS),
             Align(
               alignment: Alignment.centerRight,
               child: TextButton(
                 onPressed: null,
                 child: Text(
                   'Forgot password?',
-                  style: TextStyle(
-                    color: AuthDesign.muted.withValues(alpha: 0.72),
+                  style: AppTextStyles.labelMedium.copyWith(
+                    color: AppColors.textMuted,
                     fontWeight: FontWeight.w700,
                   ),
                 ),
               ),
             ),
             if (authState.errorMessage != null) ...[
-              const SizedBox(height: 12),
+              const SizedBox(height: AppDimensions.paddingSmall),
               AuthErrorMessage(message: authState.errorMessage!),
             ],
             const SizedBox(height: 22),

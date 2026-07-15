@@ -13,7 +13,7 @@ class MainLayout extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: AppColors.backgroundDark,
+      backgroundColor: AppColors.surface, // light dental surface
       body: Row(
         children: [
           const Sidebar(),
@@ -21,7 +21,12 @@ class MainLayout extends StatelessWidget {
             child: Column(
               children: [
                 const Topbar(),
-                Expanded(child: child),
+                Expanded(
+                  child: Container(
+                    color: AppColors.surface,
+                    child: child,
+                  ),
+                ),
               ],
             ),
           ),

@@ -25,26 +25,26 @@ class TreatmentModel {
 
   factory TreatmentModel.fromJson(Map<String, dynamic> json) {
     return TreatmentModel(
-      id:   _asInt(json['id']),
+      id: _asInt(json['id']),
       name: json['name']?.toString() ?? '',
       description: json['description']?.toString(),
       price: _asDouble(json['price']),
       estimatedDurationMinutes:
           _asInt(json['estimated_duration_minutes']),
       isActive: _asBool(json['is_active'], fallback: true),
-      deletedAt:  json['deleted_at']?.toString(),
-      createdAt:  json['created_at']?.toString(),
-      updatedAt:  json['updated_at']?.toString(),
+      deletedAt: json['deleted_at']?.toString(),
+      createdAt: json['created_at']?.toString(),
+      updatedAt: json['updated_at']?.toString(),
     );
   }
 
   Map<String, dynamic> toJson() => {
-        'id':                          id,
-        'name':                        name,
-        'description':                 description,
-        'price':                       price,
-        'estimated_duration_minutes':  estimatedDurationMinutes,
-        'is_active':                   isActive,
+        'id': id,
+        'name': name,
+        'description': description,
+        'price': price,
+        'estimated_duration_minutes': estimatedDurationMinutes,
+        'is_active': isActive,
       };
 
   // ── Display helpers ────────────────────────────────────────
@@ -54,7 +54,7 @@ class TreatmentModel {
     if (estimatedDurationMinutes < 60) {
       return '$estimatedDurationMinutes min';
     }
-    final hours   = estimatedDurationMinutes ~/ 60;
+    final hours = estimatedDurationMinutes ~/ 60;
     final minutes = estimatedDurationMinutes % 60;
     return minutes > 0 ? '${hours}h ${minutes}min' : '${hours}h';
   }
@@ -80,6 +80,14 @@ class TreatmentModel {
     if (v is String) return v == '1' || v.toLowerCase() == 'true';
     return fallback;
   }
+
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      other is TreatmentModel && other.id == id;
+
+  @override
+  int get hashCode => id.hashCode;
 
   @override
   String toString() =>

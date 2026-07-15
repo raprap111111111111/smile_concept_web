@@ -1,7 +1,9 @@
 // lib/presentation/layouts/widgets/sidebar/sidebar_menu_item.dart
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
+
 import '../../../theme/app_colors.dart';
+import '../../../theme/app_dimensions.dart';
 
 class SidebarMenuItem extends StatefulWidget {
   final IconData icon;
@@ -29,16 +31,23 @@ class _SidebarMenuItemState extends State<SidebarMenuItem> {
     final isActive = currentLocation == routePath ||
         currentLocation.startsWith('$routePath/');
 
-    final activeColor = AppColors.primary;
-    final inactiveColor = Colors.white.withValues(alpha: 0.78);
+    // Colors
+    const activeColor = AppColors.primaryDark;
+    const inactiveTextColor = AppColors.ink;
+    const inactiveIconColor = AppColors.textSecondary;
 
     final backgroundColor = isActive
-        ? activeColor.withValues(alpha: 0.16)
+        ? AppColors.accentWithOpacity(0.22)
         : _isHovered
-            ? Colors.white.withValues(alpha: 0.055)
+            ? AppColors.surface
             : Colors.transparent;
 
+    final borderColor = isActive
+        ? AppColors.accentWithOpacity(0.5)
+        : Colors.transparent;
+
     return MouseRegion(
+      cursor: SystemMouseCursors.click,
       onEnter: (_) => setState(() => _isHovered = true),
       onExit: (_) => setState(() => _isHovered = false),
       child: AnimatedContainer(
@@ -47,12 +56,8 @@ class _SidebarMenuItemState extends State<SidebarMenuItem> {
         margin: const EdgeInsets.symmetric(vertical: 3),
         decoration: BoxDecoration(
           color: backgroundColor,
-          borderRadius: BorderRadius.circular(14),
-          border: Border.all(
-            color: isActive
-                ? activeColor.withValues(alpha: 0.22)
-                : Colors.transparent,
-          ),
+          borderRadius: BorderRadius.circular(AppDimensions.borderRadius),
+          border: Border.all(color: borderColor),
         ),
         child: ListTile(
           dense: true,
@@ -60,7 +65,7 @@ class _SidebarMenuItemState extends State<SidebarMenuItem> {
           contentPadding:
               const EdgeInsets.symmetric(horizontal: 14, vertical: 5),
           shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(14),
+            borderRadius: BorderRadius.circular(AppDimensions.borderRadius),
           ),
           leading: AnimatedContainer(
             duration: const Duration(milliseconds: 160),
@@ -68,13 +73,13 @@ class _SidebarMenuItemState extends State<SidebarMenuItem> {
             height: 34,
             decoration: BoxDecoration(
               color: isActive
-                  ? activeColor.withValues(alpha: 0.16)
-                  : Colors.white.withValues(alpha: 0.04),
-              borderRadius: BorderRadius.circular(10),
+                  ? AppColors.accentWithOpacity(0.35)
+                  : AppColors.surface,
+              borderRadius: BorderRadius.circular(8),
             ),
             child: Icon(
               widget.icon,
-              color: isActive ? activeColor : inactiveColor,
+              color: isActive ? activeColor : inactiveIconColor,
               size: 19,
             ),
           ),
@@ -83,17 +88,17 @@ class _SidebarMenuItemState extends State<SidebarMenuItem> {
             maxLines: 1,
             overflow: TextOverflow.ellipsis,
             style: TextStyle(
-              color: isActive ? activeColor : Colors.white,
-              fontWeight: isActive ? FontWeight.w700 : FontWeight.w500,
+              color: isActive ? activeColor : inactiveTextColor,
+              fontWeight: isActive ? FontWeight.w800 : FontWeight.w600,
               fontSize: 14,
             ),
           ),
           trailing: isActive
               ? Container(
-                  width: 5,
+                  width: 4,
                   height: 26,
                   decoration: BoxDecoration(
-                    color: activeColor,
+                    color: AppColors.primary,
                     borderRadius: BorderRadius.circular(999),
                   ),
                 )

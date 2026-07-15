@@ -1,5 +1,6 @@
 // lib/data/models/treatment/treatment_plan_model.dart
 
+import 'package:flutter/material.dart';
 import 'treatment_model.dart';
 
 class TreatmentPlanModel {
@@ -26,60 +27,56 @@ class TreatmentPlanModel {
     this.notes,
     this.createdAt,
     this.updatedAt,
-    this.items   = const [],
+    this.items = const [],
     this.patient,
     this.doctor,
   });
 
   factory TreatmentPlanModel.fromJson(Map<String, dynamic> json) {
     return TreatmentPlanModel(
-      id:                   _asInt(json['id']),
-      userId:               _asInt(json['user_id']),
-      doctorId:             _asInt(json['doctor_id']),
-      name:                 json['name']?.toString() ?? '',
-      status:               json['status']?.toString() ?? 'proposed',
+      id: _asInt(json['id']),
+      userId: _asInt(json['user_id']),
+      doctorId: _asInt(json['doctor_id']),
+      name: json['name']?.toString() ?? '',
+      status: json['status']?.toString() ?? 'proposed',
       totalEstimatedAmount: _asDouble(json['total_estimated_amount']),
-      notes:                json['notes']?.toString(),
-      createdAt:            json['created_at']?.toString(),
-      updatedAt:            json['updated_at']?.toString(),
+      notes: json['notes']?.toString(),
+      createdAt: json['created_at']?.toString(),
+      updatedAt: json['updated_at']?.toString(),
       items: (json['items'] as List<dynamic>? ?? [])
-          .map((e) => TreatmentPlanItemModel.fromJson(
-              _toMap(e as Map)))
+          .map((e) => TreatmentPlanItemModel.fromJson(_toMap(e as Map)))
           .toList(),
       patient: json['patient'] != null
-          ? TreatmentPlanPatientModel.fromJson(
-              _toMap(json['patient'] as Map))
+          ? TreatmentPlanPatientModel.fromJson(_toMap(json['patient'] as Map))
           : null,
       doctor: json['doctor'] != null
-          ? TreatmentPlanDoctorModel.fromJson(
-              _toMap(json['doctor'] as Map))
+          ? TreatmentPlanDoctorModel.fromJson(_toMap(json['doctor'] as Map))
           : null,
     );
   }
 
   // ── Status helpers ─────────────────────────────────────────
-  bool get isDraft     => status == 'draft';
-  bool get isProposed  => status == 'proposed';
-  bool get isAccepted  => status == 'accepted';
+  bool get isDraft => status == 'draft';
+  bool get isProposed => status == 'proposed';
+  bool get isAccepted => status == 'accepted';
   bool get isCompleted => status == 'completed';
-  bool get isRejected  => status == 'rejected';
+  bool get isRejected => status == 'rejected';
 
-  bool get hasItems   => items.isNotEmpty;
-  bool get hasNotes   => notes != null && notes!.trim().isNotEmpty;
+  bool get hasItems => items.isNotEmpty;
+  bool get hasNotes => notes != null && notes!.trim().isNotEmpty;
   bool get hasPatient => patient != null;
-  bool get hasDoctor  => doctor != null;
+  bool get hasDoctor => doctor != null;
 
-  String get formattedTotal =>
-      '₱${totalEstimatedAmount.toStringAsFixed(2)}';
+  String get formattedTotal => '₱${totalEstimatedAmount.toStringAsFixed(2)}';
 
   String get statusLabel {
     return switch (status) {
-      'draft'     => 'Draft',
-      'proposed'  => 'Proposed',
-      'accepted'  => 'Accepted',
+      'draft' => 'Draft',
+      'proposed' => 'Proposed',
+      'accepted' => 'Accepted',
       'completed' => 'Completed',
-      'rejected'  => 'Rejected',
-      _           => status,
+      'rejected' => 'Rejected',
+      _ => status,
     };
   }
 
@@ -122,24 +119,21 @@ class TreatmentPlanItemModel {
     this.treatment,
   });
 
-  factory TreatmentPlanItemModel.fromJson(
-      Map<String, dynamic> json) {
+  factory TreatmentPlanItemModel.fromJson(Map<String, dynamic> json) {
     return TreatmentPlanItemModel(
-      id:              _asInt(json['id']),
+      id: _asInt(json['id']),
       treatmentPlanId: _asInt(json['treatment_plan_id']),
-      treatmentId:     _asInt(json['treatment_id']),
-      sequenceOrder:   _asInt(json['sequence_order']),
-      estimatedCost:   _asDouble(json['estimated_cost']),
-      notes:           json['notes']?.toString(),
+      treatmentId: _asInt(json['treatment_id']),
+      sequenceOrder: _asInt(json['sequence_order']),
+      estimatedCost: _asDouble(json['estimated_cost']),
+      notes: json['notes']?.toString(),
       treatment: json['treatment'] != null
-          ? TreatmentModel.fromJson(
-              _toMap(json['treatment'] as Map))
+          ? TreatmentModel.fromJson(_toMap(json['treatment'] as Map))
           : null,
     );
   }
 
-  String get formattedCost =>
-      '₱${estimatedCost.toStringAsFixed(2)}';
+  String get formattedCost => '₱${estimatedCost.toStringAsFixed(2)}';
 
   static int _asInt(dynamic v) {
     if (v == null) return 0;
@@ -171,11 +165,10 @@ class TreatmentPlanPatientModel {
     required this.email,
   });
 
-  factory TreatmentPlanPatientModel.fromJson(
-      Map<String, dynamic> json) {
+  factory TreatmentPlanPatientModel.fromJson(Map<String, dynamic> json) {
     return TreatmentPlanPatientModel(
-      id:    (json['id'] as num?)?.toInt() ?? 0,
-      name:  json['name']?.toString() ?? '',
+      id: (json['id'] as num?)?.toInt() ?? 0,
+      name: json['name']?.toString() ?? '',
       email: json['email']?.toString() ?? '',
     );
   }
@@ -193,17 +186,45 @@ class TreatmentPlanDoctorModel {
     this.specialization,
   });
 
-  factory TreatmentPlanDoctorModel.fromJson(
-      Map<String, dynamic> json) {
-    // doctor.user.name or doctor.name
+  factory TreatmentPlanDoctorModel.fromJson(Map<String, dynamic> json) {
     final userName = json['user'] != null
         ? (json['user'] as Map)['name']?.toString()
         : json['name']?.toString();
 
     return TreatmentPlanDoctorModel(
-      id:             (json['id'] as num?)?.toInt() ?? 0,
-      name:           userName ?? 'Unknown Doctor',
+      id: (json['id'] as num?)?.toInt() ?? 0,
+      name: userName ?? 'Unknown Doctor',
       specialization: json['specialization']?.toString(),
     );
   }
+}
+
+// ═══════════════════════════════════════════════════════════════
+// ── FORM EDITING CLASS ────────────────────────────────────────
+// Mutable state for a plan item while user is filling the form.
+// Convert to backend JSON via [toPayload].
+// ═══════════════════════════════════════════════════════════════
+class TreatmentPlanItemForm {
+  TreatmentModel? selectedTreatment;
+  final TextEditingController notesController = TextEditingController();
+  int quantity = 1;
+  bool treatmentError = false;
+
+  double get price => selectedTreatment?.price ?? 0.0;
+  double get subtotal => price * quantity;
+
+  /// Convert to the JSON payload backend expects.
+  /// [sequenceOrder] should be 1-based (index + 1).
+  Map<String, dynamic> toPayload(int sequenceOrder) {
+    final notes = notesController.text.trim();
+    return {
+      'sequence_order': sequenceOrder,
+      'treatment_id': selectedTreatment!.id,
+      'quantity': quantity,
+      'price': price,
+      if (notes.isNotEmpty) 'notes': notes,
+    };
+  }
+
+  void dispose() => notesController.dispose();
 }

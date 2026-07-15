@@ -2,34 +2,27 @@
 
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:go_router/go_router.dart';
 
+import '../../../data/models/patient/patient_model.dart';
+import '../../../data/models/treatment/treatment_plan_model.dart';
+import '../../../data/repositories/treatment_plan_repository.dart';
+import '../../providers/doctor/doctor_list_provider.dart';
+import '../../providers/patient/patient_search_provider.dart';
 import '../../providers/treatment/treatment_provider.dart';
-import '../../../data/models/treatment/treatment_model.dart';
+import 'widgets/dashed_add_button.dart';
+import 'widgets/dropdown_states.dart';
+import 'widgets/empty_catalog_banner.dart';
+import 'widgets/form_section_card.dart';
+import 'widgets/grand_total_bar.dart';
+import 'widgets/patient_picker_field.dart';
+import 'widgets/plan_item_card.dart';
 
-// ─── Plan Item State ─────────────────────────────────────────────────────────
-class _PlanItemForm {
-  TreatmentModel? selectedTreatment;
-  final TextEditingController notesController = TextEditingController();
-  int quantity = 1;
-
-  double get price => selectedTreatment?.price ?? 0.0;
-  double get subtotal => price * quantity;
-
-  void dispose() {
-    notesController.dispose();
-  }
-}
-
-// ─── Page ────────────────────────────────────────────────────────────────────
 class TreatmentPlanFormPage extends ConsumerStatefulWidget {
   final int? patientId;
   final int? doctorId;
 
-  const TreatmentPlanFormPage({
-    super.key,
-    this.patientId,
-    this.doctorId,
-  });
+  const TreatmentPlanFormPage({super.key, this.patientId, this.doctorId});
 
   @override
   ConsumerState<TreatmentPlanFormPage> createState() =>
@@ -43,21 +36,27 @@ class _TreatmentPlanFormPageState
   final _notesController = TextEditingController();
 
   int? _selectedDoctorId;
-  int? _selectedPatientId;
+  PatientModel? _selectedPatient;
+  bool _patientError = false;
   bool _isSubmitting = false;
 
-  final List<_PlanItemForm> _items = [];
+  int? get _selectedPatientId => _selectedPatient?.userId;
+
+  final List<TreatmentPlanItemForm> _items = [];
 
   @override
   void initState() {
     super.initState();
-    _selectedPatientId = widget.patientId;
     _selectedDoctorId = widget.doctorId;
     _addItem();
 
     WidgetsBinding.instance.addPostFrameCallback((_) {
-      // Load treatments (this one we know exists)
       ref.read(treatmentProvider.notifier).loadTreatments();
+
+      // Preload patient if ID was passed in via navigation
+      if (widget.patientId != null) {
+        _preloadPatient(widget.patientId!);
+      }
     });
   }
 
@@ -65,15 +64,27 @@ class _TreatmentPlanFormPageState
   void dispose() {
     _nameController.dispose();
     _notesController.dispose();
-    for (final item in _items) {
-      item.dispose();
+    for (final i in _items) {
+      i.dispose();
     }
     super.dispose();
   }
 
-  void _addItem() {
-    setState(() => _items.add(_PlanItemForm()));
+  Future<void> _preloadPatient(int userId) async {
+    try {
+      final patients =
+          await ref.read(patientSearchProvider('').future);
+      final match = patients.firstWhere(
+        (p) => p.userId == userId,
+        orElse: () => throw Exception('Patient not found in list'),
+      );
+      if (mounted) setState(() => _selectedPatient = match);
+    } catch (_) {
+      // Silently fail — admin can still pick manually
+    }
   }
+
+  void _addItem() => setState(() => _items.add(TreatmentPlanItemForm()));
 
   void _removeItem(int index) {
     setState(() {
@@ -82,35 +93,83 @@ class _TreatmentPlanFormPageState
     });
   }
 
+  void _moveItem(int index, int dir) {
+    final target = index + dir;
+    if (target < 0 || target >= _items.length) return;
+    setState(() {
+      final m = _items.removeAt(index);
+      _items.insert(target, m);
+    });
+  }
+
   double get _grandTotal =>
-      _items.fold(0.0, (sum, item) => sum + item.subtotal);
+      _items.fold(0.0, (sum, i) => sum + i.subtotal);
 
   Future<void> _submit() async {
-    if (!_formKey.currentState!.validate()) return;
+    if (!_formKey.currentState!.validate()) {
+      _showSnack('Please fill all required fields', Colors.red);
+      return;
+    }
 
+    if (_selectedPatient == null) {
+      setState(() => _patientError = true);
+      _showSnack('Please select a patient', Colors.red);
+      return;
+    }
+    if (_selectedDoctorId == null) {
+      _showSnack('Please select a doctor', Colors.red);
+      return;
+    }
     if (_items.isEmpty) {
       _showSnack('Add at least one treatment item', Colors.red);
       return;
     }
 
-    for (int i = 0; i < _items.length; i++) {
-      if (_items[i].selectedTreatment == null) {
-        _showSnack('Select a treatment for Item ${i + 1}', Colors.red);
-        return;
+    bool itemsValid = true;
+    for (final i in _items) {
+      if (i.selectedTreatment == null) {
+        i.treatmentError = true;
+        itemsValid = false;
+      } else {
+        i.treatmentError = false;
       }
+    }
+    if (!itemsValid) {
+      setState(() {});
+      _showSnack(
+          'Please select a treatment for every item', Colors.red);
+      return;
     }
 
     setState(() => _isSubmitting = true);
 
     try {
-      // Wire up to your create plan API call here
+      final itemsPayload = [
+        for (int idx = 0; idx < _items.length; idx++)
+          _items[idx].toPayload(idx + 1),
+      ];
+
+      final notes = _notesController.text.trim();
+
+      final repo = ref.read(treatmentPlanRepositoryProvider);
+      await repo.create(
+        userId: _selectedPatientId!,
+        doctorId: _selectedDoctorId!,
+        name: _nameController.text.trim(),
+        items: itemsPayload,
+        status: 'proposed',
+        notes: notes.isEmpty ? null : notes,
+      );
 
       if (mounted) {
-        _showSnack('Treatment plan created', Colors.green);
-        Navigator.of(context).pop();
+        _showSnack('Treatment plan created successfully', Colors.green);
+        context.pop(true);
       }
     } catch (e) {
-      if (mounted) _showSnack('Error: $e', Colors.red);
+      if (mounted) {
+        _showSnack(
+            e.toString().replaceAll('Exception: ', ''), Colors.red);
+      }
     } finally {
       if (mounted) setState(() => _isSubmitting = false);
     }
@@ -118,328 +177,211 @@ class _TreatmentPlanFormPageState
 
   void _showSnack(String msg, Color color) {
     ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(content: Text(msg), backgroundColor: color),
+      SnackBar(
+        content: Row(
+          children: [
+            Icon(
+                color == Colors.green
+                    ? Icons.check_circle
+                    : Icons.error_outline,
+                color: Colors.white),
+            const SizedBox(width: 12),
+            Expanded(child: Text(msg)),
+          ],
+        ),
+        backgroundColor: color,
+        behavior: SnackBarBehavior.floating,
+        shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(10)),
+      ),
     );
   }
 
   @override
   Widget build(BuildContext context) {
     final treatmentState = ref.watch(treatmentProvider);
+    final doctorsAsync = ref.watch(doctorSimpleListProvider);
+    final theme = Theme.of(context);
+    final catalogEmpty = !treatmentState.isListLoading &&
+        treatmentState.treatments.isEmpty;
 
     return Scaffold(
       appBar: AppBar(
-        title: const Text('New Treatment Plan'),
-        actions: [
-          if (_isSubmitting)
-            const Padding(
-              padding: EdgeInsets.all(16),
-              child: SizedBox(
-                width: 20,
-                height: 20,
-                child: CircularProgressIndicator(strokeWidth: 2),
-              ),
-            )
-          else
-            TextButton.icon(
-              onPressed: _submit,
-              icon: const Icon(Icons.save),
-              label: const Text('Save'),
-            ),
-        ],
+        centerTitle: true,
+        title: const Text('New Treatment Plan',
+            style: TextStyle(fontWeight: FontWeight.bold)),
+        elevation: 0,
+        scrolledUnderElevation: 1,
       ),
       body: Form(
         key: _formKey,
         child: ListView(
           padding: const EdgeInsets.all(16),
           children: [
-            // ── Plan Name ─────────────────────────────────────
-            TextFormField(
-              controller: _nameController,
-              decoration: const InputDecoration(
-                labelText: 'Plan Name *',
-                border: OutlineInputBorder(),
-                prefixIcon: Icon(Icons.assignment),
-                hintText: 'e.g. John\'s Dental Restoration',
-              ),
-              validator: (v) => (v == null || v.trim().isEmpty)
-                  ? 'Required'
-                  : null,
-            ),
-            const SizedBox(height: 16),
-
-            // ── Patient ID (temp text field until we know provider) ──
-            TextFormField(
-              initialValue: _selectedPatientId?.toString(),
-              decoration: const InputDecoration(
-                labelText: 'Patient ID *',
-                border: OutlineInputBorder(),
-                prefixIcon: Icon(Icons.person),
-                hintText: 'Enter patient ID',
-              ),
-              keyboardType: TextInputType.number,
-              onChanged: (v) =>
-                  _selectedPatientId = int.tryParse(v),
-              validator: (v) => (v == null || v.trim().isEmpty)
-                  ? 'Required'
-                  : null,
-            ),
-            const SizedBox(height: 16),
-
-            // ── Doctor ID (temp text field until we know provider) ──
-            TextFormField(
-              initialValue: _selectedDoctorId?.toString(),
-              decoration: const InputDecoration(
-                labelText: 'Doctor ID *',
-                border: OutlineInputBorder(),
-                prefixIcon: Icon(Icons.medical_services),
-                hintText: 'Enter doctor ID',
-              ),
-              keyboardType: TextInputType.number,
-              onChanged: (v) =>
-                  _selectedDoctorId = int.tryParse(v),
-              validator: (v) => (v == null || v.trim().isEmpty)
-                  ? 'Required'
-                  : null,
-            ),
-            const SizedBox(height: 16),
-
-            // ── Notes ─────────────────────────────────────────
-            TextFormField(
-              controller: _notesController,
-              decoration: const InputDecoration(
-                labelText: 'Notes',
-                border: OutlineInputBorder(),
-                prefixIcon: Icon(Icons.notes),
-                alignLabelWithHint: true,
-              ),
-              maxLines: 3,
-            ),
-            const SizedBox(height: 24),
-
-            // ── Treatment Items ───────────────────────────────
-            Row(
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-              children: [
-                Text(
-                  'Treatment Items',
-                  style: Theme.of(context).textTheme.titleMedium,
-                ),
-                TextButton.icon(
-                  onPressed: _addItem,
-                  icon: const Icon(Icons.add),
-                  label: const Text('Add Item'),
-                ),
-              ],
-            ),
-            const SizedBox(height: 8),
-
-            if (!treatmentState.isListLoading &&
-                treatmentState.treatments.isEmpty)
-              Card(
-                color: Colors.orange.withValues(alpha: 0.1),
-                child: const Padding(
-                  padding: EdgeInsets.all(16),
-                  child: Row(
-                    children: [
-                      Icon(Icons.warning_amber_rounded,
-                          color: Colors.orange),
-                      SizedBox(width: 12),
-                      Expanded(
-                        child: Text(
-                          'No treatments in catalog. Please '
-                          'create treatments first from the '
-                          '"Treatments" page.',
-                        ),
+            // ═══════ Section 1: Plan Info ═══════
+            FormSectionCard(
+              icon: Icons.assignment_outlined,
+              title: 'Plan Information',
+              subtitle: 'Basic details about this treatment plan',
+              child: Column(
+                children: [
+                  TextFormField(
+                    controller: _nameController,
+                    decoration: InputDecoration(
+                      labelText: 'Plan Name *',
+                      hintText: "e.g. John's Dental Restoration",
+                      border: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(10),
                       ),
-                    ],
+                      prefixIcon: const Icon(Icons.title),
+                    ),
+                    validator: (v) => (v == null || v.trim().isEmpty)
+                        ? 'Required'
+                        : null,
+                  ),
+                  const SizedBox(height: 14),
+                  TextFormField(
+                    controller: _notesController,
+                    decoration: InputDecoration(
+                      labelText: 'Notes (optional)',
+                      hintText: 'General notes about the plan...',
+                      border: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(10),
+                      ),
+                      prefixIcon: const Icon(Icons.notes),
+                      alignLabelWithHint: true,
+                    ),
+                    maxLines: 3,
+                  ),
+                ],
+              ),
+            ),
+
+            // ═══════ Section 2: Participants ═══════
+            FormSectionCard(
+              icon: Icons.groups_outlined,
+              title: 'Participants',
+              subtitle: 'Who is this treatment plan for?',
+              child: Column(
+                children: [
+                  // Patient — searchable picker (scales to thousands)
+                  PatientPickerField(
+                    selected: _selectedPatient,
+                    hasError: _patientError,
+                    onPicked: (p) => setState(() {
+                      _selectedPatient = p;
+                      _patientError = false;
+                    }),
+                  ),
+                  const SizedBox(height: 14),
+                  // Doctor — normal dropdown (usually smaller list)
+                  doctorsAsync.when(
+                    loading: () =>
+                        const DropdownLoading(label: 'Doctor *'),
+                    error: (e, _) => DropdownError(
+                      label: 'Doctor *',
+                      error: e.toString(),
+                      onRetry: () =>
+                          ref.invalidate(doctorSimpleListProvider),
+                    ),
+                    data: (doctors) {
+                      final validSelected = doctors
+                              .any((d) => d.id == _selectedDoctorId)
+                          ? _selectedDoctorId
+                          : null;
+                      return DropdownButtonFormField<int>(
+                        initialValue: validSelected,
+                        isExpanded: true,
+                        decoration: InputDecoration(
+                          labelText: 'Doctor *',
+                          border: OutlineInputBorder(
+                            borderRadius: BorderRadius.circular(10),
+                          ),
+                          prefixIcon: const Icon(
+                              Icons.medical_services_outlined),
+                        ),
+                        hint: const Text('Select doctor'),
+                        items: doctors
+                            .map((d) => DropdownMenuItem<int>(
+                                  value: d.id,
+                                  child: Text(d.displayLabel,
+                                      overflow: TextOverflow.ellipsis),
+                                ))
+                            .toList(),
+                        onChanged: (v) =>
+                            setState(() => _selectedDoctorId = v),
+                        validator: (v) => v == null
+                            ? 'Please select a doctor'
+                            : null,
+                      );
+                    },
+                  ),
+                ],
+              ),
+            ),
+
+            // ═══════ Section 3: Treatment Items ═══════
+            FormSectionCard(
+              icon: Icons.medical_information_outlined,
+              title: 'Treatment Steps',
+              subtitle: 'Add the treatments included in this plan',
+              trailing: Container(
+                padding: const EdgeInsets.symmetric(
+                    horizontal: 12, vertical: 4),
+                decoration: BoxDecoration(
+                  color:
+                      theme.colorScheme.primary.withValues(alpha: 0.12),
+                  borderRadius: BorderRadius.circular(20),
+                ),
+                child: Text(
+                  '${_items.length} step${_items.length == 1 ? '' : 's'}',
+                  style: TextStyle(
+                    color: theme.colorScheme.primary,
+                    fontWeight: FontWeight.bold,
+                    fontSize: 12,
                   ),
                 ),
               ),
-
-            ..._items.asMap().entries.map((entry) {
-              final index = entry.key;
-              final item = entry.value;
-              return _PlanItemFormWidget(
-                index: index,
-                item: item,
-                availableTreatments: treatmentState.treatments,
-                isLoading: treatmentState.isListLoading,
-                onRemove: _items.length > 1
-                    ? () => _removeItem(index)
-                    : null,
-                onChanged: () => setState(() {}),
-              );
-            }),
-
-            const SizedBox(height: 16),
-
-            Card(
-              color: Theme.of(context).colorScheme.primaryContainer,
-              child: Padding(
-                padding: const EdgeInsets.all(16),
-                child: Row(
-                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                  children: [
-                    const Text(
-                      'GRAND TOTAL',
-                      style: TextStyle(
-                        fontWeight: FontWeight.bold,
-                        fontSize: 16,
-                      ),
-                    ),
-                    Text(
-                      '₱${_grandTotal.toStringAsFixed(2)}',
-                      style: const TextStyle(
-                        fontWeight: FontWeight.bold,
-                        fontSize: 20,
-                      ),
-                    ),
+              child: Column(
+                children: [
+                  if (catalogEmpty)
+                    const EmptyCatalogBanner()
+                  else ...[
+                    ..._items.asMap().entries.map((entry) {
+                      final index = entry.key;
+                      final item = entry.value;
+                      return PlanItemCard(
+                        index: index,
+                        item: item,
+                        availableTreatments: treatmentState.treatments,
+                        isLoading: treatmentState.isListLoading,
+                        onMoveUp:
+                            index > 0 ? () => _moveItem(index, -1) : null,
+                        onMoveDown: index < _items.length - 1
+                            ? () => _moveItem(index, 1)
+                            : null,
+                        onRemove: _items.length > 1
+                            ? () => _removeItem(index)
+                            : null,
+                        onChanged: () => setState(() {}),
+                      );
+                    }),
+                    const SizedBox(height: 4),
+                    DashedAddButton(onTap: _addItem),
                   ],
-                ),
+                ],
               ),
             ),
+
+            const SizedBox(height: 80), // space for sticky bottom bar
           ],
         ),
       ),
-    );
-  }
-}
-
-// ─── Plan Item Widget ────────────────────────────────────────────────────────
-class _PlanItemFormWidget extends StatelessWidget {
-  final int index;
-  final _PlanItemForm item;
-  final List<TreatmentModel> availableTreatments;
-  final bool isLoading;
-  final VoidCallback? onRemove;
-  final VoidCallback onChanged;
-
-  const _PlanItemFormWidget({
-    required this.index,
-    required this.item,
-    required this.availableTreatments,
-    required this.isLoading,
-    required this.onChanged,
-    this.onRemove,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    return Card(
-      margin: const EdgeInsets.only(bottom: 12),
-      child: Padding(
-        padding: const EdgeInsets.all(12),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Row(
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-              children: [
-                Text(
-                  'Item ${index + 1}',
-                  style: const TextStyle(fontWeight: FontWeight.bold),
-                ),
-                if (onRemove != null)
-                  IconButton(
-                    onPressed: onRemove,
-                    icon: const Icon(Icons.delete_outline,
-                        color: Colors.red),
-                    tooltip: 'Remove item',
-                  ),
-              ],
-            ),
-            const SizedBox(height: 8),
-
-            // ── Treatment Dropdown ────────────────────────────
-            DropdownButtonFormField<TreatmentModel>(
-              initialValue: item.selectedTreatment, // ✅ FIXED
-              decoration: const InputDecoration(
-                labelText: 'Treatment *',
-                border: OutlineInputBorder(),
-                isDense: true,
-              ),
-              isExpanded: true,
-              hint: isLoading
-                  ? const Text('Loading...')
-                  : const Text('Select treatment from catalog'),
-              items: availableTreatments
-                  .map((t) => DropdownMenuItem<TreatmentModel>(
-                        value: t,
-                        child: Text(
-                          '${t.name} (₱${t.price.toStringAsFixed(2)})',
-                          overflow: TextOverflow.ellipsis,
-                        ),
-                      ))
-                  .toList(),
-              onChanged: (v) {
-                item.selectedTreatment = v;
-                onChanged();
-              },
-              validator: (v) =>
-                  v == null ? 'Select a treatment' : null,
-            ),
-            const SizedBox(height: 8),
-
-            Row(
-              children: [
-                Expanded(
-                  child: TextFormField(
-                    key: ValueKey(
-                        'price-${item.selectedTreatment?.id}'),
-                    initialValue: item.price.toStringAsFixed(2),
-                    readOnly: true,
-                    decoration: const InputDecoration(
-                      labelText: 'Price',
-                      border: OutlineInputBorder(),
-                      isDense: true,
-                      prefixText: '₱ ',
-                      filled: true,
-                    ),
-                  ),
-                ),
-                const SizedBox(width: 8),
-                Expanded(
-                  child: TextFormField(
-                    initialValue: item.quantity.toString(),
-                    decoration: const InputDecoration(
-                      labelText: 'Qty',
-                      border: OutlineInputBorder(),
-                      isDense: true,
-                    ),
-                    keyboardType: TextInputType.number,
-                    onChanged: (v) {
-                      item.quantity = int.tryParse(v) ?? 1;
-                      onChanged();
-                    },
-                  ),
-                ),
-              ],
-            ),
-            const SizedBox(height: 8),
-
-            Align(
-              alignment: Alignment.centerRight,
-              child: Text(
-                'Subtotal: ₱${item.subtotal.toStringAsFixed(2)}',
-                style: const TextStyle(
-                  fontWeight: FontWeight.bold,
-                  color: Colors.green,
-                ),
-              ),
-            ),
-            const SizedBox(height: 8),
-
-            TextFormField(
-              controller: item.notesController,
-              decoration: const InputDecoration(
-                labelText: 'Item Notes',
-                border: OutlineInputBorder(),
-                isDense: true,
-              ),
-              maxLines: 2,
-            ),
-          ],
-        ),
+      bottomNavigationBar: GrandTotalBar(
+        total: _grandTotal,
+        itemCount: _items.length,
+        isSubmitting: _isSubmitting,
+        onSubmit: _submit,
       ),
     );
   }

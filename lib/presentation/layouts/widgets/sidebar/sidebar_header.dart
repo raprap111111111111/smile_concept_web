@@ -1,6 +1,8 @@
 // lib/presentation/layouts/widgets/sidebar/sidebar_header.dart
 import 'package:flutter/material.dart';
+
 import '../../../theme/app_colors.dart';
+import '../../../theme/app_dimensions.dart';
 import '../../../theme/app_text_styles.dart';
 
 class SidebarHeader extends StatelessWidget {
@@ -19,14 +21,15 @@ class SidebarHeader extends StatelessWidget {
                 height: 48,
                 padding: const EdgeInsets.all(6),
                 decoration: BoxDecoration(
-                  color: AppColors.primary.withValues(alpha: 0.12),
-                  borderRadius: BorderRadius.circular(14),
+                  color: AppColors.accentWithOpacity(0.22),
+                  borderRadius:
+                      BorderRadius.circular(AppDimensions.borderRadius),
                   border: Border.all(
-                    color: AppColors.primary.withValues(alpha: 0.25),
+                    color: AppColors.accentWithOpacity(0.5),
                   ),
                 ),
                 child: ClipRRect(
-                  borderRadius: BorderRadius.circular(10),
+                  borderRadius: BorderRadius.circular(6),
                   child: Image.asset(
                     'assets/images/smile.jpg',
                     fit: BoxFit.cover,
@@ -40,7 +43,7 @@ class SidebarHeader extends StatelessWidget {
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis,
                   style: AppTextStyles.titleLarge.copyWith(
-                    color: AppColors.primary,
+                    color: AppColors.primaryDark,
                     fontWeight: FontWeight.w800,
                     letterSpacing: 0.2,
                   ),
@@ -49,10 +52,10 @@ class SidebarHeader extends StatelessWidget {
             ],
           ),
         ),
-        Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 16),
+        const Padding(
+          padding: EdgeInsets.symmetric(horizontal: 16),
           child: Divider(
-            color: Colors.white.withValues(alpha: 0.10),
+            color: AppColors.line,
             height: 1,
           ),
         ),
