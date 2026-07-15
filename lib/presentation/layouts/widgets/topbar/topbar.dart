@@ -15,10 +15,10 @@ class Topbar extends StatelessWidget {
     return Container(
       height: 72,
       padding: const EdgeInsets.symmetric(horizontal: 26),
-      decoration: BoxDecoration(
-        color: AppColors.surfaceDark,
+      decoration: const BoxDecoration(
+        color: AppColors.background,
         border: Border(
-          bottom: BorderSide(color: Colors.white.withValues(alpha: 0.08)),
+          bottom: BorderSide(color: AppColors.line),
         ),
       ),
       child: Row(
@@ -26,15 +26,15 @@ class Topbar extends StatelessWidget {
         children: [
           Text(
             PageTitleResolver.resolve(context),
-            style: AppTextStyles.titleMedium.copyWith(
-              color: Colors.white,
-              fontWeight: FontWeight.w700,
+            style: AppTextStyles.titleLarge.copyWith(
+              color: AppColors.ink,
+              fontWeight: FontWeight.w800,
             ),
           ),
           const Row(
             children: [
               NotificationBell(),
-              SizedBox(width: 8),
+              SizedBox(width: 12),
               TopbarUserInfo(),
             ],
           ),

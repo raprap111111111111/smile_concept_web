@@ -21,6 +21,12 @@ class Perm {
   static const String treatmentPlanDelete  = 'treatment-plan.delete';
   static const String treatmentPlanAccept  = 'treatment-plan.accept';
   static const String treatmentPlanReject  = 'treatment-plan.reject';
+  // lib/constant/permission_constants.dart
+  static const treatmentPlanSendToPatient = 'treatment-plan.send-to-patient';
+  static const treatmentPlanMarkCompleted = 'treatment-plan.mark-completed';
+  static const treatmentPlanReopen        = 'treatment-plan.reopen';
+  static const treatmentPlanChangeStatus  = 'treatment-plan.change-status';
+
 
   // ── Prescriptions ─────────────────────────────────────────
   static const String prescriptionViewAny = 'prescription.viewAny';

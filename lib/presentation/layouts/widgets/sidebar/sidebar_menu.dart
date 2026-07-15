@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../providers/auth/permission_provider.dart';
+import '../../../theme/app_colors.dart';
 import 'sidebar_menu_item.dart';
 import 'sidebar_nav_config.dart';
 import 'sidebar_section.dart';
@@ -16,7 +17,6 @@ class SidebarMenu extends ConsumerWidget {
     final perm = ref.watch(permissionServiceProvider);
     final sections = SidebarNavConfig.buildFor(perm);
 
-    // ── Filter: only visible sections with visible items ─────────────────
     final visibleSections = sections
         .map((section) {
           final items = section.items
@@ -27,7 +27,6 @@ class SidebarMenu extends ConsumerWidget {
         .where((s) => s.items.isNotEmpty)
         .toList();
 
-    // ── Build UI with dividers ────────────────────────────────────────────
     return SingleChildScrollView(
       padding: const EdgeInsets.fromLTRB(12, 16, 12, 16),
       child: Column(
@@ -58,13 +57,12 @@ class SidebarMenu extends ConsumerWidget {
     return children;
   }
 
-  Widget _gap() => Padding(
-        padding: const EdgeInsets.symmetric(vertical: 10),
-        child: Divider(color: Colors.white.withValues(alpha: 0.06), height: 1),
+  Widget _gap() => const Padding(
+        padding: EdgeInsets.symmetric(vertical: 10),
+        child: Divider(color: AppColors.line, height: 1),
       );
 }
 
-/// Internal helper for filtered results
 class _VisibleSection {
   final NavSection section;
   final List<NavItem> items;

@@ -1,24 +1,8 @@
 // lib/presentation/providers/treatment/treatment_plan_provider.dart
 
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import '../../../core/network/dio_client.dart';
-import '../../../data/datasources/remote/treatment_plan_remote_datasource.dart';
 import '../../../data/models/treatment/treatment_plan_model.dart';
 import '../../../data/repositories/treatment_plan_repository.dart';
-
-final treatmentPlanRemoteDataSourceProvider =
-    Provider<TreatmentPlanRemoteDataSource>((ref) {
-  return TreatmentPlanRemoteDataSource(
-      dio: ref.read(dioProvider));
-});
-
-final treatmentPlanRepositoryProvider =
-    Provider<TreatmentPlanRepository>((ref) {
-  return TreatmentPlanRepository(
-    remoteDataSource:
-        ref.read(treatmentPlanRemoteDataSourceProvider),
-  );
-});
 
 // ── State ──────────────────────────────────────────────────────
 class TreatmentPlanState {
@@ -34,21 +18,21 @@ class TreatmentPlanState {
   final int lastPage;
 
   const TreatmentPlanState({
-    this.plans           = const [],
+    this.plans = const [],
     this.selected,
-    this.isListLoading   = false,
+    this.isListLoading = false,
     this.isDetailLoading = false,
-    this.isLoadingMore   = false,
-    this.isSubmitting    = false,
+    this.isLoadingMore = false,
+    this.isSubmitting = false,
     this.listError,
     this.detailError,
-    this.currentPage     = 1,
-    this.lastPage        = 1,
+    this.currentPage = 1,
+    this.lastPage = 1,
   });
 
-  bool get hasListError   => listError != null;
+  bool get hasListError => listError != null;
   bool get hasDetailError => detailError != null;
-  bool get hasMore        => currentPage < lastPage;
+  bool get hasMore => currentPage < lastPage;
   bool get isEmpty =>
       !isListLoading && plans.isEmpty && listError == null;
 
@@ -63,21 +47,22 @@ class TreatmentPlanState {
     String? detailError,
     int? currentPage,
     int? lastPage,
-    bool clearSelected    = false,
-    bool clearListError   = false,
+    bool clearSelected = false,
+    bool clearListError = false,
     bool clearDetailError = false,
   }) {
     return TreatmentPlanState(
-      plans:           plans           ?? this.plans,
-      selected:        clearSelected   ? null : selected ?? this.selected,
-      isListLoading:   isListLoading   ?? this.isListLoading,
+      plans: plans ?? this.plans,
+      selected: clearSelected ? null : selected ?? this.selected,
+      isListLoading: isListLoading ?? this.isListLoading,
       isDetailLoading: isDetailLoading ?? this.isDetailLoading,
-      isLoadingMore:   isLoadingMore   ?? this.isLoadingMore,
-      isSubmitting:    isSubmitting    ?? this.isSubmitting,
-      listError:  clearListError  ? null : listError  ?? this.listError,
-      detailError: clearDetailError ? null : detailError ?? this.detailError,
+      isLoadingMore: isLoadingMore ?? this.isLoadingMore,
+      isSubmitting: isSubmitting ?? this.isSubmitting,
+      listError: clearListError ? null : listError ?? this.listError,
+      detailError:
+          clearDetailError ? null : detailError ?? this.detailError,
       currentPage: currentPage ?? this.currentPage,
-      lastPage:    lastPage    ?? this.lastPage,
+      lastPage: lastPage ?? this.lastPage,
     );
   }
 }
@@ -101,27 +86,27 @@ class TreatmentPlanNotifier
     bool forceRefresh = false,
   }) async {
     _filterPatientId = patientId;
-    _filterDoctorId  = doctorId;
-    _filterStatus    = status;
+    _filterDoctorId = doctorId;
+    _filterStatus = status;
 
     state = state.copyWith(
-      isListLoading:  true,
+      isListLoading: true,
       clearListError: true,
-      currentPage:    1,
+      currentPage: 1,
     );
 
     try {
       final result = await _repository.getTreatmentPlans(
-        page:      1,
+        page: 1,
         patientId: patientId,
-        doctorId:  doctorId,
-        status:    status,
+        doctorId: doctorId,
+        status: status,
       );
 
       state = state.copyWith(
-        plans:         result.plans,
-        currentPage:   result.currentPage,
-        lastPage:      result.lastPage,
+        plans: result.plans,
+        currentPage: result.currentPage,
+        lastPage: result.lastPage,
         isListLoading: false,
       );
     } catch (e) {
@@ -138,16 +123,16 @@ class TreatmentPlanNotifier
 
     try {
       final result = await _repository.getTreatmentPlans(
-        page:      state.currentPage + 1,
+        page: state.currentPage + 1,
         patientId: _filterPatientId,
-        doctorId:  _filterDoctorId,
-        status:    _filterStatus,
+        doctorId: _filterDoctorId,
+        status: _filterStatus,
       );
 
       state = state.copyWith(
-        plans:        [...state.plans, ...result.plans],
-        currentPage:  result.currentPage,
-        lastPage:     result.lastPage,
+        plans: [...state.plans, ...result.plans],
+        currentPage: result.currentPage,
+        lastPage: result.lastPage,
         isLoadingMore: false,
       );
     } catch (e) {
@@ -158,19 +143,17 @@ class TreatmentPlanNotifier
     }
   }
 
-  Future<void> loadById(int id,
-      {bool forceRefresh = false}) async {
+  Future<void> loadById(int id, {bool forceRefresh = false}) async {
     state = state.copyWith(
-      isDetailLoading:  true,
+      isDetailLoading: true,
       clearDetailError: true,
-      clearSelected:    true,
+      clearSelected: true,
     );
 
     try {
-      final result =
-          await _repository.getTreatmentPlanById(id);
+      final result = await _repository.getTreatmentPlanById(id);
       state = state.copyWith(
-        selected:        result,
+        selected: result,
         isDetailLoading: false,
       );
     } catch (e) {
@@ -183,8 +166,7 @@ class TreatmentPlanNotifier
 
   Future<bool> deletePlan(int id) async {
     try {
-      await _repository.remoteDataSource
-          .deleteTreatmentPlan(id);
+      await _repository.delete(id);
       state = state.copyWith(
         plans: state.plans.where((p) => p.id != id).toList(),
       );
@@ -197,17 +179,50 @@ class TreatmentPlanNotifier
     }
   }
 
+  /// Returns null on success, or an error message on failure.
+  Future<String?> changeStatus({
+    required int id,
+    required String status,
+    String? reason,
+  }) async {
+    try {
+      final updated = await _repository.changeStatus(
+        id: id,
+        status: status,
+        reason: reason,
+      );
+
+      // Update the plan in the list
+      final newList =
+          state.plans.map((p) => p.id == id ? updated : p).toList();
+
+      // Also update `selected` if viewing this same plan's detail
+      final newSelected =
+          state.selected?.id == id ? updated : state.selected;
+
+      state = state.copyWith(
+        plans: newList,
+        selected: newSelected,
+      );
+      return null;
+    } catch (e) {
+      final msg = e.toString().replaceAll('Exception: ', '');
+      state = state.copyWith(listError: msg);
+      return msg;
+    }
+  }
+
   Future<void> refresh() => loadPlans(
-        patientId:    _filterPatientId,
-        doctorId:     _filterDoctorId,
-        status:       _filterStatus,
+        patientId: _filterPatientId,
+        doctorId: _filterDoctorId,
+        status: _filterStatus,
         forceRefresh: true,
       );
 }
 
-final treatmentPlanProvider = StateNotifierProvider<
-    TreatmentPlanNotifier,
-    TreatmentPlanState>((ref) {
+final treatmentPlanProvider =
+    StateNotifierProvider<TreatmentPlanNotifier, TreatmentPlanState>(
+        (ref) {
   return TreatmentPlanNotifier(
       ref.read(treatmentPlanRepositoryProvider));
 });

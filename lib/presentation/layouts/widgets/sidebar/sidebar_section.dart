@@ -1,6 +1,8 @@
 // lib/presentation/layouts/widgets/sidebar/sidebar_section.dart
 import 'package:flutter/material.dart';
 
+import '../../../theme/app_colors.dart';
+
 class SidebarSection extends StatefulWidget {
   final String title;
   final bool initiallyExpanded;
@@ -10,7 +12,7 @@ class SidebarSection extends StatefulWidget {
     super.key,
     required this.title,
     required this.children,
-    this.initiallyExpanded = false,
+    this.initiallyExpanded = false, // expanded by default for light theme
   });
 
   @override
@@ -41,8 +43,8 @@ class _SidebarSectionState extends State<SidebarSection> {
                 Expanded(
                   child: Text(
                     widget.title,
-                    style: TextStyle(
-                      color: Colors.white.withValues(alpha: 0.42),
+                    style: const TextStyle(
+                      color: AppColors.textTertiary,
                       fontSize: 11,
                       fontWeight: FontWeight.w800,
                       letterSpacing: 1.2,
@@ -52,9 +54,9 @@ class _SidebarSectionState extends State<SidebarSection> {
                 AnimatedRotation(
                   duration: const Duration(milliseconds: 180),
                   turns: _isExpanded ? 0.0 : -0.25,
-                  child: Icon(
+                  child: const Icon(
                     Icons.keyboard_arrow_down_rounded,
-                    color: Colors.white.withValues(alpha: 0.42),
+                    color: AppColors.textTertiary,
                     size: 20,
                   ),
                 ),

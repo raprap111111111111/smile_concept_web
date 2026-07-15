@@ -5,9 +5,11 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
 import '/presentation/constant/permission_constants.dart';
-import '../../providers/auth/auth_provider.dart';
 import '/presentation/providers/treatment/treatment_plan_provider.dart';
+import '../../../data/models/treatment/treatment_plan_model.dart';
+import '../../providers/auth/auth_provider.dart';
 import '../../route/route_names.dart';
+import 'widgets/status_change_dialog.dart';
 import 'widgets/treatment_plan_card.dart';
 import 'widgets/treatment_plan_empty_state.dart';
 import 'widgets/treatment_plan_status_filter.dart';
@@ -23,12 +25,10 @@ class TreatmentPlansPage extends ConsumerStatefulWidget {
   });
 
   @override
-  ConsumerState<TreatmentPlansPage> createState() =>
-      _TreatmentPlansPageState();
+  ConsumerState<TreatmentPlansPage> createState() => _TreatmentPlansPageState();
 }
 
-class _TreatmentPlansPageState
-    extends ConsumerState<TreatmentPlansPage> {
+class _TreatmentPlansPageState extends ConsumerState<TreatmentPlansPage> {
   final _scrollController = ScrollController();
   String? _selectedStatus;
 
@@ -45,8 +45,7 @@ class _TreatmentPlansPageState
   void initState() {
     super.initState();
     _scrollController.addListener(_onScroll);
-    WidgetsBinding.instance
-        .addPostFrameCallback((_) => _load());
+    WidgetsBinding.instance.addPostFrameCallback((_) => _load());
   }
 
   @override
@@ -112,13 +111,11 @@ class _TreatmentPlansPageState
     showDialog(
       context: context,
       barrierDismissible: false,
-      builder: (_) =>
-          const Center(child: CircularProgressIndicator()),
+      builder: (_) => const Center(child: CircularProgressIndicator()),
     );
 
-    final success = await ref
-        .read(treatmentPlanProvider.notifier)
-        .deletePlan(id);
+    final success =
+        await ref.read(treatmentPlanProvider.notifier).deletePlan(id);
 
     if (!mounted) return;
     Navigator.pop(context);
@@ -126,15 +123,65 @@ class _TreatmentPlansPageState
     _showSnack(
       success
           ? 'Treatment plan deleted'
-          : ref.read(treatmentPlanProvider).listError ??
-              'Failed to delete',
+          : ref.read(treatmentPlanProvider).listError ?? 'Failed to delete',
       success ? Colors.green : Colors.red,
     );
   }
 
+  Future<void> _changeStatus(TreatmentPlanModel plan) async {
+    final auth = ref.read(authStateProvider);
+    if (!auth.hasPermission(Perm.treatmentPlanUpdate)) {
+      _showSnack('No permission to change status', Colors.red);
+      return;
+    }
+
+    final result = await showDialog<Map<String, String>>(
+      context: context,
+      builder: (_) => StatusChangeDialog(currentStatus: plan.status),
+    );
+
+    if (result == null || !mounted) return;
+
+    showDialog(
+      context: context,
+      barrierDismissible: false,
+      builder: (_) => const Center(child: CircularProgressIndicator()),
+    );
+
+    final error = await ref.read(treatmentPlanProvider.notifier).changeStatus(
+          id: plan.id,
+          status: result['status']!,
+          reason: result['reason'],
+        );
+
+    if (!mounted) return;
+    context.go('/treatment-plans');
+
+    if (error == null) {
+      _showSnack('Status changed to ${result['status']}', Colors.green);
+    } else {
+      _showSnack(error, Colors.red);
+    }
+  }
+
   void _showSnack(String msg, Color color) {
     ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(content: Text(msg), backgroundColor: color),
+      SnackBar(
+        content: Row(
+          children: [
+            Icon(
+                color == Colors.green
+                    ? Icons.check_circle
+                    : Icons.error_outline,
+                color: Colors.white),
+            const SizedBox(width: 12),
+            Expanded(child: Text(msg)),
+          ],
+        ),
+        backgroundColor: color,
+        behavior: SnackBarBehavior.floating,
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+      ),
     );
   }
 
@@ -144,6 +191,7 @@ class _TreatmentPlansPageState
     final auth = ref.watch(authStateProvider);
     final canCreate = auth.hasPermission(Perm.treatmentPlanCreate);
     final canDelete = auth.hasPermission(Perm.treatmentPlanDelete);
+    final canChangeStatus = auth.hasPermission(Perm.treatmentPlanUpdate);
 
     return Scaffold(
       appBar: AppBar(
@@ -166,20 +214,24 @@ class _TreatmentPlansPageState
               _load(forceRefresh: true);
             },
           ),
-          Expanded(child: _buildBody(state, canDelete)),
+          Expanded(child: _buildBody(state, canDelete, canChangeStatus)),
         ],
       ),
       floatingActionButton: canCreate
           ? FloatingActionButton.extended(
-              onPressed: () => context.pushNamed(
-                RouteNames.treatmentPlanCreate,
-                extra: {
-                  if (widget.patientId != null)
-                    'patient_id': widget.patientId,
-                  if (widget.doctorId != null)
-                    'doctor_id': widget.doctorId,
-                },
-              ),
+              onPressed: () async {
+                final created = await context.pushNamed<bool>(
+                  RouteNames.treatmentPlanCreate,
+                  extra: {
+                    if (widget.patientId != null)
+                      'patient_id': widget.patientId,
+                    if (widget.doctorId != null) 'doctor_id': widget.doctorId,
+                  },
+                );
+                if (created == true && mounted) {
+                  _load(forceRefresh: true);
+                }
+              },
               icon: const Icon(Icons.add),
               label: const Text('New Plan'),
             )
@@ -187,7 +239,11 @@ class _TreatmentPlansPageState
     );
   }
 
-  Widget _buildBody(TreatmentPlanState state, bool canDelete) {
+  Widget _buildBody(
+    TreatmentPlanState state,
+    bool canDelete,
+    bool canChangeStatus,
+  ) {
     if (state.isListLoading) {
       return const Center(child: CircularProgressIndicator());
     }
@@ -199,8 +255,7 @@ class _TreatmentPlansPageState
           child: Column(
             mainAxisAlignment: MainAxisAlignment.center,
             children: [
-              const Icon(Icons.error_outline,
-                  size: 48, color: Colors.red),
+              const Icon(Icons.error_outline, size: 48, color: Colors.red),
               const SizedBox(height: 12),
               Text(
                 state.listError ?? 'Failed to load',
@@ -225,13 +280,11 @@ class _TreatmentPlansPageState
     }
 
     return RefreshIndicator(
-      onRefresh: () =>
-          ref.read(treatmentPlanProvider.notifier).refresh(),
+      onRefresh: () => ref.read(treatmentPlanProvider.notifier).refresh(),
       child: ListView.builder(
         controller: _scrollController,
         padding: const EdgeInsets.all(16),
-        itemCount:
-            state.plans.length + (state.isLoadingMore ? 1 : 0),
+        itemCount: state.plans.length + (state.isLoadingMore ? 1 : 0),
         itemBuilder: (context, index) {
           if (index == state.plans.length) {
             return const Padding(
@@ -243,7 +296,9 @@ class _TreatmentPlansPageState
           return TreatmentPlanCard(
             plan: plan,
             canDelete: canDelete,
+            canChangeStatus: canChangeStatus,
             onDelete: () => _delete(plan.id, plan.name),
+            onChangeStatus: () => _changeStatus(plan),
           );
         },
       ),
