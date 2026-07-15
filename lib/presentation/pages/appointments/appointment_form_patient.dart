@@ -28,6 +28,7 @@ class _AppointmentFormPatientState
   TimeOfDay? _selectedTime;
 
   String? _purpose;
+  String? _bookingFor;
 
   final List<String> _purposes = [
     'Dental Check-up',
@@ -40,6 +41,14 @@ class _AppointmentFormPatientState
     'Emergency',
     'Other',
   ];
+
+final List<String> _bookingOptions = [
+  'Myself',
+  'Spouse',
+  'Child',
+  'Parent',
+  'Other',
+];
 
   @override
   void dispose() {
@@ -303,6 +312,33 @@ DateTime _combineDateAndTime() {
                                   ? "Select a purpose"
                                   : null,
                         ),
+
+                        DropdownButtonFormField<String>(
+                        value: _bookingFor,
+                        decoration: const InputDecoration(
+                          labelText: "Booking For",
+                          prefixIcon: Icon(Icons.people_outline),
+                        ),
+                        items: _bookingOptions
+                            .map(
+                              (option) => DropdownMenuItem<String>(
+                                value: option,
+                                child: Text(option),
+                              ),
+                            )
+                            .toList(),
+                        onChanged: (value) {
+                          setState(() {
+                            _bookingFor = value;
+                          });
+                        },
+                        validator: (value) {
+                          if (value == null || value.isEmpty) {
+                            return 'Please select who the appointment is for.';
+                          }
+                          return null;
+                        },
+                      ),
 
                         const SizedBox(height: 16),
 
