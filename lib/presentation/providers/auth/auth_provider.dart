@@ -1,8 +1,10 @@
 // lib/presentation/providers/auth/auth_provider.dart
 
+import 'package:dio/dio.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../data/repositories/auth_repository.dart';
 import '../../../data/models/auth/user_model.dart';
+import 'package:flutter/foundation.dart';
 
 // ─── Auth Status ──────────────────────────────────────────────
 enum AuthStatus {
@@ -220,22 +222,33 @@ class AuthStateNotifier extends StateNotifier<AuthState> {
       errorMessage: null,
     );
 
-    try {
+   try {
       final response = await _authRepository.register(
         firstName: firstName,
-        lastName:  lastName,
-        email:     email,
-        password:  password,
-        phone:     phone,
+        lastName: lastName,
+        email: email,
+        password: password,
+        phone: phone,
       );
+
+      print('✅ Registration successful');
+      print('User: ${response.user}');
 
       state = AuthState(
         status: AuthStatus.authenticated,
-        user:   response.user,
+        user: response.user,
       );
+    } on DioException catch (e){
+      
+        print('Status Code: ${e.response?.statusCode}');
+        print('Response: ${e.response?.data}');
+
     } catch (e) {
+      print('❌ Registration failed');
+      print(e);
+
       state = AuthState(
-        status:       AuthStatus.unauthenticated,
+        status: AuthStatus.unauthenticated,
         errorMessage: _parseError(e),
       );
     }

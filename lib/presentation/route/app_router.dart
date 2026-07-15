@@ -14,6 +14,7 @@ import '../pages/auth/login_page.dart';
 import '../pages/auth/register_page.dart';
 import '../pages/dashboard/dashboard_page.dart';
 import '../pages/appointments/appointments_page.dart';
+import '../pages/appointments/book_appointment_page.dart';
 import '../pages/settings/settings_page.dart';
 import '../pages/roles/roles_permissions_page.dart';
 import '../pages/doctors/doctors_page.dart';
@@ -23,6 +24,7 @@ import '../pages/notifications/notifications_page.dart';
 import '../pages/patients/patient_list_page.dart';
 import '../pages/patients/patient_detail_page.dart';
 import '../pages/patients/patient_form_page.dart';
+import '../pages/appointments/appointment_form_patient.dart';
 import '../pages/users/users_page.dart';
 import '../pages/branch/branches_page.dart';
 import '../pages/prescriptions/prescriptions_page.dart';
@@ -54,6 +56,7 @@ final routerProvider = Provider<GoRouter>((ref) {
         '/login',
         '/register',
         '/forgot-password',
+        '/appointment-patient-form',
       ];
       final isPublic = publicRoutes.contains(location);
 
@@ -64,9 +67,11 @@ final routerProvider = Provider<GoRouter>((ref) {
 
       // Authenticated
       if (authState.isAuthenticated) {
-        if (location == '/splash' ||
-            location == '/login' ||
-            location == '/register') {
+        if (location == '/register') {
+          return '/';
+        }
+
+        if (location == '/splash' || location == '/login') {
           return '/dashboard';
         }
         return null;
@@ -122,6 +127,18 @@ final routerProvider = Provider<GoRouter>((ref) {
             builder: (context, state) => const AppointmentsPage(),
           ),
 
+          GoRoute(
+            path: '/book-appointment',
+            name: RouteNames.bookAppointment,
+            builder: (context, state) => const BookAppointmentPage(),
+          ),
+
+
+          GoRoute(
+            path: '/appointment-patient-form',
+            name: RouteNames.appointmentPatientForm,
+            builder: (context, state) => const AppointmentFormPatient(),
+          ),
           // ── Treatments (with nested create) ───────────────
           GoRoute(
             path: '/treatments',
