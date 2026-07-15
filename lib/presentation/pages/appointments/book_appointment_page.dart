@@ -82,11 +82,11 @@ class _BookAppointmentPageState extends ConsumerState<BookAppointmentPage> {
     final currentUser = ref.read(authStateProvider).user;
 
     final canCreateSelf = permissionService.can(
-      AppPermissions.appointmentCreate,
+      Perm.appointmentCreate,
     );
 
     final canCreateForOthers = permissionService.can(
-      AppPermissions.appointmentCreateForOthers,
+      Perm.appointmentCreateForOthers,
     );
 
     if (!canCreateSelf && !canCreateForOthers) {
@@ -187,7 +187,7 @@ class _BookAppointmentPageState extends ConsumerState<BookAppointmentPage> {
     final currentUser = ref.watch(authStateProvider).user;
 
     final canCreateForOthers = permissionService.can(
-      AppPermissions.appointmentCreateForOthers,
+      Perm.appointmentCreateForOthers,
     );
 
     debugPrint('BOOK PAGE ROLE: ${currentUser?.role}');

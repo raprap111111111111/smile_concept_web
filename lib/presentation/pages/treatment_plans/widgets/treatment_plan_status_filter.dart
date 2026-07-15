@@ -1,6 +1,8 @@
 // lib/presentation/pages/treatment_plans/widgets/treatment_plan_status_filter.dart
-
 import 'package:flutter/material.dart';
+
+import '../../../theme/app_colors.dart';
+import '../../../theme/app_dimensions.dart';
 
 class TreatmentPlanStatusFilter extends StatelessWidget {
   final String selected;
@@ -14,72 +16,96 @@ class TreatmentPlanStatusFilter extends StatelessWidget {
     required this.onChanged,
   });
 
-  String _label(String s) => switch (s) {
-        'all'       => 'All',
-        'draft'     => 'Draft',
-        'proposed'  => 'Proposed',
-        'accepted'  => 'Accepted',
-        'completed' => 'Completed',
-        'rejected'  => 'Rejected',
-        _           => s,
-      };
-
-  Color _color(String s) => switch (s) {
-        'accepted'  => Colors.green,
-        'completed' => Colors.teal,
-        'rejected'  => Colors.red,
-        'proposed'  => Colors.orange,
-        'draft'     => Colors.grey,
-        _           => Colors.blue,
-      };
-
   @override
   Widget build(BuildContext context) {
     return Container(
-      height: 48,
-      color:  Theme.of(context).colorScheme.surface,
-      child: ListView.separated(
+      color: AppColors.background,
+      padding: const EdgeInsets.symmetric(
+        horizontal: AppDimensions.paddingLarge,
+        vertical: 14,
+      ),
+      child: SingleChildScrollView(
         scrollDirection: Axis.horizontal,
-        padding: const EdgeInsets.symmetric(
-            horizontal: 16, vertical: 8),
-        itemCount:        options.length,
-        separatorBuilder: (_, __) =>
-            const SizedBox(width: 8),
-        itemBuilder: (context, index) {
-          final status   = options[index];
-          final isActive = selected == status;
-          final color    = _color(status);
-
-          return GestureDetector(
-            onTap: () => onChanged(status),
-            child: AnimatedContainer(
-              duration: const Duration(milliseconds: 160),
-              padding: const EdgeInsets.symmetric(
-                  horizontal: 14, vertical: 4),
-              decoration: BoxDecoration(
-                color: isActive
-                    ? color.withValues(alpha: 0.15)
-                    : Colors.grey.withValues(alpha: 0.08),
-                borderRadius: BorderRadius.circular(20),
-                border: Border.all(
-                  color: isActive
-                      ? color
-                      : Colors.grey
-                          .withValues(alpha: 0.2),
-                ),
+        child: Row(
+          children: options.map((status) {
+            final isActive = selected == status;
+            return Padding(
+              padding: const EdgeInsets.only(right: 8),
+              child: _StatusChip(
+                label: status,
+                active: isActive,
+                onTap: () => onChanged(status),
               ),
-              child: Text(
-                _label(status),
-                style: TextStyle(
-                  fontSize:   12,
-                  fontWeight: FontWeight.w600,
-                  color: isActive ? color : Colors.grey,
-                ),
-              ),
-            ),
-          );
-        },
+            );
+          }).toList(),
+        ),
       ),
     );
   }
+}
+
+class _StatusChip extends StatefulWidget {
+  final String label;
+  final bool active;
+  final VoidCallback onTap;
+
+  const _StatusChip({
+    required this.label,
+    required this.active,
+    required this.onTap,
+  });
+
+  @override
+  State<_StatusChip> createState() => _StatusChipState();
+}
+
+class _StatusChipState extends State<_StatusChip> {
+  bool _hovered = false;
+
+  @override
+  Widget build(BuildContext context) {
+    final bg = widget.active
+        ? AppColors.primary
+        : _hovered
+            ? AppColors.accentWithOpacity(0.18)
+            : AppColors.surface;
+
+    final borderColor = widget.active
+        ? AppColors.primary
+        : AppColors.line;
+
+    final textColor = widget.active ? Colors.white : AppColors.ink;
+
+    return MouseRegion(
+      cursor: SystemMouseCursors.click,
+      onEnter: (_) => setState(() => _hovered = true),
+      onExit: (_) => setState(() => _hovered = false),
+      child: GestureDetector(
+        onTap: widget.onTap,
+        child: AnimatedContainer(
+          duration: const Duration(milliseconds: 160),
+          padding: const EdgeInsets.symmetric(
+            horizontal: 16,
+            vertical: 10,
+          ),
+          decoration: BoxDecoration(
+            color: bg,
+            borderRadius: BorderRadius.circular(AppDimensions.borderRadius),
+            border: Border.all(color: borderColor),
+          ),
+          child: Text(
+            _capitalize(widget.label),
+            style: TextStyle(
+              color: textColor,
+              fontWeight: FontWeight.w800,
+              fontSize: 13,
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+
+  String _capitalize(String s) =>
+      s.isEmpty ? s : s[0].toUpperCase() + s.substring(1);
 }

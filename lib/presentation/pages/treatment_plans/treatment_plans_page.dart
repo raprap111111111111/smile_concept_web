@@ -9,6 +9,9 @@ import '/presentation/providers/treatment/treatment_plan_provider.dart';
 import '../../../data/models/treatment/treatment_plan_model.dart';
 import '../../providers/auth/auth_provider.dart';
 import '../../route/route_names.dart';
+import '../../theme/app_colors.dart';
+import '../../theme/app_dimensions.dart';
+import '../../theme/app_text_styles.dart';
 import 'widgets/status_change_dialog.dart';
 import 'widgets/treatment_plan_card.dart';
 import 'widgets/treatment_plan_empty_state.dart';
@@ -73,65 +76,38 @@ class _TreatmentPlansPageState extends ConsumerState<TreatmentPlansPage> {
   Future<void> _delete(int id, String name) async {
     final auth = ref.read(authStateProvider);
     if (!auth.hasPermission(Perm.treatmentPlanDelete)) {
-      _showSnack('No permission to delete treatment plans', Colors.red);
+      _showSnack('No permission to delete treatment plans', isError: true);
       return;
     }
 
     final confirmed = await showDialog<bool>(
       context: context,
-      builder: (ctx) => AlertDialog(
-        title: const Row(
-          children: [
-            Icon(Icons.warning_amber_rounded, color: Colors.red),
-            SizedBox(width: 8),
-            Text('Delete Treatment Plan?'),
-          ],
-        ),
-        content: Text(
-          'Delete "$name"?\n\n'
-          'This will remove all plan items. '
-          'This cannot be undone.',
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(ctx, false),
-            child: const Text('Cancel'),
-          ),
-          TextButton(
-            onPressed: () => Navigator.pop(ctx, true),
-            style: TextButton.styleFrom(foregroundColor: Colors.red),
-            child: const Text('Delete'),
-          ),
-        ],
-      ),
+      builder: (ctx) => _buildDeleteDialog(ctx, name),
     );
 
     if (confirmed != true || !mounted) return;
 
-    showDialog(
-      context: context,
-      barrierDismissible: false,
-      builder: (_) => const Center(child: CircularProgressIndicator()),
-    );
+    _showLoadingDialog();
 
     final success =
         await ref.read(treatmentPlanProvider.notifier).deletePlan(id);
 
     if (!mounted) return;
-    Navigator.pop(context);
+
+    Navigator.of(context, rootNavigator: true).pop();
 
     _showSnack(
       success
           ? 'Treatment plan deleted'
           : ref.read(treatmentPlanProvider).listError ?? 'Failed to delete',
-      success ? Colors.green : Colors.red,
+      isError: !success,
     );
   }
 
   Future<void> _changeStatus(TreatmentPlanModel plan) async {
     final auth = ref.read(authStateProvider);
     if (!auth.hasPermission(Perm.treatmentPlanUpdate)) {
-      _showSnack('No permission to change status', Colors.red);
+      _showSnack('No permission to change status', isError: true);
       return;
     }
 
@@ -142,11 +118,8 @@ class _TreatmentPlansPageState extends ConsumerState<TreatmentPlansPage> {
 
     if (result == null || !mounted) return;
 
-    showDialog(
-      context: context,
-      barrierDismissible: false,
-      builder: (_) => const Center(child: CircularProgressIndicator()),
-    );
+    // Show loading dialog
+    _showLoadingDialog();
 
     final error = await ref.read(treatmentPlanProvider.notifier).changeStatus(
           id: plan.id,
@@ -155,32 +128,153 @@ class _TreatmentPlansPageState extends ConsumerState<TreatmentPlansPage> {
         );
 
     if (!mounted) return;
-    context.go('/treatment-plans');
+
+    Navigator.of(context, rootNavigator: true).pop();
+
+    // Just refresh the list instead
+    _load(forceRefresh: true);
 
     if (error == null) {
-      _showSnack('Status changed to ${result['status']}', Colors.green);
+      _showSnack('Status changed to ${result['status']}', isError: false);
     } else {
-      _showSnack(error, Colors.red);
+      _showSnack(error, isError: true);
     }
   }
+  // ─── Dialog helpers ──────────────────────────────────────
 
-  void _showSnack(String msg, Color color) {
+  Widget _buildDeleteDialog(BuildContext ctx, String name) {
+    return AlertDialog(
+      backgroundColor: AppColors.background,
+      surfaceTintColor: Colors.transparent,
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(AppDimensions.borderRadiusLarge),
+        side: const BorderSide(color: AppColors.line),
+      ),
+      title: Row(
+        children: [
+          Container(
+            padding: const EdgeInsets.all(8),
+            decoration: BoxDecoration(
+              color: AppColors.error.withValues(alpha: 0.1),
+              borderRadius: BorderRadius.circular(AppDimensions.borderRadius),
+            ),
+            child: const Icon(
+              Icons.warning_amber_rounded,
+              color: AppColors.error,
+              size: 22,
+            ),
+          ),
+          const SizedBox(width: 12),
+          Text(
+            'Delete Plan?',
+            style: AppTextStyles.titleLarge.copyWith(color: AppColors.ink),
+          ),
+        ],
+      ),
+      content: RichText(
+        text: TextSpan(
+          style: AppTextStyles.bodyMedium.copyWith(
+            color: AppColors.textSecondary,
+          ),
+          children: [
+            const TextSpan(text: 'Delete '),
+            TextSpan(
+              text: '"$name"',
+              style: const TextStyle(
+                color: AppColors.ink,
+                fontWeight: FontWeight.w800,
+              ),
+            ),
+            const TextSpan(
+              text:
+                  '?\n\nThis will remove all plan items. This cannot be undone.',
+            ),
+          ],
+        ),
+      ),
+      actionsPadding: const EdgeInsets.fromLTRB(20, 0, 20, 16),
+      actions: [
+        TextButton(
+          onPressed: () => Navigator.pop(ctx, false),
+          style: TextButton.styleFrom(
+            foregroundColor: AppColors.textSecondary,
+            padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 12),
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(AppDimensions.borderRadius),
+              side: const BorderSide(color: AppColors.line),
+            ),
+          ),
+          child: const Text(
+            'Cancel',
+            style: TextStyle(fontWeight: FontWeight.w700),
+          ),
+        ),
+        FilledButton(
+          onPressed: () => Navigator.pop(ctx, true),
+          style: FilledButton.styleFrom(
+            backgroundColor: AppColors.error,
+            foregroundColor: Colors.white,
+            padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(AppDimensions.borderRadius),
+            ),
+          ),
+          child: const Text(
+            'Delete',
+            style: TextStyle(fontWeight: FontWeight.w800),
+          ),
+        ),
+      ],
+    );
+  }
+
+  void _showLoadingDialog() {
+    showDialog(
+      context: context,
+      barrierDismissible: false,
+      builder: (_) => const Center(
+        child: SizedBox(
+          width: 42,
+          height: 42,
+          child: CircularProgressIndicator(
+            strokeWidth: 3,
+            valueColor: AlwaysStoppedAnimation(AppColors.primary),
+          ),
+        ),
+      ),
+    );
+  }
+
+  void _showSnack(String msg, {required bool isError}) {
+    final bgColor = isError ? AppColors.error : AppColors.success;
+
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(
         content: Row(
           children: [
             Icon(
-                color == Colors.green
-                    ? Icons.check_circle
-                    : Icons.error_outline,
-                color: Colors.white),
+              isError ? Icons.error_outline : Icons.check_circle_outline,
+              color: Colors.white,
+              size: 20,
+            ),
             const SizedBox(width: 12),
-            Expanded(child: Text(msg)),
+            Expanded(
+              child: Text(
+                msg,
+                style: const TextStyle(
+                  color: Colors.white,
+                  fontWeight: FontWeight.w600,
+                ),
+              ),
+            ),
           ],
         ),
-        backgroundColor: color,
+        backgroundColor: bgColor,
         behavior: SnackBarBehavior.floating,
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+        elevation: 0,
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(AppDimensions.borderRadius),
+        ),
       ),
     );
   }
@@ -194,18 +288,10 @@ class _TreatmentPlansPageState extends ConsumerState<TreatmentPlansPage> {
     final canChangeStatus = auth.hasPermission(Perm.treatmentPlanUpdate);
 
     return Scaffold(
-      appBar: AppBar(
-        title: const Text('Treatment Plans'),
-        actions: [
-          IconButton(
-            onPressed: () => _load(forceRefresh: true),
-            icon: const Icon(Icons.refresh),
-            tooltip: 'Refresh',
-          ),
-        ],
-      ),
+      backgroundColor: AppColors.surface,
       body: Column(
         children: [
+          _buildHeader(),
           TreatmentPlanStatusFilter(
             selected: _selectedStatus ?? 'all',
             options: _statusOptions,
@@ -232,10 +318,99 @@ class _TreatmentPlansPageState extends ConsumerState<TreatmentPlansPage> {
                   _load(forceRefresh: true);
                 }
               },
+              backgroundColor: AppColors.primary,
+              foregroundColor: Colors.white,
+              elevation: 2,
               icon: const Icon(Icons.add),
-              label: const Text('New Plan'),
+              label: const Text(
+                'New Plan',
+                style: TextStyle(fontWeight: FontWeight.w800),
+              ),
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(AppDimensions.borderRadius),
+              ),
             )
           : null,
+    );
+  }
+
+  // ─── Page Header ──────────────────────────────────────────
+  Widget _buildHeader() {
+    return Container(
+      padding: const EdgeInsets.fromLTRB(
+        AppDimensions.paddingLarge,
+        AppDimensions.paddingLarge,
+        AppDimensions.paddingLarge,
+        AppDimensions.paddingMedium,
+      ),
+      decoration: const BoxDecoration(
+        color: AppColors.background,
+        border: Border(bottom: BorderSide(color: AppColors.line)),
+      ),
+      child: Row(
+        children: [
+          Container(
+            height: 44,
+            width: 44,
+            decoration: BoxDecoration(
+              color: AppColors.accentWithOpacity(0.22),
+              borderRadius: BorderRadius.circular(AppDimensions.borderRadius),
+            ),
+            child: const Icon(
+              Icons.assignment_outlined,
+              color: AppColors.primaryDark,
+              size: 22,
+            ),
+          ),
+          const SizedBox(width: 14),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  'Treatment Plans',
+                  style: AppTextStyles.titleLarge.copyWith(
+                    color: AppColors.ink,
+                    fontWeight: FontWeight.w800,
+                  ),
+                ),
+                const SizedBox(height: 2),
+                const Text(
+                  'Manage patient treatment plans and their statuses',
+                  style: TextStyle(
+                    color: AppColors.textSecondary,
+                    fontSize: 13,
+                    fontWeight: FontWeight.w500,
+                  ),
+                ),
+              ],
+            ),
+          ),
+          Tooltip(
+            message: 'Refresh',
+            child: Material(
+              color: Colors.transparent,
+              child: InkWell(
+                onTap: () => _load(forceRefresh: true),
+                borderRadius: BorderRadius.circular(AppDimensions.borderRadius),
+                child: Container(
+                  padding: const EdgeInsets.all(10),
+                  decoration: BoxDecoration(
+                    borderRadius:
+                        BorderRadius.circular(AppDimensions.borderRadius),
+                    border: Border.all(color: AppColors.line),
+                  ),
+                  child: const Icon(
+                    Icons.refresh,
+                    color: AppColors.primaryDark,
+                    size: 20,
+                  ),
+                ),
+              ),
+            ),
+          ),
+        ],
+      ),
     );
   }
 
@@ -245,32 +420,20 @@ class _TreatmentPlansPageState extends ConsumerState<TreatmentPlansPage> {
     bool canChangeStatus,
   ) {
     if (state.isListLoading) {
-      return const Center(child: CircularProgressIndicator());
-    }
-
-    if (state.hasListError) {
-      return Center(
-        child: Padding(
-          padding: const EdgeInsets.all(24),
-          child: Column(
-            mainAxisAlignment: MainAxisAlignment.center,
-            children: [
-              const Icon(Icons.error_outline, size: 48, color: Colors.red),
-              const SizedBox(height: 12),
-              Text(
-                state.listError ?? 'Failed to load',
-                textAlign: TextAlign.center,
-              ),
-              const SizedBox(height: 16),
-              ElevatedButton.icon(
-                onPressed: () => _load(forceRefresh: true),
-                icon: const Icon(Icons.refresh),
-                label: const Text('Retry'),
-              ),
-            ],
+      return const Center(
+        child: SizedBox(
+          width: 42,
+          height: 42,
+          child: CircularProgressIndicator(
+            strokeWidth: 3,
+            valueColor: AlwaysStoppedAnimation(AppColors.primary),
           ),
         ),
       );
+    }
+
+    if (state.hasListError) {
+      return _buildErrorState(state);
     }
 
     if (state.isEmpty) {
@@ -280,27 +443,105 @@ class _TreatmentPlansPageState extends ConsumerState<TreatmentPlansPage> {
     }
 
     return RefreshIndicator(
+      color: AppColors.primary,
       onRefresh: () => ref.read(treatmentPlanProvider.notifier).refresh(),
-      child: ListView.builder(
-        controller: _scrollController,
-        padding: const EdgeInsets.all(16),
-        itemCount: state.plans.length + (state.isLoadingMore ? 1 : 0),
-        itemBuilder: (context, index) {
-          if (index == state.plans.length) {
-            return const Padding(
-              padding: EdgeInsets.all(16),
-              child: Center(child: CircularProgressIndicator()),
-            );
-          }
-          final plan = state.plans[index];
-          return TreatmentPlanCard(
-            plan: plan,
-            canDelete: canDelete,
-            canChangeStatus: canChangeStatus,
-            onDelete: () => _delete(plan.id, plan.name),
-            onChangeStatus: () => _changeStatus(plan),
-          );
-        },
+      child: Center(
+        child: ConstrainedBox(
+          constraints:
+              const BoxConstraints(maxWidth: AppDimensions.maxContentWidth),
+          child: ListView.builder(
+            controller: _scrollController,
+            padding: const EdgeInsets.all(AppDimensions.paddingLarge),
+            itemCount: state.plans.length + (state.isLoadingMore ? 1 : 0),
+            itemBuilder: (context, index) {
+              if (index == state.plans.length) {
+                return const Padding(
+                  padding: EdgeInsets.all(16),
+                  child: Center(
+                    child: SizedBox(
+                      width: 28,
+                      height: 28,
+                      child: CircularProgressIndicator(
+                        strokeWidth: 2.5,
+                        valueColor: AlwaysStoppedAnimation(AppColors.primary),
+                      ),
+                    ),
+                  ),
+                );
+              }
+              final plan = state.plans[index];
+              return TreatmentPlanCard(
+                plan: plan,
+                canDelete: canDelete,
+                canChangeStatus: canChangeStatus,
+                onDelete: () => _delete(plan.id, plan.name),
+                onChangeStatus: () => _changeStatus(plan),
+              );
+            },
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildErrorState(TreatmentPlanState state) {
+    return Center(
+      child: Padding(
+        padding: const EdgeInsets.all(AppDimensions.paddingLarge),
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Container(
+              padding: const EdgeInsets.all(20),
+              decoration: BoxDecoration(
+                color: AppColors.error.withValues(alpha: 0.08),
+                borderRadius:
+                    BorderRadius.circular(AppDimensions.borderRadiusLarge),
+              ),
+              child: const Icon(
+                Icons.error_outline,
+                size: 44,
+                color: AppColors.error,
+              ),
+            ),
+            const SizedBox(height: 20),
+            Text(
+              'Something went wrong',
+              style: AppTextStyles.titleMedium.copyWith(color: AppColors.ink),
+            ),
+            const SizedBox(height: 8),
+            Text(
+              state.listError ?? 'Failed to load treatment plans',
+              textAlign: TextAlign.center,
+              style: AppTextStyles.bodyMedium.copyWith(
+                color: AppColors.textSecondary,
+              ),
+            ),
+            const SizedBox(height: 24),
+            ElevatedButton.icon(
+              onPressed: () => _load(forceRefresh: true),
+              icon: const Icon(Icons.refresh, size: 18),
+              label: const Text('Try Again'),
+              style: ElevatedButton.styleFrom(
+                backgroundColor: AppColors.primary,
+                foregroundColor: Colors.white,
+                elevation: 0,
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 24,
+                  vertical: 16,
+                ),
+                shape: RoundedRectangleBorder(
+                  borderRadius:
+                      BorderRadius.circular(AppDimensions.borderRadius),
+                ),
+                textStyle: const TextStyle(
+                  fontWeight: FontWeight.w800,
+                  fontSize: 14,
+                ),
+              ),
+            ),
+          ],
+        ),
       ),
     );
   }

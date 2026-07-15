@@ -3,6 +3,8 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../data/repositories/role_repository.dart';
 import '../../theme/app_colors.dart';
+import '../../theme/app_dimensions.dart';
+import '../../theme/app_text_styles.dart';
 import 'widgets/permissions_dialog.dart';
 import 'widgets/role_card.dart';
 import 'widgets/role_delete_dialog.dart';
@@ -25,115 +27,106 @@ class _RolesPermissionsPageState extends ConsumerState<RolesPermissionsPage> {
     final rolesAsync = ref.watch(rolesProvider);
 
     return Scaffold(
-      backgroundColor: AppColors.backgroundDark,
-      body: Padding(
-        padding: const EdgeInsets.all(32),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            RolesHeader(
-              onAdd: () => _openRoleDialog(),
-            ),
-            const SizedBox(height: 24),
-            RoleSearchBar(
-              search: _search,
-              onChanged: (value) {
-                setState(() => _search = value);
-              },
-            ),
-            const SizedBox(height: 24),
-            Expanded(
-              child: rolesAsync.when(
-                data: (roles) {
-                  final filtered = roles.where((role) {
-                    final name = role['name']?.toString().toLowerCase() ?? '';
-                    final description =
-                        role['description']?.toString().toLowerCase() ?? '';
-                    final query = _search.toLowerCase().trim();
-
-                    return query.isEmpty ||
-                        name.contains(query) ||
-                        description.contains(query);
-                  }).toList();
-
-                  if (filtered.isEmpty) {
-                    return const RolesEmptyState();
-                  }
-
-                  return GridView.builder(
-                    gridDelegate:
-                        const SliverGridDelegateWithMaxCrossAxisExtent(
-                      maxCrossAxisExtent: 380,
-                      mainAxisSpacing: 20,
-                      crossAxisSpacing: 20,
-                      childAspectRatio: 1.3,
-                    ),
-                    itemCount: filtered.length,
-                    itemBuilder: (context, index) {
-                      final role = filtered[index];
-
-                      return RoleCard(
-                        role: role,
-                        onPermissions: () => _openPermissionsDialog(role),
-                        onEdit: () => _openRoleDialog(role: role),
-                        onDelete: () => _confirmDelete(role),
-                      );
-                    },
-                  );
-                },
-                loading: () => const Center(
-                  child: CircularProgressIndicator(),
-                ),
-                error: (error, _) => Center(
-                  child: Text(
-                    'Error: $error',
-                    style: const TextStyle(color: Colors.white),
+      backgroundColor: AppColors.surface,
+      body: Column(
+        children: [
+          RolesHeader(onAdd: () => _openRoleDialog()),
+          Expanded(
+            child: Padding(
+              padding: const EdgeInsets.all(AppDimensions.paddingLarge),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  RoleSearchBar(
+                    search: _search,
+                    onChanged: (value) => setState(() => _search = value),
                   ),
-                ),
+                  const SizedBox(height: AppDimensions.paddingLarge),
+                  Expanded(
+                    child: rolesAsync.when(
+                      data: (roles) {
+                        final filtered = roles.where((role) {
+                          final name =
+                              role['name']?.toString().toLowerCase() ?? '';
+                          final desc = role['description']
+                                  ?.toString()
+                                  .toLowerCase() ??
+                              '';
+                          final q = _search.toLowerCase().trim();
+                          return q.isEmpty ||
+                              name.contains(q) ||
+                              desc.contains(q);
+                        }).toList();
+
+                        if (filtered.isEmpty) return const RolesEmptyState();
+
+                        return GridView.builder(
+                          gridDelegate:
+                              const SliverGridDelegateWithMaxCrossAxisExtent(
+                            maxCrossAxisExtent: 380,
+                            mainAxisSpacing: 20,
+                            crossAxisSpacing: 20,
+                            childAspectRatio: 1.3,
+                          ),
+                          itemCount: filtered.length,
+                          itemBuilder: (context, index) {
+                            final role = filtered[index];
+                            return RoleCard(
+                              role: role,
+                              onPermissions: () =>
+                                  _openPermissionsDialog(role),
+                              onEdit: () => _openRoleDialog(role: role),
+                              onDelete: () => _confirmDelete(role),
+                            );
+                          },
+                        );
+                      },
+                      loading: () => const Center(
+                        child: CircularProgressIndicator(
+                          valueColor:
+                              AlwaysStoppedAnimation(AppColors.primary),
+                        ),
+                      ),
+                      error: (error, _) => Center(
+                        child: Text(
+                          'Error: $error',
+                          style: AppTextStyles.bodyMedium
+                              .copyWith(color: AppColors.error),
+                        ),
+                      ),
+                    ),
+                  ),
+                ],
               ),
             ),
-          ],
-        ),
+          ),
+        ],
       ),
     );
   }
 
   Future<void> _openPermissionsDialog(Map<String, dynamic> role) async {
-  try {
-    final roleId = role['id'] as int;
+    try {
+      final roleId = role['id'] as int;
+      final freshRole =
+          await ref.read(roleRepositoryProvider).getRole(roleId);
 
-    // Fetch fresh role details so permissions are included.
-    final freshRole = await ref.read(roleRepositoryProvider).getRole(roleId);
+      if (!mounted) return;
 
-    if (!mounted) return;
+      final updatedRole = await showDialog<Map<String, dynamic>>(
+        context: context,
+        barrierDismissible: false,
+        builder: (_) => PermissionsDialog(role: freshRole),
+      );
 
-    debugPrint('FRESH ROLE DATA: $freshRole');
-    debugPrint('FRESH ROLE PERMISSIONS: ${freshRole['permissions']}');
-
-    final updatedRole = await showDialog<Map<String, dynamic>>(
-      context: context,
-      barrierDismissible: false,
-      builder: (_) => PermissionsDialog(role: freshRole),
-    );
-
-    if (updatedRole != null) {
-      ref.invalidate(rolesProvider);
+      if (updatedRole != null) ref.invalidate(rolesProvider);
+    } catch (error) {
+      if (!mounted) return;
+      _showSnack('Failed to load role permissions: $error', isError: true);
     }
-  } catch (error) {
-    if (!mounted) return;
-
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        backgroundColor: Colors.red,
-        content: Text('Failed to load role permissions: $error'),
-      ),
-    );
   }
-}
 
-  Future<void> _openRoleDialog({
-    Map<String, dynamic>? role,
-  }) async {
+  Future<void> _openRoleDialog({Map<String, dynamic>? role}) async {
     final result = await showDialog<Map<String, dynamic>>(
       context: context,
       barrierDismissible: false,
@@ -153,24 +146,11 @@ class _RolesPermissionsPageState extends ConsumerState<RolesPermissionsPage> {
       }
 
       ref.invalidate(rolesProvider);
-
       if (!mounted) return;
-
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          backgroundColor: const Color(0xFF10B981),
-          content: Text(isEdit ? 'Role updated' : 'Role created'),
-        ),
-      );
+      _showSnack(isEdit ? 'Role updated' : 'Role created', isError: false);
     } catch (error) {
       if (!mounted) return;
-
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          backgroundColor: Colors.red,
-          content: Text('Error: $error'),
-        ),
-      );
+      _showSnack('Error: $error', isError: true);
     }
   }
 
@@ -179,146 +159,138 @@ class _RolesPermissionsPageState extends ConsumerState<RolesPermissionsPage> {
       context: context,
       builder: (_) => RoleDeleteDialog(role: role),
     );
-
     if (confirmed != true || !mounted) return;
 
     try {
       final repo = ref.read(roleRepositoryProvider);
-
       await repo.deleteRole(role['id'] as int);
-
       ref.invalidate(rolesProvider);
-
       if (!mounted) return;
-
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          backgroundColor: Color(0xFF10B981),
-          content: Text('Role deleted'),
-        ),
-      );
+      _showSnack('Role deleted', isError: false);
     } catch (error) {
       if (!mounted) return;
-
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          backgroundColor: Colors.red,
-          content: Text('Error: $error'),
-        ),
-      );
+      _showSnack('Error: $error', isError: true);
     }
   }
-}
 
-class RolesHeader extends StatelessWidget {
-  final VoidCallback onAdd;
-
-  const RolesHeader({
-    super.key,
-    required this.onAdd,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    return Row(
-      mainAxisAlignment: MainAxisAlignment.spaceBetween,
-      children: [
-        Row(
+  void _showSnack(String msg, {required bool isError}) {
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Row(
           children: [
-            Container(
-              padding: const EdgeInsets.all(12),
-              decoration: BoxDecoration(
-                gradient: const LinearGradient(
-                  colors: [
-                    Color(0xFF7C3AED),
-                    Color(0xFF4F46E5),
-                  ],
-                ),
-                borderRadius: BorderRadius.circular(12),
-              ),
-              child: const Icon(
-                Icons.shield_outlined,
-                color: Colors.white,
-                size: 28,
-              ),
+            Icon(
+              isError ? Icons.error_outline : Icons.check_circle_outline,
+              color: Colors.white,
+              size: 20,
             ),
-            const SizedBox(width: 16),
-            const Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  'Roles & Permissions',
-                  style: TextStyle(
-                    color: Colors.white,
-                    fontSize: 26,
-                    fontWeight: FontWeight.bold,
-                  ),
+            const SizedBox(width: 12),
+            Expanded(
+              child: Text(
+                msg,
+                style: const TextStyle(
+                  color: Colors.white,
+                  fontWeight: FontWeight.w600,
                 ),
-                SizedBox(height: 4),
-                Text(
-                  'Manage user roles and access rights',
-                  style: TextStyle(
-                    color: Colors.white54,
-                    fontSize: 14,
-                  ),
-                ),
-              ],
+              ),
             ),
           ],
         ),
-        Container(
-          decoration: BoxDecoration(
-            gradient: const LinearGradient(
-              colors: [
-                Color(0xFF7C3AED),
-                Color(0xFF4F46E5),
-              ],
-            ),
-            borderRadius: BorderRadius.circular(12),
-            boxShadow: [
-              BoxShadow(
-                color: const Color(0xFF7C3AED).withValues(alpha: 0.4),
-                blurRadius: 12,
-                offset: const Offset(0, 4),
-              ),
-            ],
-          ),
-          child: Material(
-            color: Colors.transparent,
-            child: InkWell(
-              borderRadius: BorderRadius.circular(12),
-              onTap: onAdd,
-              child: const Padding(
-                padding: EdgeInsets.symmetric(
-                  horizontal: 20,
-                  vertical: 14,
-                ),
-                child: Row(
-                  children: [
-                    Icon(
-                      Icons.add,
-                      color: Colors.white,
-                      size: 20,
-                    ),
-                    SizedBox(width: 8),
-                    Text(
-                      'Add Role',
-                      style: TextStyle(
-                        color: Colors.white,
-                        fontWeight: FontWeight.w600,
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-            ),
-          ),
+        backgroundColor: isError ? AppColors.error : AppColors.success,
+        behavior: SnackBarBehavior.floating,
+        elevation: 0,
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(AppDimensions.borderRadius),
         ),
-      ],
+      ),
     );
   }
 }
 
+// ═══════════════════════════════════════════════════════════
+// Header
+// ═══════════════════════════════════════════════════════════
+class RolesHeader extends StatelessWidget {
+  final VoidCallback onAdd;
+  const RolesHeader({super.key, required this.onAdd});
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.all(AppDimensions.paddingLarge),
+      decoration: const BoxDecoration(
+        color: AppColors.background,
+        border: Border(bottom: BorderSide(color: AppColors.line)),
+      ),
+      child: Row(
+        children: [
+          Container(
+            height: 44,
+            width: 44,
+            decoration: BoxDecoration(
+              color: AppColors.accentWithOpacity(0.22),
+              borderRadius: BorderRadius.circular(AppDimensions.borderRadius),
+            ),
+            child: const Icon(
+              Icons.shield_outlined,
+              color: AppColors.primaryDark,
+              size: 22,
+            ),
+          ),
+          const SizedBox(width: 14),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  'Roles & Permissions',
+                  style: AppTextStyles.titleLarge.copyWith(
+                    color: AppColors.ink,
+                    fontWeight: FontWeight.w800,
+                  ),
+                ),
+                const SizedBox(height: 2),
+                const Text(
+                  'Manage user roles and access rights',
+                  style: TextStyle(
+                    color: AppColors.textSecondary,
+                    fontSize: 13,
+                    fontWeight: FontWeight.w500,
+                  ),
+                ),
+              ],
+            ),
+          ),
+          ElevatedButton.icon(
+            onPressed: onAdd,
+            icon: const Icon(Icons.add, size: 18),
+            label: const Text('Add Role'),
+            style: ElevatedButton.styleFrom(
+              backgroundColor: AppColors.primary,
+              foregroundColor: Colors.white,
+              elevation: 0,
+              padding: const EdgeInsets.symmetric(
+                horizontal: 20,
+                vertical: 16,
+              ),
+              shape: RoundedRectangleBorder(
+                borderRadius:
+                    BorderRadius.circular(AppDimensions.borderRadius),
+              ),
+              textStyle: const TextStyle(
+                fontWeight: FontWeight.w800,
+                fontSize: 14,
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+// ═══════════════════════════════════════════════════════════
+// Empty state
+// ═══════════════════════════════════════════════════════════
 class RolesEmptyState extends StatelessWidget {
   const RolesEmptyState({super.key});
 
@@ -328,18 +300,28 @@ class RolesEmptyState extends StatelessWidget {
       child: Column(
         mainAxisAlignment: MainAxisAlignment.center,
         children: [
-          Icon(
-            Icons.folder_off_outlined,
-            size: 64,
-            color: Colors.white.withValues(alpha: 0.2),
-          ),
-          const SizedBox(height: 16),
-          const Text(
-            'No roles found',
-            style: TextStyle(
-              color: Colors.white54,
-              fontSize: 16,
+          Container(
+            padding: const EdgeInsets.all(24),
+            decoration: BoxDecoration(
+              color: AppColors.accentWithOpacity(0.22),
+              borderRadius:
+                  BorderRadius.circular(AppDimensions.borderRadiusLarge),
             ),
+            child: const Icon(
+              Icons.shield_outlined,
+              size: 48,
+              color: AppColors.primaryDark,
+            ),
+          ),
+          const SizedBox(height: 20),
+          Text(
+            'No roles found',
+            style: AppTextStyles.titleMedium.copyWith(color: AppColors.ink),
+          ),
+          const SizedBox(height: 8),
+          const Text(
+            'Try adjusting your search or create a new role.',
+            style: TextStyle(color: AppColors.textSecondary),
           ),
         ],
       ),

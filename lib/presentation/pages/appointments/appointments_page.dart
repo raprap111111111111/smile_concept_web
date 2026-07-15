@@ -70,7 +70,7 @@ class _AppointmentsPageState extends ConsumerState<AppointmentsPage> {
   /// Check if current user can view ALL appointments
   bool _canViewAll() {
     final permissionService = ref.read(permissionServiceProvider);
-    return permissionService.can(AppPermissions.appointmentViewAny);
+    return permissionService.can(Perm.appointmentViewAny);
   }
 
   /// Get current user ID
@@ -322,12 +322,12 @@ class _AppointmentsPageState extends ConsumerState<AppointmentsPage> {
     final permissions = ref.watch(permissionServiceProvider);
 
     // 🔐 PERMISSION CHECKS
-    final canViewAll = permissions.can(AppPermissions.appointmentViewAny);
-    final canView = permissions.can(AppPermissions.appointmentView);
-    final canCreate = permissions.can(AppPermissions.appointmentCreate);
-    final canDelete = permissions.can(AppPermissions.appointmentDelete);
+    final canViewAll = permissions.can(Perm.appointmentViewAny);
+    final canView = permissions.can(Perm.appointmentView);
+    final canCreate = permissions.can(Perm.appointmentCreate);
+    final canDelete = permissions.can(Perm.appointmentDelete);
     final canUpdateStatus =
-        permissions.can(AppPermissions.appointmentUpdateStatus);
+        permissions.can(Perm.appointmentUpdateStatus);
     final currentUserId = ref.watch(authStateProvider).user?.id;
 
     debugPrint('APPOINTMENTS PAGE - canViewAll: $canViewAll');

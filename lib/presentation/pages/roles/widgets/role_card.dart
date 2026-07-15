@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 
 import '../../../theme/app_colors.dart';
+import '../../../theme/app_dimensions.dart';
+import '../../../theme/app_text_styles.dart';
 
 class RoleCard extends StatelessWidget {
   final Map<String, dynamic> role;
@@ -23,35 +25,21 @@ class RoleCard extends StatelessWidget {
     final usersCount = role['users_count'] ?? 0;
     final permissionsCount = role['permissions_count'] ?? 0;
 
-    final colorPair = _colorForRole(name);
-
     return MouseRegion(
       cursor: SystemMouseCursors.click,
       child: Container(
         decoration: BoxDecoration(
-          color: AppColors.surfaceDark,
-          borderRadius: BorderRadius.circular(16),
-          border: Border.all(
-            color: Colors.white.withValues(alpha: 0.05),
-          ),
-          boxShadow: [
-            BoxShadow(
-              color: Colors.black.withValues(alpha: 0.2),
-              blurRadius: 12,
-              offset: const Offset(0, 4),
-            ),
-          ],
+          color: AppColors.background,
+          borderRadius:
+              BorderRadius.circular(AppDimensions.borderRadiusLarge),
+          border: Border.all(color: AppColors.line),
         ),
         child: Padding(
-          padding: const EdgeInsets.all(20),
+          padding: const EdgeInsets.all(AppDimensions.paddingLarge),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              _buildHeader(
-                name: name,
-                description: description,
-                colorPair: colorPair,
-              ),
+              _buildHeader(name: name, description: description),
               const SizedBox(height: 16),
               Row(
                 children: [
@@ -60,7 +48,6 @@ class RoleCard extends StatelessWidget {
                       icon: Icons.people_alt_outlined,
                       value: usersCount.toString(),
                       label: 'Users',
-                      color: const Color(0xFF06B6D4),
                     ),
                   ),
                   const SizedBox(width: 10),
@@ -69,7 +56,6 @@ class RoleCard extends StatelessWidget {
                       icon: Icons.key_outlined,
                       value: permissionsCount.toString(),
                       label: 'Perms',
-                      color: const Color(0xFFF59E0B),
                     ),
                   ),
                 ],
@@ -77,24 +63,19 @@ class RoleCard extends StatelessWidget {
               const Spacer(),
               Row(
                 children: [
-                  Expanded(
-                    child: _actionButton(
-                      icon: Icons.security,
-                      label: 'Permissions',
-                      color: const Color(0xFF7C3AED),
-                      onTap: onPermissions,
-                    ),
-                  ),
+                  Expanded(child: _permissionsButton()),
                   const SizedBox(width: 8),
                   _iconAction(
                     icon: Icons.edit_outlined,
-                    color: Colors.white70,
+                    tooltip: 'Edit role',
+                    color: AppColors.primaryDark,
                     onTap: onEdit,
                   ),
                   const SizedBox(width: 4),
                   _iconAction(
                     icon: Icons.delete_outline,
-                    color: Colors.redAccent,
+                    tooltip: 'Delete role',
+                    color: AppColors.error,
                     onTap: onDelete,
                   ),
                 ],
@@ -109,19 +90,19 @@ class RoleCard extends StatelessWidget {
   Widget _buildHeader({
     required String name,
     required String? description,
-    required List<Color> colorPair,
   }) {
     return Row(
       children: [
         Container(
-          padding: const EdgeInsets.all(10),
+          height: 44,
+          width: 44,
           decoration: BoxDecoration(
-            gradient: LinearGradient(colors: colorPair),
-            borderRadius: BorderRadius.circular(10),
+            color: AppColors.accentWithOpacity(0.22),
+            borderRadius: BorderRadius.circular(AppDimensions.borderRadius),
           ),
           child: const Icon(
             Icons.verified_user_outlined,
-            color: Colors.white,
+            color: AppColors.primaryDark,
             size: 22,
           ),
         ),
@@ -132,20 +113,21 @@ class RoleCard extends StatelessWidget {
             children: [
               Text(
                 name,
-                style: const TextStyle(
-                  color: Colors.white,
-                  fontSize: 16,
-                  fontWeight: FontWeight.w700,
+                style: AppTextStyles.titleMedium.copyWith(
+                  color: AppColors.ink,
+                  fontWeight: FontWeight.w800,
                 ),
                 overflow: TextOverflow.ellipsis,
               ),
+              const SizedBox(height: 2),
               Text(
                 description?.isNotEmpty == true
                     ? description!
                     : 'No description',
                 style: const TextStyle(
-                  color: Colors.white54,
+                  color: AppColors.textSecondary,
                   fontSize: 12,
+                  fontWeight: FontWeight.w500,
                 ),
                 maxLines: 1,
                 overflow: TextOverflow.ellipsis,
@@ -161,29 +143,23 @@ class RoleCard extends StatelessWidget {
     required IconData icon,
     required String value,
     required String label,
-    required Color color,
   }) {
     return Container(
-      padding: const EdgeInsets.symmetric(
-        horizontal: 12,
-        vertical: 10,
-      ),
+      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
       decoration: BoxDecoration(
-        color: color.withValues(alpha: 0.1),
-        borderRadius: BorderRadius.circular(10),
-        border: Border.all(
-          color: color.withValues(alpha: 0.3),
-        ),
+        color: AppColors.surface,
+        borderRadius: BorderRadius.circular(AppDimensions.borderRadius),
+        border: Border.all(color: AppColors.line),
       ),
       child: Row(
         children: [
-          Icon(icon, size: 16, color: color),
+          Icon(icon, size: 16, color: AppColors.primaryDark),
           const SizedBox(width: 8),
           Text(
             value,
-            style: TextStyle(
-              color: color,
-              fontWeight: FontWeight.w700,
+            style: const TextStyle(
+              color: AppColors.ink,
+              fontWeight: FontWeight.w800,
               fontSize: 14,
             ),
           ),
@@ -192,8 +168,9 @@ class RoleCard extends StatelessWidget {
             child: Text(
               label,
               style: const TextStyle(
-                color: Colors.white54,
+                color: AppColors.textSecondary,
                 fontSize: 11,
+                fontWeight: FontWeight.w600,
               ),
               overflow: TextOverflow.ellipsis,
             ),
@@ -203,31 +180,26 @@ class RoleCard extends StatelessWidget {
     );
   }
 
-  Widget _actionButton({
-    required IconData icon,
-    required String label,
-    required Color color,
-    required VoidCallback onTap,
-  }) {
+  Widget _permissionsButton() {
     return Material(
-      color: color.withValues(alpha: 0.15),
-      borderRadius: BorderRadius.circular(10),
+      color: AppColors.primary,
+      borderRadius: BorderRadius.circular(AppDimensions.borderRadius),
       child: InkWell(
-        onTap: onTap,
-        borderRadius: BorderRadius.circular(10),
-        child: Padding(
-          padding: const EdgeInsets.symmetric(vertical: 10),
+        onTap: onPermissions,
+        borderRadius: BorderRadius.circular(AppDimensions.borderRadius),
+        child: const Padding(
+          padding: EdgeInsets.symmetric(vertical: 12),
           child: Row(
             mainAxisAlignment: MainAxisAlignment.center,
             children: [
-              Icon(icon, size: 16, color: color),
-              const SizedBox(width: 6),
+              Icon(Icons.security_outlined, size: 16, color: Colors.white),
+              SizedBox(width: 8),
               Text(
-                label,
+                'Permissions',
                 style: TextStyle(
-                  color: color,
+                  color: Colors.white,
                   fontSize: 13,
-                  fontWeight: FontWeight.w600,
+                  fontWeight: FontWeight.w800,
                 ),
               ),
             ],
@@ -241,30 +213,26 @@ class RoleCard extends StatelessWidget {
     required IconData icon,
     required Color color,
     required VoidCallback onTap,
+    required String tooltip,
   }) {
-    return Material(
-      color: Colors.white.withValues(alpha: 0.05),
-      borderRadius: BorderRadius.circular(10),
-      child: InkWell(
-        onTap: onTap,
-        borderRadius: BorderRadius.circular(10),
-        child: Padding(
-          padding: const EdgeInsets.all(10),
-          child: Icon(icon, color: color, size: 18),
+    return Tooltip(
+      message: tooltip,
+      child: Material(
+        color: AppColors.surface,
+        borderRadius: BorderRadius.circular(AppDimensions.borderRadius),
+        child: InkWell(
+          onTap: onTap,
+          borderRadius: BorderRadius.circular(AppDimensions.borderRadius),
+          child: Container(
+            padding: const EdgeInsets.all(10),
+            decoration: BoxDecoration(
+              border: Border.all(color: AppColors.line),
+              borderRadius: BorderRadius.circular(AppDimensions.borderRadius),
+            ),
+            child: Icon(icon, color: color, size: 18),
+          ),
         ),
       ),
     );
-  }
-
-  List<Color> _colorForRole(String name) {
-    final palettes = [
-      [const Color(0xFF7C3AED), const Color(0xFF4F46E5)],
-      [const Color(0xFFEC4899), const Color(0xFFF43F5E)],
-      [const Color(0xFF06B6D4), const Color(0xFF3B82F6)],
-      [const Color(0xFF10B981), const Color(0xFF059669)],
-      [const Color(0xFFF59E0B), const Color(0xFFEF4444)],
-    ];
-
-    return palettes[name.hashCode.abs() % palettes.length];
   }
 }
