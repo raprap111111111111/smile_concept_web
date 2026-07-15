@@ -89,7 +89,10 @@ class _HeroCopy extends StatelessWidget {
           runSpacing: 14,
           crossAxisAlignment: WrapCrossAlignment.center,
           children: [
-            LandingPrimaryButton(label: 'Book an appointment', onTap: onBook),
+            LandingPrimaryButton(
+              label: 'Book an appointment',
+              onTap: () => context.pushNamed(RouteNames.appointmentPatientForm),
+            ),
             OutlinedButton.icon(
               onPressed: () => context.pushNamed(RouteNames.login),
               icon: const Icon(Icons.lock_outline,

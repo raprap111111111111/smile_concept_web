@@ -19,6 +19,7 @@ class RouteNames {
   static const String appointments    = 'appointments';
   static const String bookAppointment = 'bookAppointment';
   static const String appointmentDetail = 'appointmentDetail';
+  static const String appointmentPatientForm = 'appointmentPatientForm';
 
   // ── Patients ──────────────────────────────────────────────
   static const String patients      = 'patients';

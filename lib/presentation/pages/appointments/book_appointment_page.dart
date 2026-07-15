@@ -5,6 +5,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:intl/intl.dart';
 
 import '../../../core/permissions/app_permissions.dart';
+import '../../../core/utils/validators.dart';
 import '../../../data/models/appointment/appointment_request.dart';
 import '../../../data/models/appointment/availability_model.dart';
 import '../../../data/models/patient/patient_model.dart';
@@ -30,7 +31,12 @@ class BookAppointmentPage extends ConsumerStatefulWidget {
 }
 
 class _BookAppointmentPageState extends ConsumerState<BookAppointmentPage> {
+  final _formKey = GlobalKey<FormState>();
+  final _fullNameController = TextEditingController();
+  final _mobileController = TextEditingController();
+  final _emailController = TextEditingController();
   final _reasonController = TextEditingController();
+  final _notesController = TextEditingController();
 
   bool _isSubmitting = false;
 
@@ -38,8 +44,22 @@ class _BookAppointmentPageState extends ConsumerState<BookAppointmentPage> {
   String? _selectedPatientName;
 
   @override
+  void initState() {
+    super.initState();
+
+    final currentUser = ref.read(authStateProvider).user;
+    _fullNameController.text = currentUser?.name ?? '';
+    _mobileController.text = currentUser?.phone ?? '';
+    _emailController.text = currentUser?.email ?? '';
+  }
+
+  @override
   void dispose() {
+    _fullNameController.dispose();
+    _mobileController.dispose();
+    _emailController.dispose();
     _reasonController.dispose();
+    _notesController.dispose();
     super.dispose();
   }
 
@@ -74,6 +94,8 @@ class _BookAppointmentPageState extends ConsumerState<BookAppointmentPage> {
   }
 
   Future<void> _bookAppointment(TimeSlot slot) async {
+    if (!_formKey.currentState!.validate()) return;
+
     final doctorId = ref.read(selectedDoctorProvider);
     final branchId = ref.read(selectedBranchProvider);
     final date = ref.read(selectedDateProvider);
@@ -137,9 +159,13 @@ class _BookAppointmentPageState extends ConsumerState<BookAppointmentPage> {
         endTime: endDateTime,
         status: 'pending',
         userId: canCreateForOthers ? _selectedPatientId : currentUser?.id,
-        reasonForVisit: _reasonController.text.trim().isEmpty
+        patientName: _fullNameController.text.trim(),
+        patientPhone: _mobileController.text.trim(),
+        patientEmail: _emailController.text.trim(),
+        reasonForVisit: _reasonController.text.trim(),
+        additionalNotes: _notesController.text.trim().isEmpty
             ? null
-            : _reasonController.text.trim(),
+            : _notesController.text.trim(),
       );
 
       debugPrint('BOOK APPOINTMENT canCreateForOthers: $canCreateForOthers');
@@ -154,7 +180,7 @@ class _BookAppointmentPageState extends ConsumerState<BookAppointmentPage> {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: const Text('Appointment booked successfully!'),
+            content: const Text('Appointment created successfully.'),
             backgroundColor: Colors.green.shade700,
             behavior: SnackBarBehavior.floating,
           ),
@@ -205,143 +231,209 @@ class _BookAppointmentPageState extends ConsumerState<BookAppointmentPage> {
       body: SafeArea(
         child: SingleChildScrollView(
           padding: const EdgeInsets.all(16),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.stretch,
-            children: [
-              _buildDoctorField(),
-
-              const SizedBox(height: 16),
-
-              _buildBranchField(),
-
-              const SizedBox(height: 16),
-
-              if (canCreateForOthers) ...[
-                PatientSearchField(
-                  selectedPatientId: _selectedPatientId,
-                  selectedPatientName: _selectedPatientName,
-                  onPatientSelected: (PatientModel? patient) {
-                    setState(() {
-                      _selectedPatientId = patient?.userId;
-                      _selectedPatientName = patient?.name;
-                    });
-
-                    debugPrint('Selected patient: $_selectedPatientName');
-                    debugPrint('Selected patient user_id: $_selectedPatientId');
-                  },
+          child: Form(
+            key: _formKey,
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                const Text(
+                  'Patient Information',
+                  style: TextStyle(fontSize: 16, fontWeight: FontWeight.w700),
                 ),
+
+                const SizedBox(height: 12),
+
+                TextFormField(
+                  controller: _fullNameController,
+                  textInputAction: TextInputAction.next,
+                  validator: (value) => Validators.validateName(
+                    value,
+                    fieldName: 'Full name',
+                  ),
+                  decoration: const InputDecoration(
+                    labelText: 'Full Name *',
+                    prefixIcon: Icon(Icons.person_outline),
+                    border: OutlineInputBorder(),
+                  ),
+                ),
+
                 const SizedBox(height: 16),
-              ] else ...[
-                Container(
-                  padding: const EdgeInsets.all(14),
-                  decoration: BoxDecoration(
-                    borderRadius: BorderRadius.circular(10),
-                    border: Border.all(
-                      color: Colors.white.withValues(alpha: 0.12),
+
+                TextFormField(
+                  controller: _mobileController,
+                  keyboardType: TextInputType.phone,
+                  textInputAction: TextInputAction.next,
+                  validator: (value) {
+                    final requiredError = Validators.required(
+                      value,
+                      fieldName: 'Mobile number',
+                    );
+                    if (requiredError != null) return requiredError;
+                    return Validators.validatePhone(value);
+                  },
+                  decoration: const InputDecoration(
+                    labelText: 'Mobile Number *',
+                    prefixIcon: Icon(Icons.phone_outlined),
+                    border: OutlineInputBorder(),
+                  ),
+                ),
+
+                const SizedBox(height: 16),
+
+                TextFormField(
+                  controller: _emailController,
+                  keyboardType: TextInputType.emailAddress,
+                  textInputAction: TextInputAction.next,
+                  validator: Validators.validateEmail,
+                  decoration: const InputDecoration(
+                    labelText: 'Email *',
+                    prefixIcon: Icon(Icons.email_outlined),
+                    border: OutlineInputBorder(),
+                  ),
+                ),
+
+                const SizedBox(height: 24),
+
+                const Text(
+                  'Appointment Details',
+                  style: TextStyle(fontSize: 16, fontWeight: FontWeight.w700),
+                ),
+
+                const SizedBox(height: 12),
+
+                _buildDoctorField(),
+
+                const SizedBox(height: 16),
+
+                _buildBranchField(),
+
+                const SizedBox(height: 16),
+
+                if (canCreateForOthers) ...[
+                  PatientSearchField(
+                    selectedPatientId: _selectedPatientId,
+                    selectedPatientName: _selectedPatientName,
+                    onPatientSelected: (PatientModel? patient) {
+                      setState(() {
+                        _selectedPatientId = patient?.userId;
+                        _selectedPatientName = patient?.name;
+                      });
+
+                      debugPrint('Selected patient: $_selectedPatientName');
+                      debugPrint(
+                        'Selected patient user_id: $_selectedPatientId',
+                      );
+                    },
+                  ),
+                  const SizedBox(height: 16),
+                ],
+
+                GestureDetector(
+                  onTap: () => _selectDate(context),
+                  child: AbsorbPointer(
+                    child: TextFormField(
+                      validator: (value) => Validators.required(
+                        value,
+                        fieldName: 'Appointment date',
+                      ),
+                      decoration: const InputDecoration(
+                        labelText: 'Appointment Date *',
+                        prefixIcon: Icon(Icons.calendar_today),
+                        border: OutlineInputBorder(),
+                      ),
+                      controller: TextEditingController(
+                        text: selectedDate == null
+                            ? ''
+                            : DateFormat('EEE, MMM dd yyyy')
+                                .format(selectedDate),
+                      ),
                     ),
                   ),
-                  child: Row(
-                    children: [
-                      const Icon(
-                        Icons.person_outline,
-                        size: 18,
-                        color: Colors.white54,
-                      ),
-                      const SizedBox(width: 8),
-                      Expanded(
-                        child: Text(
-                          currentUser?.name ?? 'Current user',
-                          style: const TextStyle(color: Colors.white70),
-                          overflow: TextOverflow.ellipsis,
-                        ),
-                      ),
-                    ],
+                ),
+
+                const SizedBox(height: 16),
+
+                TextFormField(
+                  controller: _reasonController,
+                  maxLines: 3,
+                  maxLength: 500,
+                  validator: (value) => Validators.required(
+                    value,
+                    fieldName: 'Purpose of visit',
+                  ),
+                  decoration: const InputDecoration(
+                    labelText: 'Purpose of Visit *',
+                    hintText: 'e.g., Toothache, Cleaning, Check-up',
+                    prefixIcon: Icon(Icons.notes_outlined),
+                    border: OutlineInputBorder(),
+                    alignLabelWithHint: true,
                   ),
                 ),
+
                 const SizedBox(height: 16),
+
+                TextFormField(
+                  controller: _notesController,
+                  maxLines: 3,
+                  maxLength: 1000,
+                  decoration: const InputDecoration(
+                    labelText: 'Additional Notes',
+                    hintText: 'Anything else the team should know?',
+                    prefixIcon: Icon(Icons.note_add_outlined),
+                    border: OutlineInputBorder(),
+                    alignLabelWithHint: true,
+                  ),
+                ),
+
+                const SizedBox(height: 24),
+
+                const Text(
+                  'Appointment Time *',
+                  style: TextStyle(fontWeight: FontWeight.w600),
+                ),
+
+                const SizedBox(height: 8),
+
+                if (availState.isLoading)
+                  const Center(child: CircularProgressIndicator())
+                else if (availState.error != null)
+                  Text(
+                    'Error: ${availState.error}',
+                    style: const TextStyle(color: Colors.red),
+                  )
+                else if (availState.slots.isEmpty)
+                  _infoBanner(
+                    'No slots available for this date.\nTry selecting a different date.',
+                  )
+                else
+                  TimeSlotPicker(
+                    state: availState,
+                    onSlotSelected: (slot) {
+                      ref
+                          .read(availabilityNotifierProvider.notifier)
+                          .selectSlot(slot);
+                    },
+                  ),
+
+                const SizedBox(height: 32),
+
+                FilledButton(
+                  onPressed: (selectedSlot == null || _isSubmitting)
+                      ? null
+                      : () => _bookAppointment(selectedSlot),
+                  child: _isSubmitting
+                      ? const SizedBox(
+                          height: 20,
+                          width: 20,
+                          child: CircularProgressIndicator(
+                            strokeWidth: 2,
+                            color: Colors.white,
+                          ),
+                        )
+                      : const Text('Book Appointment'),
+                ),
               ],
-
-              TextFormField(
-                controller: _reasonController,
-                maxLines: 3,
-                maxLength: 500,
-                decoration: const InputDecoration(
-                  labelText: 'Reason for Visit (optional)',
-                  hintText: 'e.g., Toothache, Cleaning, Check-up',
-                  prefixIcon: Icon(Icons.notes_outlined),
-                  border: OutlineInputBorder(),
-                  alignLabelWithHint: true,
-                ),
-              ),
-
-              const SizedBox(height: 16),
-
-              GestureDetector(
-                onTap: () => _selectDate(context),
-                child: AbsorbPointer(
-                  child: TextFormField(
-                    decoration: const InputDecoration(
-                      labelText: 'Date *',
-                      prefixIcon: Icon(Icons.calendar_today),
-                      border: OutlineInputBorder(),
-                    ),
-                    controller: TextEditingController(
-                      text: selectedDate == null
-                          ? ''
-                          : DateFormat('EEE, MMM dd yyyy').format(selectedDate),
-                    ),
-                  ),
-                ),
-              ),
-
-              const SizedBox(height: 24),
-
-              const Text(
-                'Available Time Slots *',
-                style: TextStyle(fontWeight: FontWeight.w600),
-              ),
-
-              const SizedBox(height: 8),
-
-              if (availState.isLoading)
-                const Center(child: CircularProgressIndicator())
-              else if (availState.error != null)
-                Text(
-                  'Error: ${availState.error}',
-                  style: const TextStyle(color: Colors.red),
-                )
-              else if (availState.slots.isEmpty)
-                _infoBanner(
-                  'No slots available for this date.\nTry selecting a different date.',
-                )
-              else
-                TimeSlotPicker(
-                  state: availState,
-                  onSlotSelected: (slot) {
-                    ref
-                        .read(availabilityNotifierProvider.notifier)
-                        .selectSlot(slot);
-                  },
-                ),
-
-              const SizedBox(height: 32),
-
-              FilledButton(
-                onPressed: (selectedSlot == null || _isSubmitting)
-                    ? null
-                    : () => _bookAppointment(selectedSlot),
-                child: _isSubmitting
-                    ? const SizedBox(
-                        height: 20,
-                        width: 20,
-                        child: CircularProgressIndicator(
-                          strokeWidth: 2,
-                          color: Colors.white,
-                        ),
-                      )
-                    : const Text('Book Appointment'),
-              ),
-            ],
+            ),
           ),
         ),
       ),
