@@ -6,6 +6,7 @@ import 'package:go_router/go_router.dart';
 
 import '../providers/auth/auth_provider.dart';
 import '../layouts/main_layout.dart';
+import 'auth_redirect.dart';
 
 // Pages
 import '../pages/splash/splash_page.dart';
@@ -53,6 +54,7 @@ final routerProvider = Provider<GoRouter>((ref) {
 
       // Booking routes are deliberately absent: an appointment must be tied to
       // a real account, and POST /v1/appointments rejects anonymous callers.
+      // Unauthenticated bookers reach them via /login?next=… instead.
       final publicRoutes = [
         '/',
         '/login',
@@ -77,14 +79,17 @@ final routerProvider = Provider<GoRouter>((ref) {
 
       // Authenticated
       if (authState.isAuthenticated) {
-        // Registering is how a patient starts a booking — both the hero CTA and
-        // the nav's Register button land here — so finish the job they came for
-        // instead of dropping them on the landing page.
-        if (location == '/register') {
-          return '/appointment-patient-form';
+        // A CTA that routed through login/register states where it was headed;
+        // honor it now that auth cleared, instead of dropping the user on the
+        // dashboard and making them start over.
+        if (location == '/login' || location == '/register') {
+          final next = AuthRedirect.resolve(state.uri.queryParameters);
+          if (next != null) return next;
         }
 
-        if (location == '/splash' || location == '/login') {
+        if (location == '/splash' ||
+            location == '/login' ||
+            location == '/register') {
           return '/dashboard';
         }
         return null;

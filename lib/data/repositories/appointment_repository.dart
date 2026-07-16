@@ -62,6 +62,7 @@ class AppointmentRepository {
     int? doctorId,
     int? branchId,
     int? userId,
+    String? scope,
   }) {
     return _remote.getCalendarCounts(
       month: month,
@@ -69,7 +70,26 @@ class AppointmentRepository {
       doctorId: doctorId?.toString(),
       branchId: branchId?.toString(),
       patientId: userId?.toString(),
+      scope: scope,
     );
+  }
+
+  /// How busy each day of [month] is across the clinic, for patients choosing a
+  /// booking date. Returns date string ('yyyy-MM-dd') → appointments that day,
+  /// excluding cancelled. Days with no bookings are absent from the map.
+  Future<Map<String, int>> getClinicDayLoad({
+    required DateTime month,
+    int? doctorId,
+    int? branchId,
+  }) async {
+    final counts = await getCalendarCounts(
+      month: month,
+      doctorId: doctorId,
+      branchId: branchId,
+      scope: 'clinic',
+    );
+
+    return counts.map((date, value) => MapEntry(date, value['total'] ?? 0));
   }
 
   Future<AppointmentModel> getAppointment(int id) async {

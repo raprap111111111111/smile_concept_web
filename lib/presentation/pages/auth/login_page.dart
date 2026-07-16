@@ -5,7 +5,7 @@ import 'package:go_router/go_router.dart';
 
 import '../../../core/utils/validators.dart';
 import '../../providers/auth/auth_provider.dart';
-import '../../route/route_names.dart';
+import '../../route/auth_redirect.dart';
 import '../../theme/app_colors.dart';
 import '../../theme/app_dimensions.dart';
 import '../../theme/app_text_styles.dart';
@@ -38,6 +38,18 @@ class _LoginPageState extends ConsumerState<LoginPage> {
           _emailController.text.trim(),
           _passwordController.text,
         );
+
+    // No navigation here: the router's redirect owns the post-auth destination
+    // and reads `next` off this page's URL.
+  }
+
+  /// Register URL that keeps whatever destination sent the user here, so a
+  /// visitor who came to book and turns out to be new still lands on the form.
+  String _registerPath(BuildContext context) {
+    final next = AuthRedirect.resolve(
+      GoRouterState.of(context).uri.queryParameters,
+    );
+    return next == null ? '/register' : AuthRedirect.path('/register', next);
   }
 
   @override
@@ -113,7 +125,7 @@ class _LoginPageState extends ConsumerState<LoginPage> {
               child: AuthSwitchPrompt(
                 text: "Don't have an account?",
                 action: 'Create account',
-                  onPressed: () => context.goNamed(RouteNames.register),
+                onPressed: () => context.go(_registerPath(context)),
               ),
             ),
           ],
