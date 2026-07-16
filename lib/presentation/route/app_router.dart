@@ -108,6 +108,13 @@ final routerProvider = Provider<GoRouter>((ref) {
         name: RouteNames.register,
         builder: (context, state) => const RegisterPage(),
       ),
+      // Public booking form — intentionally outside the ShellRoute so it
+      // renders standalone (no sidebar / nav bar).
+      GoRoute(
+        path: '/appointment-patient-form',
+        name: RouteNames.appointmentPatientForm,
+        builder: (context, state) => const AppointmentFormPatient(),
+      ),
 
       // ── Protected Routes ──────────────────────────────────
       ShellRoute(
@@ -133,12 +140,6 @@ final routerProvider = Provider<GoRouter>((ref) {
             builder: (context, state) => const BookAppointmentPage(),
           ),
 
-
-          GoRoute(
-            path: '/appointment-patient-form',
-            name: RouteNames.appointmentPatientForm,
-            builder: (context, state) => const AppointmentFormPatient(),
-          ),
           // ── Treatments (with nested create) ───────────────
           GoRoute(
             path: '/treatments',
