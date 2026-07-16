@@ -113,10 +113,7 @@ class _LoginPageState extends ConsumerState<LoginPage> {
               child: AuthSwitchPrompt(
                 text: "Don't have an account?",
                 action: 'Create account',
-                  onPressed: () {
-                    debugPrint('success');
-                    context.pushNamed(RouteNames.register);
-                  },
+                  onPressed: () => context.goNamed(RouteNames.register),
               ),
             ),
           ],

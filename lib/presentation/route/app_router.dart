@@ -51,24 +51,37 @@ final routerProvider = Provider<GoRouter>((ref) {
 
       print('Redirect → status: ${authState.status}, location: $location');
 
+      // Booking routes are deliberately absent: an appointment must be tied to
+      // a real account, and POST /v1/appointments rejects anonymous callers.
       final publicRoutes = [
         '/',
         '/login',
         '/register',
         '/forgot-password',
-        '/appointment-patient-form',
       ];
       final isPublic = publicRoutes.contains(location);
 
-      // Still loading session
+      // Still loading session.
+      //
+      // Login and register flip auth to `loading` too, so bouncing to /splash
+      // here would discard the user's location — and they'd come back as
+      // /splash, which the rule below sends to /dashboard. Auth pages render
+      // their own loading state, so leave them where they are.
       if (authState.isInitial || authState.isLoading) {
+        if (location == '/login' || location == '/register') {
+          return null;
+        }
+
         return location == '/splash' ? null : '/splash';
       }
 
       // Authenticated
       if (authState.isAuthenticated) {
+        // Registering is how a patient starts a booking — both the hero CTA and
+        // the nav's Register button land here — so finish the job they came for
+        // instead of dropping them on the landing page.
         if (location == '/register') {
-          return '/';
+          return '/appointment-patient-form';
         }
 
         if (location == '/splash' || location == '/login') {
@@ -108,8 +121,9 @@ final routerProvider = Provider<GoRouter>((ref) {
         name: RouteNames.register,
         builder: (context, state) => const RegisterPage(),
       ),
-      // Public booking form — intentionally outside the ShellRoute so it
-      // renders standalone (no sidebar / nav bar).
+      // Patient booking form — requires auth (enforced by the redirect above),
+      // but sits outside the ShellRoute so it renders standalone for patients
+      // (no staff sidebar / nav bar).
       GoRoute(
         path: '/appointment-patient-form',
         name: RouteNames.appointmentPatientForm,

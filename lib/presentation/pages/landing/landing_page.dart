@@ -22,7 +22,7 @@ class LandingPage extends ConsumerWidget {
       body: SingleChildScrollView(
         child: Column(
           children: [
-            LandingNavigation(onBook: () => _book(context, ref)),
+            const LandingNavigation(),
             LandingHeroSection(onBook: () => _book(context, ref)),
             const LandingTrustStrip(),
             const LandingServicesSection(),
@@ -35,14 +35,19 @@ class LandingPage extends ConsumerWidget {
     );
   }
 
+  /// Single entry point for every booking CTA on this page. Booking requires an
+  /// account, so unauthenticated visitors are sent to register first.
   void _book(BuildContext context, WidgetRef ref) {
     final authState = ref.read(authStateProvider);
 
+    // go, not push: an imperatively pushed route leaves the router's location
+    // at '/', so the redirect guard can't tell where the user actually is and
+    // bounces them to /splash — and from there to /dashboard.
     if (authState.isAuthenticated) {
-      context.pushNamed(RouteNames.bookAppointment);
+      context.goNamed(RouteNames.appointmentPatientForm);
       return;
     }
 
-    context.pushNamed(RouteNames.register);
+    context.goNamed(RouteNames.register);
   }
 }

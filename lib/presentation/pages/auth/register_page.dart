@@ -47,6 +47,16 @@ class _RegisterPageState extends ConsumerState<RegisterPage> {
           password: _passwordController.text,
           phone: _phoneController.text.trim(),
         );
+
+    if (!mounted) return;
+
+    // People register here to book a visit, so send them to the booking form.
+    // Navigating explicitly rather than leaning on the router's redirect: the
+    // redirect only lands here if the location is still /register when auth
+    // flips, which is a race we don't need to depend on.
+    if (ref.read(authStateProvider).isAuthenticated) {
+      context.goNamed(RouteNames.appointmentPatientForm);
+    }
   }
 
   @override

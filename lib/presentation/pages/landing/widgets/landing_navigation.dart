@@ -7,9 +7,7 @@ import '/presentation/theme/app_dimensions.dart';
 import 'landing_shared_widgets.dart';
 
 class LandingNavigation extends StatelessWidget {
-  const LandingNavigation({super.key, required this.onBook});
-
-  final VoidCallback onBook;
+  const LandingNavigation({super.key});
 
   @override
   Widget build(BuildContext context) {
@@ -37,7 +35,7 @@ class LandingNavigation extends StatelessWidget {
                     mainAxisAlignment: MainAxisAlignment.spaceBetween,
                     children: [
                       const _Logo(),
-                      _Actions(onBook: onBook, compact: true),
+                      const _Actions(),
                     ],
                   );
                 }
@@ -52,7 +50,7 @@ class LandingNavigation extends StatelessWidget {
                     // CENTER
                     const _NavLinks(),
                     // RIGHT
-                    _Actions(onBook: onBook),
+                    const _Actions(),
                   ],
                 );
               },
@@ -113,21 +111,18 @@ class _NavLinks extends StatelessWidget {
 }
 
 class _Actions extends StatelessWidget {
-  const _Actions({required this.onBook, this.compact = false});
-
-  final VoidCallback onBook;
-  final bool compact;
+  const _Actions();
 
   @override
   Widget build(BuildContext context) {
     return Row(
       mainAxisSize: MainAxisSize.min,
       children: [
-        _LoginButton(onTap: () => context.pushNamed(RouteNames.login)),
+        _LoginButton(onTap: () => context.goNamed(RouteNames.login)),
         const SizedBox(width: 12),
         LandingPrimaryButton(
-          label: compact ? 'Book' : 'Book an appointment',
-          onTap: onBook,
+          label: 'Register',
+          onTap: () => context.goNamed(RouteNames.register),
         ),
       ],
     );
