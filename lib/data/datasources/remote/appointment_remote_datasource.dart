@@ -84,12 +84,16 @@ class AppointmentRemoteDataSource {
     }
   }
 
+  /// [scope] of 'clinic' asks for clinic-wide day load instead of the caller's
+  /// own bookings. Without appointment.viewAny the API answers with a per-day
+  /// `total` only, so the other status keys come back 0.
   Future<Map<String, Map<String, int>>> getCalendarCounts({
     required DateTime month,
     String? status,
     String? doctorId,
     String? branchId,
     String? patientId,
+    String? scope,
   }) async {
     try {
       final monthString =
@@ -104,6 +108,7 @@ class AppointmentRemoteDataSource {
           if (doctorId != null) 'doctor_id': doctorId,
           if (branchId != null) 'branch_id': branchId,
           if (patientId != null) 'user_id': patientId,
+          if (scope != null) 'scope': scope,
         },
       );
 

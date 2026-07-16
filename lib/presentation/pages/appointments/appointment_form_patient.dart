@@ -4,8 +4,10 @@ import 'package:go_router/go_router.dart';
 import 'package:intl/intl.dart';
 import 'package:smile_concept_web/data/models/appointment/appointment_request.dart';
 
+import '../../../data/models/appointment/availability_model.dart';
 import '../../../data/repositories/appointment_repository.dart';
 import '../../../data/repositories/doctor_repository.dart';
+import '../../providers/appointment/appointment_provider.dart';
 import '../../providers/auth/auth_provider.dart';
 import '../../providers/branch/branch_provider.dart';
 import '../../route/route_names.dart';
@@ -13,6 +15,7 @@ import '../../theme/app_colors.dart';
 import '../../theme/app_dimensions.dart';
 import '../../theme/app_text_styles.dart';
 import '../../theme/app_theme.dart';
+import 'widgets/booking_calendar.dart';
 
 class AppointmentFormPatient extends ConsumerStatefulWidget {
   const AppointmentFormPatient({super.key});
@@ -24,7 +27,9 @@ class AppointmentFormPatient extends ConsumerStatefulWidget {
 
 class _AppointmentFormPatientState
     extends ConsumerState<AppointmentFormPatient> {
-  static const int _appointmentDurationMinutes = 30;
+  /// Header copy only. The booked length comes from the slot the clinic offers,
+  /// so this is a rough expectation, not the value that gets submitted.
+  static const int _typicalDurationMinutes = 30;
   static const double _formMaxWidth = 720;
 
   /// Typed/selected values read darker than the muted default body text.
@@ -39,12 +44,19 @@ class _AppointmentFormPatientState
   final _fullNameController = TextEditingController();
   final _mobileController = TextEditingController();
   final _emailController = TextEditingController();
-  final _dateController = TextEditingController();
-  final _timeController = TextEditingController();
   final _notesController = TextEditingController();
 
   DateTime? _selectedDate;
-  TimeOfDay? _selectedTime;
+
+  /// Month currently shown in the calendar, and the clinic-wide booking counts
+  /// for it ('yyyy-MM-dd' → appointments that day, cancelled excluded).
+  late DateTime _visibleMonth;
+  Map<String, int> _dayLoad = {};
+  bool _isLoadingDayLoad = false;
+
+  /// Guards against a slow response for an abandoned month overwriting the
+  /// counts of the month the patient has since paged to.
+  int _dayLoadRequestId = 0;
 
   String? _purpose;
   String? _bookingFor;
@@ -79,6 +91,81 @@ class _AppointmentFormPatientState
     super.initState();
     _bookingFor = _bookingOptions.first;
     _applyAccountDetails();
+
+    final now = DateTime.now();
+    _visibleMonth = DateTime(now.year, now.month);
+    _loadDayLoad();
+
+    // The availability notifier is app-wide, so it can still hold slots from a
+    // previous booking session. Start from a blank picker.
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted) return;
+      ref.read(availabilityNotifierProvider.notifier).clearSlots();
+    });
+  }
+
+  /// Open slots for the chosen dentist, branch and date. Nothing to ask for
+  /// until all three are set — the endpoint keys on the combination.
+  Future<void> _fetchSlots() async {
+    final doctorId = _doctorId;
+    final branchId = _branchId;
+    final date = _selectedDate;
+
+    if (doctorId == null || branchId == null || date == null) return;
+
+    await ref.read(availabilityNotifierProvider.notifier).fetchSlots(
+          doctorId: doctorId,
+          branchId: branchId,
+          date: date,
+        );
+  }
+
+  /// Any change to dentist, branch or date invalidates the slots on screen —
+  /// drop them before re-fetching so a stale slot can't stay selected.
+  Future<void> _reloadSlots() async {
+    ref.read(availabilityNotifierProvider.notifier).clearSlots();
+    await _fetchSlots();
+  }
+
+  /// Clinic-wide day load for [_visibleMonth]. Failures leave the calendar
+  /// usable — the busy dots are guidance, not a booking prerequisite.
+  Future<void> _loadDayLoad() async {
+    final requestId = ++_dayLoadRequestId;
+    final month = _visibleMonth;
+
+    setState(() => _isLoadingDayLoad = true);
+
+    try {
+      final load = await ref.read(appointmentRepositoryProvider).getClinicDayLoad(
+            month: month,
+            branchId: _branchId,
+            doctorId: _doctorId,
+          );
+
+      if (!mounted || requestId != _dayLoadRequestId) return;
+
+      setState(() {
+        _dayLoad = load;
+        _isLoadingDayLoad = false;
+      });
+    } catch (_) {
+      if (!mounted || requestId != _dayLoadRequestId) return;
+
+      setState(() {
+        _dayLoad = {};
+        _isLoadingDayLoad = false;
+      });
+    }
+  }
+
+  void _onMonthChanged(DateTime month) {
+    setState(() => _visibleMonth = month);
+    _loadDayLoad();
+  }
+
+  void _onDateSelected(DateTime date) {
+    setState(() => _selectedDate = date);
+    _reloadSlots();
   }
 
   /// The account holder is the default patient, so prefill from their profile
@@ -114,65 +201,20 @@ class _AppointmentFormPatientState
     _fullNameController.dispose();
     _mobileController.dispose();
     _emailController.dispose();
-    _dateController.dispose();
-    _timeController.dispose();
     _notesController.dispose();
     super.dispose();
   }
 
-  Future<void> _pickDate() async {
-    final date = await showDatePicker(
-      context: context,
-      initialDate: _selectedDate ?? DateTime.now(),
-      firstDate: DateTime.now(),
-      lastDate: DateTime(2100),
-      helpText: 'Select appointment date',
-    );
-
-    if (date != null) {
-      setState(() {
-        _selectedDate = date;
-        _dateController.text = DateFormat('MMMM d, yyyy').format(date);
-      });
-    }
-  }
-
-  Future<void> _pickTime() async {
-    final time = await showTimePicker(
-      context: context,
-      initialTime: _selectedTime ?? TimeOfDay.now(),
-      helpText: 'Select appointment time',
-    );
-
-    if (time != null) {
-      setState(() {
-        _selectedTime = time;
-        _timeController.text = _formatTimeOfDay(time);
-      });
-    }
-  }
-
-  String _formatTimeOfDay(TimeOfDay time) {
-    final now = DateTime.now();
-
-    final dt = DateTime(
-      now.year,
-      now.month,
-      now.day,
-      time.hour,
-      time.minute,
-    );
-
-    return DateFormat('h:mm a').format(dt);
-  }
-
-  DateTime _combineDateAndTime() {
+  /// Pins the slot's wall-clock time onto the selected date. The slot's own
+  /// date is trusted only for its hour and minute, so a timezone shift in the
+  /// API's timestamp can't move the booking to a different day.
+  DateTime _onSelectedDate(DateTime slotTime) {
     return DateTime(
       _selectedDate!.year,
       _selectedDate!.month,
       _selectedDate!.day,
-      _selectedTime!.hour,
-      _selectedTime!.minute,
+      slotTime.hour,
+      slotTime.minute,
     );
   }
 
@@ -216,13 +258,30 @@ class _AppointmentFormPatientState
       return;
     }
 
+    final slot = ref.read(availabilityNotifierProvider).selectedSlot;
+
+    // Same reasoning as the branch/dentist check above: while slots are loading
+    // or failed to load there is no picker for validate() to have covered.
+    if (slot == null) {
+      ScaffoldMessenger.of(context)
+        ..hideCurrentSnackBar()
+        ..showSnackBar(
+          const SnackBar(
+            content: Text('Please choose an available time.'),
+            backgroundColor: AppColors.error,
+            behavior: SnackBarBehavior.floating,
+          ),
+        );
+
+      return;
+    }
+
     setState(() => _isSubmitting = true);
 
-    final startTime = _combineDateAndTime();
-
-    final endTime = startTime.add(
-      const Duration(minutes: _appointmentDurationMinutes),
-    );
+    // The slot's own end is authoritative: the clinic's schedule decides how
+    // long a visit runs, not this form.
+    final startTime = _onSelectedDate(slot.startDateTime);
+    final endTime = _onSelectedDate(slot.endDateTime);
 
     // The appointment belongs to the signed-in account; patient_* describes who
     // actually attends, which differs when booking for a family member.
@@ -252,7 +311,8 @@ class _AppointmentFormPatientState
             content: Text(
               'Appointment requested for '
               '${DateFormat('MMMM d').format(startTime)} at '
-              '${_timeController.text}. We\'ll confirm by email.',
+              '${DateFormat('h:mm a').format(startTime)}. '
+              'We\'ll confirm by email.',
             ),
             backgroundColor: AppColors.success,
             behavior: SnackBarBehavior.floating,
@@ -303,6 +363,8 @@ class _AppointmentFormPatientState
   }
 
   Widget _buildScaffold(BuildContext context) {
+    final selectedSlot = ref.watch(availabilityNotifierProvider).selectedSlot;
+
     return Scaffold(
       backgroundColor: AppColors.surface,
       appBar: AppBar(
@@ -469,62 +531,28 @@ class _AppointmentFormPatientState
                               ],
                             ),
 
-                            _ResponsiveFieldRow(
-                              isCompact: isCompact,
-                              children: [
-                                _LabeledField(
-                                  label: 'Date',
-                                  isRequired: true,
-                                  child: TextFormField(
-                                    controller: _dateController,
-                                    style: _inputTextStyle,
-                                    readOnly: true,
-                                    onTap: _pickDate,
-                                    mouseCursor: SystemMouseCursors.click,
-                                    decoration: const InputDecoration(
-                                      hintText: 'Choose a date',
-                                      prefixIcon:
-                                          Icon(Icons.calendar_today_outlined),
-                                      suffixIcon: Icon(
-                                        Icons.expand_more,
-                                        color: AppColors.textTertiary,
-                                      ),
-                                    ),
-                                    validator: (v) => v == null || v.isEmpty
-                                        ? 'Select a date'
-                                        : null,
-                                  ),
-                                ),
-                                _LabeledField(
-                                  label: 'Time',
-                                  isRequired: true,
-                                  child: TextFormField(
-                                    controller: _timeController,
-                                    style: _inputTextStyle,
-                                    readOnly: true,
-                                    onTap: _pickTime,
-                                    mouseCursor: SystemMouseCursors.click,
-                                    decoration: const InputDecoration(
-                                      hintText: 'Choose a time',
-                                      prefixIcon: Icon(Icons.schedule_outlined),
-                                      suffixIcon: Icon(
-                                        Icons.expand_more,
-                                        color: AppColors.textTertiary,
-                                      ),
-                                    ),
-                                    validator: (v) => v == null || v.isEmpty
-                                        ? 'Select a time'
-                                        : null,
-                                  ),
-                                ),
-                              ],
+                            _LabeledField(
+                              label: 'Date',
+                              isRequired: true,
+                              helperText:
+                                  'Dots show how busy the clinic is that day.',
+                              child: _buildDateField(),
                             ),
 
-                            if (_selectedDate != null && _selectedTime != null)
+                            _LabeledField(
+                              label: 'Time',
+                              isRequired: true,
+                              helperText:
+                                  'Only times the dentist is free are shown.',
+                              child: _buildTimeField(),
+                            ),
+
+                            if (_selectedDate != null && selectedSlot != null)
                               _ScheduleSummary(
-                                date: _selectedDate!,
-                                time: _timeController.text,
-                                durationMinutes: _appointmentDurationMinutes,
+                                start: _onSelectedDate(
+                                  selectedSlot.startDateTime,
+                                ),
+                                end: _onSelectedDate(selectedSlot.endDateTime),
                               ),
 
                             _LabeledField(
@@ -639,6 +667,86 @@ class _AppointmentFormPatientState
     );
   }
 
+  /// The calendar replaces a text input, so it carries its own FormField to
+  /// keep taking part in validate() and to show the error in the usual place.
+  Widget _buildDateField() {
+    return FormField<DateTime>(
+      initialValue: _selectedDate,
+      validator: (_) => _selectedDate == null ? 'Select a date' : null,
+      builder: (field) {
+        return Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            BookingCalendar(
+              month: _visibleMonth,
+              selectedDate: _selectedDate,
+              dayLoad: _dayLoad,
+              isLoading: _isLoadingDayLoad,
+              firstSelectableDate: DateTime.now(),
+              onMonthChanged: _onMonthChanged,
+              onDateSelected: (date) {
+                _onDateSelected(date);
+                field.didChange(date);
+              },
+            ),
+            if (field.hasError) ...[
+              const SizedBox(height: AppDimensions.paddingXS),
+              Text(
+                field.errorText!,
+                style: AppTextStyles.labelSmall.copyWith(
+                  color: AppColors.error,
+                ),
+              ),
+            ],
+          ],
+        );
+      },
+    );
+  }
+
+  /// Slot grid in a FormField, matching how the date field takes part in
+  /// validate() and reports its error in the usual place.
+  Widget _buildTimeField() {
+    final availability = ref.watch(availabilityNotifierProvider);
+
+    return FormField<TimeSlot>(
+      initialValue: availability.selectedSlot,
+      validator: (_) => ref.read(availabilityNotifierProvider).selectedSlot ==
+              null
+          ? 'Select a time'
+          : null,
+      builder: (field) {
+        return Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            _SlotPicker(
+              state: availability,
+              hasPrerequisites: _doctorId != null &&
+                  _branchId != null &&
+                  _selectedDate != null,
+              textStyle: _inputTextStyle,
+              onSlotSelected: (slot) {
+                ref
+                    .read(availabilityNotifierProvider.notifier)
+                    .selectSlot(slot);
+                field.didChange(slot);
+              },
+            ),
+            if (field.hasError) ...[
+              const SizedBox(height: AppDimensions.paddingXS),
+              Text(
+                field.errorText!,
+                style: AppTextStyles.labelSmall.copyWith(
+                  color: AppColors.error,
+                ),
+              ),
+            ],
+          ],
+        );
+      },
+    );
+  }
+
   Widget _buildBranchField() {
     return _buildAsyncField(
       async: ref.watch(branchesProvider),
@@ -655,7 +763,12 @@ class _AppointmentFormPatientState
             ),
           )
           .toList(),
-      onChanged: (value) => setState(() => _branchId = value),
+      // Day load and open slots are both filtered by branch.
+      onChanged: (value) {
+        setState(() => _branchId = value);
+        _loadDayLoad();
+        _reloadSlots();
+      },
     );
   }
 
@@ -679,7 +792,11 @@ class _AppointmentFormPatientState
           child: Text(name),
         );
       }).toList(),
-      onChanged: (value) => setState(() => _doctorId = value),
+      onChanged: (value) {
+        setState(() => _doctorId = value);
+        _loadDayLoad();
+        _reloadSlots();
+      },
     );
   }
 
@@ -715,7 +832,7 @@ class _AppointmentFormPatientState
             children: const [
               _HeaderNote(
                 icon: Icons.schedule_outlined,
-                label: '$_appointmentDurationMinutes-minute visit',
+                label: 'About $_typicalDurationMinutes minutes',
               ),
               _HeaderNote(
                 icon: Icons.lock_outline,
@@ -1019,16 +1136,214 @@ class _ResponsiveFieldRow extends StatelessWidget {
   }
 }
 
+/// Turns a slot-fetch failure into something the patient can act on. "Try
+/// another date" is only true for some failures — suggesting it for a rejected
+/// request sends people round a loop that can never succeed, so distinguish
+/// the cases and keep the server's own reason for the rest.
+String _slotErrorMessage(String raw) {
+  final message = raw
+      .replaceAll('Exception: ', '')
+      .replaceAll('Forbidden: ', '')
+      .replaceAll('Unauthorized: ', '');
+
+  final lowered = raw.toLowerCase();
+
+  if (lowered.contains('forbidden') || lowered.contains('unauthorized')) {
+    return 'Your account can\'t view open times. Please contact the clinic.';
+  }
+
+  return 'Could not load times. $message';
+}
+
+/// The clinic's open slots for the chosen day, as tappable chips. Taken slots
+/// stay visible but disabled: seeing that 10:00 is gone explains why the next
+/// free time is 10:30, where hiding it would just look like a sparse day.
+class _SlotPicker extends StatelessWidget {
+  final AvailabilityState state;
+  final bool hasPrerequisites;
+  final TextStyle textStyle;
+  final ValueChanged<TimeSlot> onSlotSelected;
+
+  const _SlotPicker({
+    required this.state,
+    required this.hasPrerequisites,
+    required this.textStyle,
+    required this.onSlotSelected,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    if (state.isLoading) {
+      return const _FieldPlaceholder(label: 'Finding open times...');
+    }
+
+    if (state.error != null) {
+      return _FieldPlaceholder(
+        label: _slotErrorMessage(state.error!),
+        isError: true,
+      );
+    }
+
+    if (!hasPrerequisites) {
+      return const _SlotNotice(
+        icon: Icons.schedule_outlined,
+        message: 'Choose a branch, dentist and date to see open times.',
+      );
+    }
+
+    // No slots at all means the dentist isn't working that day; slots that are
+    // all taken is a different message, and a different fix for the patient.
+    if (state.slots.isEmpty) {
+      return const _SlotNotice(
+        icon: Icons.event_busy_outlined,
+        message: 'This dentist has no hours on this day. Try another date.',
+      );
+    }
+
+    if (state.availableSlots.isEmpty) {
+      return const _SlotNotice(
+        icon: Icons.event_busy_outlined,
+        message: 'Fully booked on this day. Try another date or dentist.',
+      );
+    }
+
+    final timeFormat = DateFormat('h:mm a');
+
+    return Wrap(
+      spacing: AppDimensions.paddingSmall,
+      runSpacing: AppDimensions.paddingSmall,
+      children: state.slots.map((slot) {
+        final isSelected = state.selectedSlot?.startTime == slot.startTime;
+        final isAvailable = slot.isAvailable;
+
+        return _SlotChip(
+          label: timeFormat.format(slot.startDateTime),
+          isSelected: isSelected,
+          isAvailable: isAvailable,
+          textStyle: textStyle,
+          onTap: isAvailable ? () => onSlotSelected(slot) : null,
+        );
+      }).toList(),
+    );
+  }
+}
+
+class _SlotChip extends StatelessWidget {
+  final String label;
+  final bool isSelected;
+  final bool isAvailable;
+  final TextStyle textStyle;
+  final VoidCallback? onTap;
+
+  const _SlotChip({
+    required this.label,
+    required this.isSelected,
+    required this.isAvailable,
+    required this.textStyle,
+    this.onTap,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final Color background;
+    final Color border;
+    final Color foreground;
+
+    if (isSelected) {
+      background = AppColors.primary;
+      border = AppColors.primary;
+      foreground = AppColors.textOnPrimary;
+    } else if (isAvailable) {
+      background = AppColors.background;
+      border = AppColors.border;
+      foreground = AppColors.ink;
+    } else {
+      background = AppColors.surface;
+      border = AppColors.line;
+      foreground = AppColors.textTertiary;
+    }
+
+    return Semantics(
+      button: isAvailable,
+      selected: isSelected,
+      label: isAvailable ? label : '$label, unavailable',
+      child: InkWell(
+        onTap: onTap,
+        borderRadius: BorderRadius.circular(AppDimensions.borderRadius),
+        mouseCursor: isAvailable
+            ? SystemMouseCursors.click
+            : SystemMouseCursors.forbidden,
+        child: AnimatedContainer(
+          duration: const Duration(milliseconds: 150),
+          padding: const EdgeInsets.symmetric(
+            horizontal: AppDimensions.paddingMedium,
+            vertical: AppDimensions.paddingSmall,
+          ),
+          decoration: BoxDecoration(
+            color: background,
+            border: Border.all(color: border),
+            borderRadius: BorderRadius.circular(AppDimensions.borderRadius),
+          ),
+          child: Text(
+            label,
+            style: textStyle.copyWith(
+              color: foreground,
+              fontWeight: isSelected ? FontWeight.w700 : FontWeight.w500,
+              decoration: isAvailable ? null : TextDecoration.lineThrough,
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+/// Occupies the slot grid's place when there is nothing to pick from yet.
+class _SlotNotice extends StatelessWidget {
+  final IconData icon;
+  final String message;
+
+  const _SlotNotice({required this.icon, required this.message});
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.all(AppDimensions.paddingMedium),
+      decoration: BoxDecoration(
+        color: AppColors.surface,
+        borderRadius: BorderRadius.circular(AppDimensions.borderRadius),
+        border: Border.all(color: AppColors.border),
+      ),
+      child: Row(
+        children: [
+          Icon(
+            icon,
+            size: AppDimensions.iconSizeSmall,
+            color: AppColors.textSecondary,
+          ),
+          const SizedBox(width: AppDimensions.paddingSmall),
+          Expanded(
+            child: Text(
+              message,
+              style: AppTextStyles.bodySmall.copyWith(
+                color: AppColors.textSecondary,
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
 /// Recap of the chosen slot, shown once date and time are both set.
 class _ScheduleSummary extends StatelessWidget {
-  final DateTime date;
-  final String time;
-  final int durationMinutes;
+  final DateTime start;
+  final DateTime end;
 
   const _ScheduleSummary({
-    required this.date,
-    required this.time,
-    required this.durationMinutes,
+    required this.start,
+    required this.end,
   });
 
   @override
@@ -1051,8 +1366,10 @@ class _ScheduleSummary extends StatelessWidget {
           const SizedBox(width: AppDimensions.paddingXS),
           Expanded(
             child: Text(
-              '${DateFormat('EEEE, MMMM d').format(date)} at $time '
-              '· $durationMinutes minutes',
+              '${DateFormat('EEEE, MMMM d').format(start)} at '
+              '${DateFormat('h:mm a').format(start)} – '
+              '${DateFormat('h:mm a').format(end)} '
+              '· ${end.difference(start).inMinutes} minutes',
               style: AppTextStyles.labelMedium.copyWith(
                 color: AppColors.primaryDark,
               ),

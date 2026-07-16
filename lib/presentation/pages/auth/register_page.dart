@@ -4,7 +4,7 @@ import 'package:go_router/go_router.dart';
 
 import '../../../core/utils/validators.dart';
 import '../../providers/auth/auth_provider.dart';
-import '../../route/route_names.dart';
+import '../../route/auth_redirect.dart';
 import 'auth_page_widgets.dart';
 
 class RegisterPage extends ConsumerStatefulWidget {
@@ -50,13 +50,25 @@ class _RegisterPageState extends ConsumerState<RegisterPage> {
 
     if (!mounted) return;
 
-    // People register here to book a visit, so send them to the booking form.
+    // Honor the destination the CTA asked for; someone who came here on their
+    // own (no `next`) has no pending errand, so the dashboard is right for them.
     // Navigating explicitly rather than leaning on the router's redirect: the
-    // redirect only lands here if the location is still /register when auth
-    // flips, which is a race we don't need to depend on.
+    // redirect only fires if the location is still /register when auth flips,
+    // which is a race we don't need to depend on.
     if (ref.read(authStateProvider).isAuthenticated) {
-      context.goNamed(RouteNames.appointmentPatientForm);
+      final next = AuthRedirect.resolve(
+        GoRouterState.of(context).uri.queryParameters,
+      );
+      context.go(next ?? '/dashboard');
     }
+  }
+
+  /// Login URL that keeps whatever destination sent the user here.
+  String _loginPath(BuildContext context) {
+    final next = AuthRedirect.resolve(
+      GoRouterState.of(context).uri.queryParameters,
+    );
+    return next == null ? '/login' : AuthRedirect.path('/login', next);
   }
 
   @override
@@ -196,7 +208,7 @@ class _RegisterPageState extends ConsumerState<RegisterPage> {
               child: AuthSwitchPrompt(
                 text: 'Already have an account?',
                 action: 'Login',
-                onPressed: () => context.goNamed(RouteNames.login),
+                onPressed: () => context.go(_loginPath(context)),
               ),
             ),
           ],
