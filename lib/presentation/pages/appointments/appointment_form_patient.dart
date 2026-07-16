@@ -1,20 +1,29 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:go_router/go_router.dart';
 import 'package:intl/intl.dart';
 import 'package:smile_concept_web/data/models/appointment/appointment_request.dart';
 
+import '../../../data/repositories/appointment_repository.dart';
+import '../../../data/repositories/doctor_repository.dart';
+import '../../providers/auth/auth_provider.dart';
+import '../../providers/branch/branch_provider.dart';
+import '../../route/route_names.dart';
 import '../../theme/app_colors.dart';
 import '../../theme/app_dimensions.dart';
 import '../../theme/app_text_styles.dart';
 import '../../theme/app_theme.dart';
 
-class AppointmentFormPatient extends StatefulWidget {
+class AppointmentFormPatient extends ConsumerStatefulWidget {
   const AppointmentFormPatient({super.key});
 
   @override
-  State<AppointmentFormPatient> createState() => _AppointmentFormPatientState();
+  ConsumerState<AppointmentFormPatient> createState() =>
+      _AppointmentFormPatientState();
 }
 
-class _AppointmentFormPatientState extends State<AppointmentFormPatient> {
+class _AppointmentFormPatientState
+    extends ConsumerState<AppointmentFormPatient> {
   static const int _appointmentDurationMinutes = 30;
   static const double _formMaxWidth = 720;
 
@@ -39,6 +48,8 @@ class _AppointmentFormPatientState extends State<AppointmentFormPatient> {
 
   String? _purpose;
   String? _bookingFor;
+  int? _doctorId;
+  int? _branchId;
 
   bool _isSubmitting = false;
   AutovalidateMode _autovalidateMode = AutovalidateMode.disabled;
@@ -62,6 +73,40 @@ class _AppointmentFormPatientState extends State<AppointmentFormPatient> {
     'Parent',
     'Other',
   ];
+
+  @override
+  void initState() {
+    super.initState();
+    _bookingFor = _bookingOptions.first;
+    _applyAccountDetails();
+  }
+
+  /// The account holder is the default patient, so prefill from their profile
+  /// rather than making them retype what we already know.
+  void _applyAccountDetails() {
+    final user = ref.read(authStateProvider).user;
+    if (user == null) return;
+
+    _fullNameController.text = user.name;
+    _emailController.text = user.email;
+    _mobileController.text = user.phone ?? '';
+  }
+
+  void _onBookingForChanged(String? value) {
+    setState(() {
+      _bookingFor = value;
+
+      if (value == _bookingOptions.first) {
+        _applyAccountDetails();
+        return;
+      }
+
+      // Booking for someone else — their details are not the account holder's.
+      _fullNameController.clear();
+      _mobileController.clear();
+      _emailController.clear();
+    });
+  }
 
   @override
   void dispose() {
@@ -154,6 +199,23 @@ class _AppointmentFormPatientState extends State<AppointmentFormPatient> {
       return;
     }
 
+    // While the pickers are still loading or failed to load, no dropdown exists
+    // for the form to validate — so check them directly rather than trusting
+    // validate() to have covered them.
+    if (_doctorId == null || _branchId == null) {
+      ScaffoldMessenger.of(context)
+        ..hideCurrentSnackBar()
+        ..showSnackBar(
+          const SnackBar(
+            content: Text('Please choose a branch and dentist first.'),
+            backgroundColor: AppColors.error,
+            behavior: SnackBarBehavior.floating,
+          ),
+        );
+
+      return;
+    }
+
     setState(() => _isSubmitting = true);
 
     final startTime = _combineDateAndTime();
@@ -162,9 +224,11 @@ class _AppointmentFormPatientState extends State<AppointmentFormPatient> {
       const Duration(minutes: _appointmentDurationMinutes),
     );
 
+    // The appointment belongs to the signed-in account; patient_* describes who
+    // actually attends, which differs when booking for a family member.
     final request = AppointmentRequest(
-      doctorId: 1, // Replace later with selected doctor
-      branchId: 1, // Replace later with selected branch
+      doctorId: _doctorId!,
+      branchId: _branchId!,
       startTime: startTime,
       endTime: endTime,
 
@@ -176,14 +240,56 @@ class _AppointmentFormPatientState extends State<AppointmentFormPatient> {
       additionalNotes: _notesController.text.trim(),
     );
 
-    debugPrint(request.toJson().toString());
+    try {
+      await ref.read(appointmentRepositoryProvider).createAppointment(request);
 
-    // Later:
-    // await ref.read(appointmentProvider.notifier).bookAppointment(request);
+      if (!mounted) return;
 
-    if (!mounted) return;
+      ScaffoldMessenger.of(context)
+        ..hideCurrentSnackBar()
+        ..showSnackBar(
+          SnackBar(
+            content: Text(
+              'Appointment requested for '
+              '${DateFormat('MMMM d').format(startTime)} at '
+              '${_timeController.text}. We\'ll confirm by email.',
+            ),
+            backgroundColor: AppColors.success,
+            behavior: SnackBarBehavior.floating,
+          ),
+        );
 
-    setState(() => _isSubmitting = false);
+      context.goNamed(RouteNames.landing);
+    } catch (e) {
+      if (!mounted) return;
+
+      setState(() => _isSubmitting = false);
+
+      ScaffoldMessenger.of(context)
+        ..hideCurrentSnackBar()
+        ..showSnackBar(
+          SnackBar(
+            content: Text(_readableError(e)),
+            backgroundColor: AppColors.error,
+            behavior: SnackBarBehavior.floating,
+          ),
+        );
+    }
+  }
+
+  /// Surfaces the API's reason instead of a raw exception dump. The common case
+  /// is a 422 for a slot that was taken between loading the form and submitting.
+  String _readableError(Object e) {
+    final message = e
+        .toString()
+        .replaceAll('Exception: ', '')
+        .replaceAll('ApiFailure: ', '');
+
+    if (message.toLowerCase().contains('already booked')) {
+      return 'That time slot was just taken. Please pick another time.';
+    }
+
+    return 'Could not book the appointment. $message';
   }
 
   @override
@@ -330,9 +436,7 @@ class _AppointmentFormPatientState extends State<AppointmentFormPatient> {
                                       ),
                                     )
                                     .toList(),
-                                onChanged: (value) {
-                                  setState(() => _bookingFor = value);
-                                },
+                                onChanged: _onBookingForChanged,
                                 validator: (v) => v == null || v.isEmpty
                                     ? 'Select who the appointment is for'
                                     : null,
@@ -349,6 +453,22 @@ class _AppointmentFormPatientState extends State<AppointmentFormPatient> {
                           subtitle:
                               'Pick a schedule and tell us why you\'re coming in.',
                           children: [
+                            _ResponsiveFieldRow(
+                              isCompact: isCompact,
+                              children: [
+                                _LabeledField(
+                                  label: 'Branch',
+                                  isRequired: true,
+                                  child: _buildBranchField(),
+                                ),
+                                _LabeledField(
+                                  label: 'Dentist',
+                                  isRequired: true,
+                                  child: _buildDoctorField(),
+                                ),
+                              ],
+                            ),
+
                             _ResponsiveFieldRow(
                               isCompact: isCompact,
                               children: [
@@ -477,6 +597,92 @@ class _AppointmentFormPatientState extends State<AppointmentFormPatient> {
     );
   }
 
+  /// Shared chrome for the async-backed pickers, so a loading or failed fetch
+  /// still occupies the field's slot instead of collapsing the layout.
+  Widget _buildAsyncField<T>({
+    required AsyncValue<List<T>> async,
+    required String hint,
+    required IconData icon,
+    required String errorLabel,
+    required int? value,
+    required List<DropdownMenuItem<int>> Function(List<T> items) itemBuilder,
+    required ValueChanged<int?> onChanged,
+    required String validationMessage,
+  }) {
+    return async.when(
+      loading: () => const _FieldPlaceholder(label: 'Loading...'),
+      error: (error, _) => _FieldPlaceholder(
+        label: errorLabel,
+        isError: true,
+      ),
+      data: (items) {
+        if (items.isEmpty) {
+          return _FieldPlaceholder(label: errorLabel, isError: true);
+        }
+
+        return DropdownButtonFormField<int>(
+          initialValue: value,
+          style: _inputTextStyle,
+          dropdownColor: AppColors.background,
+          iconEnabledColor: AppColors.textSecondary,
+          borderRadius: BorderRadius.circular(AppDimensions.borderRadius),
+          isExpanded: true,
+          decoration: InputDecoration(
+            hintText: hint,
+            prefixIcon: Icon(icon),
+          ),
+          items: itemBuilder(items),
+          onChanged: onChanged,
+          validator: (v) => v == null ? validationMessage : null,
+        );
+      },
+    );
+  }
+
+  Widget _buildBranchField() {
+    return _buildAsyncField(
+      async: ref.watch(branchesProvider),
+      hint: 'Select a branch',
+      icon: Icons.location_on_outlined,
+      errorLabel: 'Could not load branches',
+      value: _branchId,
+      validationMessage: 'Select a branch',
+      itemBuilder: (branches) => branches
+          .map(
+            (branch) => DropdownMenuItem<int>(
+              value: branch.id,
+              child: Text(branch.name),
+            ),
+          )
+          .toList(),
+      onChanged: (value) => setState(() => _branchId = value),
+    );
+  }
+
+  Widget _buildDoctorField() {
+    return _buildAsyncField(
+      async: ref.watch(doctorsProvider),
+      hint: 'Select a dentist',
+      icon: Icons.medical_information_outlined,
+      errorLabel: 'Could not load dentists',
+      value: _doctorId,
+      validationMessage: 'Select a dentist',
+      itemBuilder: (doctors) => doctors.map((doctor) {
+        final id = doctor['id'] as int;
+
+        final name = doctor['name']?.toString() ??
+            (doctor['user'] as Map?)?['name']?.toString() ??
+            'Doctor #$id';
+
+        return DropdownMenuItem<int>(
+          value: id,
+          child: Text(name),
+        );
+      }).toList(),
+      onChanged: (value) => setState(() => _doctorId = value),
+    );
+  }
+
   Widget _buildHeader(bool isCompact) {
     return Container(
       padding: EdgeInsets.all(
@@ -573,6 +779,57 @@ class _AppointmentFormPatientState extends State<AppointmentFormPatient> {
                   : const Icon(Icons.check_circle_outline, size: 20),
               label: Text(
                 _isSubmitting ? 'Booking...' : 'Book Appointment',
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+/// Stands in for a dropdown while its options load, or when the fetch fails.
+/// Matches input height so the form doesn't jump once data arrives.
+class _FieldPlaceholder extends StatelessWidget {
+  final String label;
+  final bool isError;
+
+  const _FieldPlaceholder({required this.label, this.isError = false});
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      height: 56,
+      padding: const EdgeInsets.symmetric(
+        horizontal: AppDimensions.paddingMedium,
+      ),
+      decoration: BoxDecoration(
+        color: AppColors.surface,
+        borderRadius: BorderRadius.circular(AppDimensions.borderRadius),
+        border: Border.all(
+          color: isError ? AppColors.error : AppColors.border,
+        ),
+      ),
+      child: Row(
+        children: [
+          if (isError)
+            const Icon(
+              Icons.error_outline,
+              size: AppDimensions.iconSizeSmall,
+              color: AppColors.error,
+            )
+          else
+            const SizedBox(
+              width: AppDimensions.iconSizeSmall,
+              height: AppDimensions.iconSizeSmall,
+              child: CircularProgressIndicator(strokeWidth: 2),
+            ),
+          const SizedBox(width: AppDimensions.paddingSmall),
+          Expanded(
+            child: Text(
+              label,
+              style: AppTextStyles.bodySmall.copyWith(
+                color: isError ? AppColors.error : AppColors.textSecondary,
               ),
             ),
           ),
