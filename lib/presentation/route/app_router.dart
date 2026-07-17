@@ -37,6 +37,7 @@ import '../pages/treatment_plans/treatment_plans_page.dart';
 import '../pages/treatment_plans/treatment_plan_form_page.dart';
 import '../pages/doctor_schedules/doctor_schedules_pages.dart';
 import '../pages/profile/profile_page.dart';
+import '../pages/clinical_records/clinical_records_page.dart';
 import 'route_names.dart';
 
 final routerProvider = Provider<GoRouter>((ref) {
@@ -96,7 +97,7 @@ final routerProvider = Provider<GoRouter>((ref) {
       }
 
       // Unauthenticated
-            // Unauthenticated
+      // Unauthenticated
       if (location == '/splash') return '/';
 
       // Protected route accessed while logged out → landing page
@@ -146,6 +147,13 @@ final routerProvider = Provider<GoRouter>((ref) {
             path: '/dashboard',
             name: RouteNames.dashboard,
             builder: (context, state) => const DashboardPage(),
+          ),
+
+          // Clinical Records Hub
+          GoRoute(
+            path: '/clinical-records',
+            name: RouteNames.clinicalRecords,
+            builder: (context, state) => const ClinicalRecordsPage(),
           ),
 
           // Appointments

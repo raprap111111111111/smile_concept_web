@@ -110,7 +110,7 @@ class SidebarNavConfig {
           NavItem(
             icon: Icons.folder_shared_outlined,
             title: isPatient ? 'My Records' : 'Clinical Records',
-            routeName: RouteNames.clinical,
+            routeName: RouteNames.clinicalRecords,
             permissions: const [
               Perm.clinicalNoteViewAny,
               Perm.dentalChartViewAny,
