@@ -4,7 +4,6 @@ import 'package:dio/dio.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../data/repositories/auth_repository.dart';
 import '../../../data/models/auth/user_model.dart';
-import 'package:flutter/foundation.dart';
 
 // ─── Auth Status ──────────────────────────────────────────────
 enum AuthStatus {
@@ -27,34 +26,30 @@ class AuthState {
   });
 
   // ── Status helpers ─────────────────────────────────────────
-  bool get isAuthenticated   => status == AuthStatus.authenticated;
-  bool get isLoading         => status == AuthStatus.loading;
-  bool get isInitial         => status == AuthStatus.initial;
+  bool get isAuthenticated => status == AuthStatus.authenticated;
+  bool get isLoading => status == AuthStatus.loading;
+  bool get isInitial => status == AuthStatus.initial;
   bool get isUnauthenticated => status == AuthStatus.unauthenticated;
-  bool get hasError          => errorMessage != null;
+  bool get hasError => errorMessage != null;
 
   // ── Delegate role to UserModel ─────────────────────────────
   // These all use UserModel's existing logic — no duplication
   String get role => user?.role ?? 'guest';
 
-  bool get isSuperAdmin   => user?.isSuperAdmin ?? false;
-  bool get isAdmin        => role == 'admin';
-  bool get isDentist      => role == 'dentist';
+  bool get isSuperAdmin => user?.isSuperAdmin ?? false;
+  bool get isAdmin => role == 'admin';
+  bool get isDentist => role == 'dentist';
   bool get isReceptionist => role == 'receptionist';
-  bool get isPatient      => role == 'patient';
-  bool get isStaff        =>
-      isSuperAdmin || isAdmin || isDentist || isReceptionist;
+  bool get isPatient => role == 'patient';
+  bool get isStaff => isSuperAdmin || isAdmin || isDentist || isReceptionist;
 
   // ── Delegate permission checks to UserModel ────────────────
   // UserModel.can() already handles super-admin bypass
-  bool hasPermission(String permission) =>
-      user?.can(permission) ?? false;
+  bool hasPermission(String permission) => user?.can(permission) ?? false;
 
-  bool hasAnyPermission(List<String> perms) =>
-      user?.canAny(perms) ?? false;
+  bool hasAnyPermission(List<String> perms) => user?.canAny(perms) ?? false;
 
-  bool hasAllPermissions(List<String> perms) =>
-      user?.canAll(perms) ?? false;
+  bool hasAllPermissions(List<String> perms) => user?.canAll(perms) ?? false;
 
   // ── Prescription shortcuts ─────────────────────────────────
   // From seeder: dentist → create/update/delete/print/send
@@ -65,20 +60,15 @@ class AuthState {
         'prescription.view',
       ]);
 
-  bool get canCreatePrescription =>
-      hasPermission('prescription.create');
+  bool get canCreatePrescription => hasPermission('prescription.create');
 
-  bool get canUpdatePrescription =>
-      hasPermission('prescription.update');
+  bool get canUpdatePrescription => hasPermission('prescription.update');
 
-  bool get canDeletePrescription =>
-      hasPermission('prescription.delete');
+  bool get canDeletePrescription => hasPermission('prescription.delete');
 
-  bool get canPrintPrescription =>
-      hasPermission('prescription.print');
+  bool get canPrintPrescription => hasPermission('prescription.print');
 
-  bool get canSendPrescription =>
-      hasPermission('prescription.send');
+  bool get canSendPrescription => hasPermission('prescription.send');
 
   // ── copyWith ───────────────────────────────────────────────
   AuthState copyWith({
@@ -87,8 +77,8 @@ class AuthState {
     String? errorMessage,
   }) {
     return AuthState(
-      status:       status       ?? this.status,
-      user:         user         ?? this.user,
+      status: status ?? this.status,
+      user: user ?? this.user,
       errorMessage: errorMessage, // intentionally nullable
     );
   }
@@ -97,8 +87,7 @@ class AuthState {
       const AuthState(status: AuthStatus.unauthenticated);
 
   @override
-  String toString() =>
-      'AuthState('
+  String toString() => 'AuthState('
       'status: $status, '
       'role: $role, '
       'permissions: ${user?.permissions.length ?? 0}, '
@@ -159,24 +148,26 @@ class AuthStateNotifier extends StateNotifier<AuthState> {
 
       state = AuthState(
         status: AuthStatus.authenticated,
-        user:   user,
+        user: user,
       );
     } catch (e) {
       print('⚠️ Profile fetch error: $e');
 
-      final errorStr       = e.toString().toLowerCase();
+      final errorStr = e.toString().toLowerCase();
       final isUnauthorized =
-          errorStr.contains('401') ||
-          errorStr.contains('unauthorized');
+          errorStr.contains('401') || errorStr.contains('unauthorized');
 
       if (isUnauthorized) {
         print('🚨 401 → clearing session');
         await _authRepository.clearSession();
         state = state.toUnauthenticated();
       } else {
-        print('✋ Non-401 error → keeping authenticated');
+        // ✅ On network/server errors, treat as unauthenticated
+        print('🌐 Network/server error → unauthenticated');
+        await _authRepository.clearSession();
         state = const AuthState(
-          status: AuthStatus.authenticated,
+          status: AuthStatus.unauthenticated,
+          errorMessage: 'Unable to connect. Please try again.',
         );
       }
     }
@@ -185,13 +176,13 @@ class AuthStateNotifier extends StateNotifier<AuthState> {
   // ─── Login ──────────────────────────────────────────────────
   Future<void> login(String email, String password) async {
     state = state.copyWith(
-      status:       AuthStatus.loading,
+      status: AuthStatus.loading,
       errorMessage: null,
     );
 
     try {
       final response = await _authRepository.login(email, password);
-      final user     = response.user;
+      final user = response.user;
 
       // ── Debug log ──────────────────────────────────────────
       print('✅ Login: ${user?.name} | role: ${user?.role}');
@@ -199,11 +190,11 @@ class AuthStateNotifier extends StateNotifier<AuthState> {
 
       state = AuthState(
         status: AuthStatus.authenticated,
-        user:   user,
+        user: user,
       );
     } catch (e) {
       state = AuthState(
-        status:       AuthStatus.unauthenticated,
+        status: AuthStatus.unauthenticated,
         errorMessage: _parseError(e),
       );
     }
@@ -218,11 +209,11 @@ class AuthStateNotifier extends StateNotifier<AuthState> {
     String? phone,
   }) async {
     state = state.copyWith(
-      status:       AuthStatus.loading,
+      status: AuthStatus.loading,
       errorMessage: null,
     );
 
-   try {
+    try {
       final response = await _authRepository.register(
         firstName: firstName,
         lastName: lastName,
@@ -238,11 +229,9 @@ class AuthStateNotifier extends StateNotifier<AuthState> {
         status: AuthStatus.authenticated,
         user: response.user,
       );
-    } on DioException catch (e){
-      
-        print('Status Code: ${e.response?.statusCode}');
-        print('Response: ${e.response?.data}');
-
+    } on DioException catch (e) {
+      print('Status Code: ${e.response?.statusCode}');
+      print('Response: ${e.response?.data}');
     } catch (e) {
       print('❌ Registration failed');
       print(e);
@@ -271,16 +260,14 @@ class AuthStateNotifier extends StateNotifier<AuthState> {
       final user = await _authRepository.getProfile();
       state = state.copyWith(user: user);
       print('🔄 Profile refreshed: '
-            '${user.permissions.length} permissions, '
-            'role: ${user.role}');
+          '${user.permissions.length} permissions, '
+          'role: ${user.role}');
     } catch (e) {
       print('⚠️ Failed to refresh profile: $e');
     }
   }
 
   // ─── Helper ─────────────────────────────────────────────────
-  String _parseError(Object e) => e
-      .toString()
-      .replaceAll('Exception: ', '')
-      .replaceAll('ApiFailure: ', '');
+  String _parseError(Object e) =>
+      e.toString().replaceAll('Exception: ', '').replaceAll('ApiFailure: ', '');
 }
