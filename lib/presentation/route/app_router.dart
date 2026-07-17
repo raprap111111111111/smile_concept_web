@@ -96,11 +96,13 @@ final routerProvider = Provider<GoRouter>((ref) {
       }
 
       // Unauthenticated
-      if (!isPublic && location != '/splash') {
-        return '/login';
-      }
-
+            // Unauthenticated
       if (location == '/splash') return '/';
+
+      // Protected route accessed while logged out → landing page
+      if (!isPublic) {
+        return '/';
+      }
 
       return null;
     },
