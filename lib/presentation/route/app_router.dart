@@ -4,9 +4,10 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
+import '../providers/auth/permission_provider.dart';
 import 'router_notifier.dart';
 import 'router_redirect.dart';
-import 'route_names.dart';
+import 'route_permissions.dart';
 import 'routes/public_routes.dart';
 import 'routes/shell_routes.dart';
 
@@ -32,7 +33,11 @@ final routerProvider = Provider<GoRouter>((ref) {
             Text('Page not found: ${state.uri}'),
             const SizedBox(height: 16),
             ElevatedButton(
-              onPressed: () => context.goNamed(RouteNames.dashboard),
+              onPressed: () => context.go(
+                RoutePermissions.landingFor(
+                  ref.read(permissionServiceProvider),
+                ),
+              ),
               child: const Text('Go Home'),
             ),
           ],

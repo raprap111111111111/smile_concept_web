@@ -7,6 +7,7 @@ import '../../pages/landing/landing_page.dart';
 import '../../pages/auth/login_page.dart';
 import '../../pages/auth/register_page.dart';
 import '../../pages/appointments/appointment_form_patient.dart';
+import '../../pages/unauthorized/unauthorized_page.dart';
 import '../route_names.dart';
 
 final List<GoRoute> publicRoutes = [
@@ -34,5 +35,13 @@ final List<GoRoute> publicRoutes = [
     path: '/appointment-patient-form',
     name: RouteNames.appointmentPatientForm,
     builder: (context, state) => const AppointmentFormPatient(),
+  ),
+  // Outside the shell: it carries its own Scaffold, and a user who was just
+  // denied a page should not be looking at the nav chrome for that page.
+  // Not listed in _publicRoutes, so an unauthenticated hit still bounces home.
+  GoRoute(
+    path: '/unauthorized',
+    name: RouteNames.unauthorized,
+    builder: (context, state) => const UnauthorizedPage(),
   ),
 ];
