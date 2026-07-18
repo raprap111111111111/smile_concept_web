@@ -4,7 +4,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
-import '/presentation/constant/permission_constants.dart';
+import '/../core/permissions/app_permissions.dart';
 import '../../providers/auth/auth_provider.dart';
 import '../../providers/inventory/item_provider.dart';
 import '../../route/route_names.dart';
@@ -272,7 +272,7 @@ class _ItemCard extends StatelessWidget {
               width: AppDimensions.iconBadgeSize,
               height: AppDimensions.iconBadgeSize,
               decoration: BoxDecoration(
-                color: AppColors.primary.withOpacity(0.08),
+                color: AppColors.primary.withValues(alpha:0.08),
                 borderRadius:
                     BorderRadius.circular(AppDimensions.borderRadius),
               ),
@@ -310,7 +310,7 @@ class _ItemCard extends StatelessWidget {
               IconButton(
                 onPressed: onDelete,
                 icon: const Icon(Icons.delete_outline),
-                color: AppColors.error.withOpacity(0.7),
+                color: AppColors.error.withValues(alpha:0.7),
                 iconSize: AppDimensions.iconSizeMedium,
               ),
           ],
@@ -323,7 +323,7 @@ class _ItemCard extends StatelessWidget {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
       decoration: BoxDecoration(
-        color: color.withOpacity(0.08),
+        color: color.withValues(alpha:0.08),
         borderRadius:
             BorderRadius.circular(AppDimensions.borderRadiusSmall),
       ),

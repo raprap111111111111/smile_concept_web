@@ -62,9 +62,9 @@ class DropdownError extends StatelessWidget {
     return Container(
       padding: const EdgeInsets.all(AppDimensions.paddingMedium),
       decoration: BoxDecoration(
-        color: AppColors.error.withOpacity(0.08),
+        color: AppColors.error.withValues(alpha:0.08),
         borderRadius: BorderRadius.circular(AppDimensions.borderRadius),
-        border: Border.all(color: AppColors.error.withOpacity(0.3)),
+        border: Border.all(color: AppColors.error.withValues(alpha:0.3)),
       ),
       child: Row(
         children: [
