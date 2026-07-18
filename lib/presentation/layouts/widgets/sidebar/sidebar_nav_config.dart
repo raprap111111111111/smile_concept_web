@@ -1,7 +1,7 @@
 // lib/presentation/layouts/widgets/sidebar/sidebar_nav_config.dart
 
 import 'package:flutter/material.dart';
-import '../../../constant/permission_constants.dart';
+import '/../core/permissions/app_permissions.dart';
 import '../../../providers/auth/permission_provider.dart';
 import '../../../route/route_names.dart';
 

@@ -3,7 +3,7 @@
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 
-import '/presentation/constant/permission_constants.dart';
+import '/../core/permissions/app_permissions.dart';
 import '../../../providers/auth/auth_provider.dart';
 import '../../../route/route_names.dart';
 import '../../../theme/app_colors.dart';
