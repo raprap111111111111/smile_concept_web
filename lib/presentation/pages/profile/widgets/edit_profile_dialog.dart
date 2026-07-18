@@ -7,6 +7,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:image_picker/image_picker.dart';
 
 import '../../../../data/models/profile/profile_model.dart';
+import '../../../providers/auth/auth_provider.dart';
 import '../../../providers/profile/profile_provider.dart';
 import 'profile_theme.dart';
 
@@ -95,6 +96,10 @@ class _EditProfileDialogState extends ConsumerState<EditProfileDialog> {
     if (!mounted) return;
 
     if (success) {
+      // The topbar avatar reads from the auth user, not the profile state,
+      // so it keeps the stale photo until the session user is refetched.
+      await ref.read(authStateProvider.notifier).refreshProfile();
+      if (!mounted) return;
       Navigator.of(context).pop(true);
     } else {
       final error = ref.read(profileNotifierProvider).error;

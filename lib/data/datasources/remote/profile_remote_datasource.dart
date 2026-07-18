@@ -122,9 +122,17 @@ class ProfileRemoteDataSource {
   // ─── Error Handler ────────────────────────────────────────────────
   Exception _handleError(DioException e) {
     final statusCode = e.response?.statusCode;
-    final message = e.response?.data?['message'] ??
+
+    // The body is only subscriptable when it parsed as JSON. Indexing a String
+    // body (PHP warning, HTML error page) throws and masks the real failure.
+    final data = e.response?.data;
+    final body = data is Map ? data : null;
+
+    final message = body?['message']?.toString() ??
         e.message ??
-        'Unknown error occurred';
+        (data != null
+            ? 'Server returned an unreadable response: $data'
+            : 'No response from server (status: $statusCode)');
 
     switch (statusCode) {
       case 401:
@@ -134,11 +142,11 @@ class ProfileRemoteDataSource {
       case 404:
         return Exception('Not found: $message');
       case 422:
-        final errors = e.response?.data?['errors'];
-        if (errors != null) {
-          final firstError = (errors as Map).values.first;
+        final errors = body?['errors'];
+        if (errors is Map && errors.isNotEmpty) {
+          final firstError = errors.values.first;
           return Exception(
-            firstError is List ? firstError.first : firstError.toString(),
+            firstError is List ? firstError.first.toString() : firstError.toString(),
           );
         }
         return Exception(message);
