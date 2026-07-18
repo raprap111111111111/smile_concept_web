@@ -1,3 +1,5 @@
+// lib/presentation/pages/appointments/appointments_page.dart
+
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:intl/intl.dart';
@@ -10,6 +12,9 @@ import '../../../data/repositories/appointment_repository.dart';
 import '../../providers/appointment/appointment_provider.dart';
 import '../../providers/auth/auth_provider.dart';
 import '../../providers/auth/permission_provider.dart';
+import '../../theme/app_colors.dart';
+import '../../theme/app_dimensions.dart';
+import '../../theme/app_text_styles.dart';
 import 'book_appointment_page.dart';
 import 'widgets/appointment_calendar_card.dart';
 import 'widgets/appointment_filter_bar.dart';
@@ -35,7 +40,6 @@ class _AppointmentsPageState extends ConsumerState<AppointmentsPage> {
   @override
   void initState() {
     super.initState();
-
     _selectedDay = null;
 
     WidgetsBinding.instance.addPostFrameCallback((_) {
@@ -49,17 +53,14 @@ class _AppointmentsPageState extends ConsumerState<AppointmentsPage> {
     super.dispose();
   }
 
-  DateTime _dateKey(DateTime date) {
-    return DateTime(date.year, date.month, date.day);
-  }
+  DateTime _dateKey(DateTime date) =>
+      DateTime(date.year, date.month, date.day);
 
-  bool _isSameDay(DateTime a, DateTime b) {
-    return a.year == b.year && a.month == b.month && a.day == b.day;
-  }
+  bool _isSameDay(DateTime a, DateTime b) =>
+      a.year == b.year && a.month == b.month && a.day == b.day;
 
   DateTime _parseDateKey(String value) {
     final parts = value.split('-');
-
     return DateTime(
       int.parse(parts[0]),
       int.parse(parts[1]),
@@ -67,13 +68,11 @@ class _AppointmentsPageState extends ConsumerState<AppointmentsPage> {
     );
   }
 
-  /// Check if current user can view ALL appointments
   bool _canViewAll() {
     final permissionService = ref.read(permissionServiceProvider);
     return permissionService.can(Perm.appointmentViewAny);
   }
 
-  /// Get current user ID
   int? _getCurrentUserId() {
     final authState = ref.read(authStateProvider);
     return authState.user?.id;
@@ -81,29 +80,22 @@ class _AppointmentsPageState extends ConsumerState<AppointmentsPage> {
 
   Future<void> _loadCalendarCountsForMonth(DateTime month) async {
     if (!mounted) return;
-
-    setState(() {
-      _isLoadingCounts = true;
-    });
+    setState(() => _isLoadingCounts = true);
 
     try {
       final state = ref.read(appointmentNotifierProvider);
-
       final counts =
           await ref.read(appointmentRepositoryProvider).getCalendarCounts(
                 month: month,
                 status: state.filter.status,
                 doctorId: state.filter.doctorId,
                 branchId: state.filter.branchId,
-                // 🔐 SECURITY: Only include userId in filter if user cannot view all
                 userId: _canViewAll() ? null : _getCurrentUserId(),
               );
 
       if (!mounted) return;
-
       setState(() {
         _calendarCounts.clear();
-
         counts.forEach((dateString, value) {
           _calendarCounts[_parseDateKey(dateString)] = value;
         });
@@ -111,35 +103,27 @@ class _AppointmentsPageState extends ConsumerState<AppointmentsPage> {
       });
     } catch (_) {
       if (!mounted) return;
-
-      setState(() {
-        _isLoadingCounts = false;
-      });
+      setState(() => _isLoadingCounts = false);
     }
   }
 
   Future<void> _loadAppointmentsForDay(DateTime day) async {
     final notifier = ref.read(appointmentNotifierProvider.notifier);
-
     setState(() {
       _selectedDay = day;
       _focusedDay = day;
     });
-
     await notifier.loadForDate(day);
   }
 
   Future<void> _openCreate() async {
     final created = await Navigator.of(context).push<AppointmentModel>(
-      MaterialPageRoute(
-        builder: (_) => const BookAppointmentPage(),
-      ),
+      MaterialPageRoute(builder: (_) => const BookAppointmentPage()),
     );
 
     if (created == null || !mounted) return;
 
     await _loadCalendarCountsForMonth(created.startTime);
-
     setState(() {
       _selectedDay = created.startTime;
       _focusedDay = created.startTime;
@@ -168,18 +152,13 @@ class _AppointmentsPageState extends ConsumerState<AppointmentsPage> {
           .removeAppointment(appointment.id);
 
       await _loadCalendarCountsForMonth(_focusedDay);
-
       if (_selectedDay != null) {
         await _loadAppointmentsForDay(_selectedDay!);
       }
 
-      if (mounted) {
-        ToastHelper.success(context, 'Appointment deleted');
-      }
+      if (mounted) ToastHelper.success(context, 'Appointment deleted');
     } catch (error) {
-      if (mounted) {
-        ToastHelper.error(context, error.toString());
-      }
+      if (mounted) ToastHelper.error(context, error.toString());
     }
   }
 
@@ -187,10 +166,18 @@ class _AppointmentsPageState extends ConsumerState<AppointmentsPage> {
     return await showDialog<bool>(
           context: context,
           builder: (context) => AlertDialog(
-            title: const Text('Delete Appointment'),
+            backgroundColor: AppColors.background,
+            shape: RoundedRectangleBorder(
+              borderRadius:
+                  BorderRadius.circular(AppDimensions.borderRadiusLarge),
+            ),
+            title: Text(
+              'Delete Appointment',
+              style: AppTextStyles.titleMedium,
+            ),
             content: Text(
-              'Delete appointment for '
-              '${appointment.user?.name ?? "this patient"}?',
+              'Delete appointment for ${appointment.user?.name ?? "this patient"}?',
+              style: AppTextStyles.bodyMedium,
             ),
             actions: [
               TextButton(
@@ -199,7 +186,7 @@ class _AppointmentsPageState extends ConsumerState<AppointmentsPage> {
               ),
               FilledButton(
                 style: FilledButton.styleFrom(
-                  backgroundColor: Colors.red.shade700,
+                  backgroundColor: AppColors.error,
                 ),
                 onPressed: () => Navigator.pop(context, true),
                 child: const Text('Delete'),
@@ -226,11 +213,9 @@ class _AppointmentsPageState extends ConsumerState<AppointmentsPage> {
 
     if (success) {
       await _loadCalendarCountsForMonth(_focusedDay);
-
       if (_selectedDay != null) {
         await _loadAppointmentsForDay(_selectedDay!);
       }
-
       if (mounted) {
         ToastHelper.success(
           context,
@@ -240,7 +225,6 @@ class _AppointmentsPageState extends ConsumerState<AppointmentsPage> {
     } else {
       final error =
           ref.read(appointmentNotifierProvider).error ?? 'Unknown error';
-
       ToastHelper.error(context, error);
     }
   }
@@ -252,15 +236,28 @@ class _AppointmentsPageState extends ConsumerState<AppointmentsPage> {
     final result = await showDialog<String>(
       context: context,
       builder: (context) => AlertDialog(
-        title: const Row(
+        backgroundColor: AppColors.background,
+        shape: RoundedRectangleBorder(
+          borderRadius:
+              BorderRadius.circular(AppDimensions.borderRadiusLarge),
+        ),
+        title: Row(
           children: [
-            Icon(
-              Icons.warning_amber,
-              color: Colors.red,
-              size: 24,
+            Container(
+              padding: const EdgeInsets.all(8),
+              decoration: BoxDecoration(
+                color: AppColors.error.withValues(alpha: 0.10),
+                borderRadius: BorderRadius.circular(10),
+              ),
+              child: const Icon(
+                Icons.warning_amber_rounded,
+                color: AppColors.error,
+                size: 20,
+              ),
             ),
-            SizedBox(width: 8),
-            Text('Cancel Appointment'),
+            const SizedBox(width: AppDimensions.paddingSmall),
+            Text('Cancel Appointment',
+                style: AppTextStyles.titleMedium),
           ],
         ),
         content: Form(
@@ -270,7 +267,6 @@ class _AppointmentsPageState extends ConsumerState<AppointmentsPage> {
             decoration: const InputDecoration(
               labelText: 'Reason for cancellation *',
               hintText: 'e.g., Schedule conflict, sick',
-              border: OutlineInputBorder(),
             ),
             maxLines: 3,
             maxLength: 500,
@@ -278,7 +274,6 @@ class _AppointmentsPageState extends ConsumerState<AppointmentsPage> {
               if (value == null || value.trim().isEmpty) {
                 return 'Reason is required';
               }
-
               return null;
             },
           ),
@@ -289,9 +284,7 @@ class _AppointmentsPageState extends ConsumerState<AppointmentsPage> {
             child: const Text('Keep'),
           ),
           FilledButton(
-            style: FilledButton.styleFrom(
-              backgroundColor: Colors.red,
-            ),
+            style: FilledButton.styleFrom(backgroundColor: AppColors.error),
             onPressed: () {
               if (formKey.currentState!.validate()) {
                 Navigator.pop(context, reasonController.text.trim());
@@ -306,11 +299,7 @@ class _AppointmentsPageState extends ConsumerState<AppointmentsPage> {
     reasonController.dispose();
 
     if (result != null && result.isNotEmpty) {
-      await _updateStatus(
-        appointment,
-        'cancelled',
-        reason: result,
-      );
+      await _updateStatus(appointment, 'cancelled', reason: result);
     }
   }
 
@@ -320,124 +309,174 @@ class _AppointmentsPageState extends ConsumerState<AppointmentsPage> {
     final notifier = ref.read(appointmentNotifierProvider.notifier);
 
     final permissions = ref.watch(permissionServiceProvider);
-
-    // 🔐 PERMISSION CHECKS
     final canViewAll = permissions.can(Perm.appointmentViewAny);
     final canView = permissions.can(Perm.appointmentView);
     final canCreate = permissions.can(Perm.appointmentCreate);
     final canDelete = permissions.can(Perm.appointmentDelete);
-    final canUpdateStatus =
-        permissions.can(Perm.appointmentUpdateStatus);
+    final canUpdateStatus = permissions.can(Perm.appointmentUpdateStatus);
     final currentUserId = ref.watch(authStateProvider).user?.id;
 
-    debugPrint('APPOINTMENTS PAGE - canViewAll: $canViewAll');
-    debugPrint('APPOINTMENTS PAGE - canView: $canView');
-    debugPrint('APPOINTMENTS PAGE - currentUserId: $currentUserId');
-
-    // Redirect to login if no view permission
     if (!canViewAll && !canView) {
-      return Scaffold(
-        appBar: AppBar(title: const Text('Appointments')),
-        body: Center(
-          child: Column(
-            mainAxisAlignment: MainAxisAlignment.center,
-            children: [
-              Icon(Icons.lock_outline, size: 64, color: Colors.grey.shade400),
-              const SizedBox(height: 16),
-              Text(
-                'You do not have permission to view appointments.',
-                style: TextStyle(color: Colors.grey.shade600),
-              ),
-            ],
-          ),
-        ),
-      );
+      return _NoAccessView();
     }
 
     return Scaffold(
-      appBar: AppBar(
-        title: Text(canViewAll ? 'All Appointments' : 'My Appointments'),
-        centerTitle: true,
-        actions: [
-          if (_isLoadingCounts)
-            const Padding(
-              padding: EdgeInsets.symmetric(horizontal: 12),
-              child: Center(
-                child: SizedBox(
-                  width: 16,
-                  height: 16,
-                  child: CircularProgressIndicator(strokeWidth: 2),
-                ),
-              ),
-            ),
-          IconButton(
-            tooltip: 'Change view',
-            icon: const Icon(Icons.view_module),
-            onPressed: () {
-              setState(() {
-                _calendarFormat = switch (_calendarFormat) {
-                  CalendarFormat.month => CalendarFormat.twoWeeks,
-                  CalendarFormat.twoWeeks => CalendarFormat.week,
-                  CalendarFormat.week => CalendarFormat.month,
-                };
-              });
-            },
-          ),
-          IconButton(
-            tooltip: 'Today',
-            icon: const Icon(Icons.today),
-            onPressed: () async {
-              final today = DateTime.now();
-              await _loadAppointmentsForDay(today);
-            },
-          ),
-          IconButton(
-            tooltip: 'Refresh',
-            icon: const Icon(Icons.refresh),
-            onPressed: () async {
-              await _loadCalendarCountsForMonth(_focusedDay);
-
-              if (_selectedDay != null) {
-                await _loadAppointmentsForDay(_selectedDay!);
-              }
-            },
-          ),
-        ],
-      ),
+      backgroundColor: AppColors.surface,
       floatingActionButton: canCreate
           ? FloatingActionButton.extended(
               onPressed: _openCreate,
-              icon: const Icon(Icons.add),
-              label: const Text('New Appointment'),
+              backgroundColor: AppColors.primary,
+              foregroundColor: AppColors.textOnPrimary,
+              icon: const Icon(Icons.add_rounded),
+              label: const Text(
+                'New Appointment',
+                style: TextStyle(fontWeight: FontWeight.w700),
+              ),
             )
           : null,
-      body: Column(
-        children: [
-          AppointmentFilterBar(
-            selectedStatus: state.filter.status,
-            onStatusChanged: (status) async {
-              final newFilter = status == null
-                  ? state.filter.copyWith(clearStatus: true)
-                  : state.filter.copyWith(status: status);
+      body: Padding(
+        padding: const EdgeInsets.all(AppDimensions.paddingLarge),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            _buildHeader(canViewAll),
+            const SizedBox(height: AppDimensions.paddingMedium),
+            AppointmentFilterBar(
+              selectedStatus: state.filter.status,
+              onStatusChanged: (status) async {
+                final newFilter = status == null
+                    ? state.filter.copyWith(clearStatus: true)
+                    : state.filter.copyWith(status: status);
 
-              notifier.setFilter(newFilter);
-
-              await _loadCalendarCountsForMonth(_focusedDay);
-
-              if (_selectedDay != null) {
-                await _loadAppointmentsForDay(_selectedDay!);
-              }
-            },
-          ),
-          const Divider(height: 1),
-          Expanded(
-            child: _buildBody(
-              state,
-              canViewAll: canViewAll,
-              currentUserId: currentUserId,
-              canDelete: canDelete,
-              canUpdateStatus: canUpdateStatus,
+                notifier.setFilter(newFilter);
+                await _loadCalendarCountsForMonth(_focusedDay);
+                if (_selectedDay != null) {
+                  await _loadAppointmentsForDay(_selectedDay!);
+                }
+              },
             ),
+            const SizedBox(height: AppDimensions.paddingMedium),
+            Expanded(
+              child: _buildBody(
+                state,
+                canViewAll: canViewAll,
+                currentUserId: currentUserId,
+                canDelete: canDelete,
+                canUpdateStatus: canUpdateStatus,
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  // ── HEADER ─────────────────────────────────────────────────
+  Widget _buildHeader(bool canViewAll) {
+    return Container(
+      padding: const EdgeInsets.all(AppDimensions.paddingLarge),
+      decoration: BoxDecoration(
+        color: AppColors.background,
+        borderRadius:
+            BorderRadius.circular(AppDimensions.borderRadiusLarge),
+        border: Border.all(color: AppColors.border),
+        boxShadow: const [
+          BoxShadow(
+            color: AppColors.cardShadow,
+            blurRadius: 16,
+            offset: Offset(0, 6),
+          ),
+        ],
+      ),
+      child: Row(
+        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+        children: [
+          Row(
+            children: [
+              Container(
+                width: 52,
+                height: 52,
+                decoration: BoxDecoration(
+                  gradient: AppColors.primaryGradient,
+                  borderRadius: BorderRadius.circular(14),
+                  boxShadow: [
+                    BoxShadow(
+                      color: AppColors.primary.withValues(alpha: 0.25),
+                      blurRadius: 14,
+                      offset: const Offset(0, 6),
+                    ),
+                  ],
+                ),
+                child: const Icon(
+                  Icons.calendar_month_rounded,
+                  color: AppColors.textOnPrimary,
+                  size: 26,
+                ),
+              ),
+              const SizedBox(width: AppDimensions.paddingMedium),
+              Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    canViewAll ? 'All Appointments' : 'My Appointments',
+                    style: AppTextStyles.headlineSmall,
+                  ),
+                  const SizedBox(height: 2),
+                  Text(
+                    'Manage patient bookings by date',
+                    style: AppTextStyles.bodySmall,
+                  ),
+                ],
+              ),
+            ],
+          ),
+          Row(
+            children: [
+              if (_isLoadingCounts)
+                const Padding(
+                  padding: EdgeInsets.only(right: 12),
+                  child: SizedBox(
+                    width: 18,
+                    height: 18,
+                    child: CircularProgressIndicator(
+                      strokeWidth: 2,
+                      color: AppColors.primary,
+                    ),
+                  ),
+                ),
+              _IconTile(
+                tooltip: 'Change view',
+                icon: Icons.view_module_outlined,
+                onTap: () {
+                  setState(() {
+                    _calendarFormat = switch (_calendarFormat) {
+                      CalendarFormat.month => CalendarFormat.twoWeeks,
+                      CalendarFormat.twoWeeks => CalendarFormat.week,
+                      CalendarFormat.week => CalendarFormat.month,
+                    };
+                  });
+                },
+              ),
+              const SizedBox(width: 8),
+              _IconTile(
+                tooltip: 'Today',
+                icon: Icons.today_outlined,
+                onTap: () async {
+                  await _loadAppointmentsForDay(DateTime.now());
+                },
+              ),
+              const SizedBox(width: 8),
+              _IconTile(
+                tooltip: 'Refresh',
+                icon: Icons.refresh_rounded,
+                onTap: () async {
+                  await _loadCalendarCountsForMonth(_focusedDay);
+                  if (_selectedDay != null) {
+                    await _loadAppointmentsForDay(_selectedDay!);
+                  }
+                },
+              ),
+            ],
           ),
         ],
       ),
@@ -453,26 +492,17 @@ class _AppointmentsPageState extends ConsumerState<AppointmentsPage> {
   }) {
     if (_selectedDay == null) {
       return RefreshIndicator(
-        onRefresh: () async {
-          await _loadCalendarCountsForMonth(_focusedDay);
-        },
+        color: AppColors.primary,
+        onRefresh: () => _loadCalendarCountsForMonth(_focusedDay),
         child: ListView(
           physics: const AlwaysScrollableScrollPhysics(),
           children: [
             _buildCalendar(),
-            const Divider(height: 1),
-            const SizedBox(height: 60),
-            Icon(
-              Icons.calendar_today_outlined,
-              size: 60,
-              color: Colors.grey.shade400,
-            ),
-            const SizedBox(height: 16),
-            Center(
-              child: Text(
-                'Select a date to view appointments',
-                style: TextStyle(color: Colors.grey.shade600),
-              ),
+            const SizedBox(height: AppDimensions.paddingLarge),
+            _EmptyStateCard(
+              icon: Icons.calendar_today_outlined,
+              title: 'Select a date to view appointments',
+              subtitle: 'Pick any date on the calendar above',
             ),
             const SizedBox(height: 100),
           ],
@@ -485,9 +515,10 @@ class _AppointmentsPageState extends ConsumerState<AppointmentsPage> {
         physics: const AlwaysScrollableScrollPhysics(),
         children: [
           _buildCalendar(),
-          const Divider(height: 1),
           const SizedBox(height: 80),
-          const Center(child: CircularProgressIndicator()),
+          const Center(
+            child: CircularProgressIndicator(color: AppColors.primary),
+          ),
           const SizedBox(height: 100),
         ],
       );
@@ -495,9 +526,9 @@ class _AppointmentsPageState extends ConsumerState<AppointmentsPage> {
 
     if (state.error != null && state.appointments.isEmpty) {
       return RefreshIndicator(
+        color: AppColors.primary,
         onRefresh: () async {
           await _loadCalendarCountsForMonth(_focusedDay);
-
           if (_selectedDay != null) {
             await _loadAppointmentsForDay(_selectedDay!);
           }
@@ -506,19 +537,24 @@ class _AppointmentsPageState extends ConsumerState<AppointmentsPage> {
           physics: const AlwaysScrollableScrollPhysics(),
           children: [
             _buildCalendar(),
-            const Divider(height: 1),
-            const SizedBox(height: 60),
-            _buildErrorContent(state.error!),
+            const SizedBox(height: AppDimensions.paddingLarge),
+            _ErrorCard(
+              error: state.error!,
+              onRetry: () async {
+                await _loadCalendarCountsForMonth(_focusedDay);
+                if (_selectedDay != null) {
+                  await _loadAppointmentsForDay(_selectedDay!);
+                }
+              },
+            ),
             const SizedBox(height: 100),
           ],
         ),
       );
     }
 
-    // Filter appointments based on permission (frontend secondary check)
     List<AppointmentModel> displayedAppointments = state.appointments;
 
-    // 🔐 If user can view all, show all. Otherwise, filter to own appointments.
     if (!canViewAll && currentUserId != null) {
       displayedAppointments = displayedAppointments
           .where((apt) => apt.userId == currentUserId)
@@ -529,9 +565,9 @@ class _AppointmentsPageState extends ConsumerState<AppointmentsPage> {
       ..sort((a, b) => a.startTime.compareTo(b.startTime));
 
     return RefreshIndicator(
+      color: AppColors.primary,
       onRefresh: () async {
         await _loadCalendarCountsForMonth(_focusedDay);
-
         if (_selectedDay != null) {
           await _loadAppointmentsForDay(_selectedDay!);
         }
@@ -540,25 +576,29 @@ class _AppointmentsPageState extends ConsumerState<AppointmentsPage> {
         physics: const AlwaysScrollableScrollPhysics(),
         children: [
           _buildCalendar(),
-          const Divider(height: 1),
+          const SizedBox(height: AppDimensions.paddingMedium),
           _buildSelectedDayHeader(dayAppointments.length, canViewAll),
           if (dayAppointments.isEmpty)
             _buildEmptyDay()
           else
             ...dayAppointments.map(
-              (appointment) => AppointmentCalendarCard(
-                appointment: appointment,
-                currentUserId: currentUserId,
-                canViewAll: canViewAll,
-                canUpdateStatus: canUpdateStatus, // ✅ NEW
-                onDelete: canDelete ? () => _delete(appointment) : null,
-                // ✅ NEW: Single callback for status changes
-                onStatusChanged: canUpdateStatus
-                    ? (newStatus) => _updateStatus(appointment, newStatus)
-                    : null,
-                onCancel: canUpdateStatus
-                    ? () => _showCancelDialog(appointment)
-                    : null,
+              (appointment) => Padding(
+                padding: const EdgeInsets.only(
+                  bottom: AppDimensions.paddingSmall,
+                ),
+                child: AppointmentCalendarCard(
+                  appointment: appointment,
+                  currentUserId: currentUserId,
+                  canViewAll: canViewAll,
+                  canUpdateStatus: canUpdateStatus,
+                  onDelete: canDelete ? () => _delete(appointment) : null,
+                  onStatusChanged: canUpdateStatus
+                      ? (newStatus) => _updateStatus(appointment, newStatus)
+                      : null,
+                  onCancel: canUpdateStatus
+                      ? () => _showCancelDialog(appointment)
+                      : null,
+                ),
               ),
             ),
           const SizedBox(height: 100),
@@ -567,20 +607,29 @@ class _AppointmentsPageState extends ConsumerState<AppointmentsPage> {
     );
   }
 
+  // ── CALENDAR ───────────────────────────────────────────────
   Widget _buildCalendar() {
-    return Card(
-      margin: const EdgeInsets.all(8),
-      elevation: 1,
-      shape: RoundedRectangleBorder(
-        borderRadius: BorderRadius.circular(12),
+    return Container(
+      decoration: BoxDecoration(
+        color: AppColors.background,
+        borderRadius:
+            BorderRadius.circular(AppDimensions.borderRadiusLarge),
+        border: Border.all(color: AppColors.border),
+        boxShadow: const [
+          BoxShadow(
+            color: AppColors.cardShadow,
+            blurRadius: 14,
+            offset: Offset(0, 6),
+          ),
+        ],
       ),
+      padding: const EdgeInsets.all(AppDimensions.paddingSmall),
       child: TableCalendar<AppointmentModel>(
         firstDay: DateTime.utc(2020, 1, 1),
         lastDay: DateTime.utc(2035, 12, 31),
         focusedDay: _focusedDay,
-        selectedDayPredicate: (day) {
-          return _selectedDay != null && _isSameDay(_selectedDay!, day);
-        },
+        selectedDayPredicate: (day) =>
+            _selectedDay != null && _isSameDay(_selectedDay!, day),
         calendarFormat: _calendarFormat,
         eventLoader: (_) => const [],
         startingDayOfWeek: StartingDayOfWeek.monday,
@@ -588,47 +637,56 @@ class _AppointmentsPageState extends ConsumerState<AppointmentsPage> {
           await _loadAppointmentsForDay(selectedDay);
         },
         onPageChanged: (focusedDay) {
-          setState(() {
-            _focusedDay = focusedDay;
-          });
-
+          setState(() => _focusedDay = focusedDay);
           _loadCalendarCountsForMonth(focusedDay);
         },
         onFormatChanged: (format) {
-          setState(() {
-            _calendarFormat = format;
-          });
+          setState(() => _calendarFormat = format);
         },
         headerStyle: HeaderStyle(
           formatButtonVisible: false,
           titleCentered: true,
-          titleTextStyle: const TextStyle(
-            fontSize: 16,
-            fontWeight: FontWeight.bold,
+          titleTextStyle: AppTextStyles.titleMedium,
+          leftChevronIcon: const Icon(
+            Icons.chevron_left_rounded,
+            color: AppColors.primary,
           ),
-          leftChevronIcon: Icon(
-            Icons.chevron_left,
-            color: Theme.of(context).colorScheme.primary,
+          rightChevronIcon: const Icon(
+            Icons.chevron_right_rounded,
+            color: AppColors.primary,
           ),
-          rightChevronIcon: Icon(
-            Icons.chevron_right,
-            color: Theme.of(context).colorScheme.primary,
+        ),
+        daysOfWeekStyle: DaysOfWeekStyle(
+          weekdayStyle: AppTextStyles.labelMedium.copyWith(
+            color: AppColors.textSecondary,
+          ),
+          weekendStyle: AppTextStyles.labelMedium.copyWith(
+            color: AppColors.error,
           ),
         ),
         calendarStyle: CalendarStyle(
           outsideDaysVisible: false,
-          weekendTextStyle: TextStyle(color: Colors.red.shade400),
+          defaultTextStyle: AppTextStyles.bodyMedium.copyWith(
+            color: AppColors.ink,
+          ),
+          weekendTextStyle: AppTextStyles.bodyMedium.copyWith(
+            color: AppColors.error,
+          ),
           todayDecoration: BoxDecoration(
-            color: Theme.of(context).colorScheme.primary.withValues(alpha: 0.4),
+            color: AppColors.primary.withValues(alpha: 0.15),
             shape: BoxShape.circle,
           ),
-          selectedDecoration: BoxDecoration(
-            color: Theme.of(context).colorScheme.primary,
+          todayTextStyle: AppTextStyles.bodyMedium.copyWith(
+            color: AppColors.primaryDark,
+            fontWeight: FontWeight.w800,
+          ),
+          selectedDecoration: const BoxDecoration(
+            color: AppColors.primary,
             shape: BoxShape.circle,
           ),
-          markerDecoration: const BoxDecoration(
-            color: Colors.orange,
-            shape: BoxShape.circle,
+          selectedTextStyle: AppTextStyles.bodyMedium.copyWith(
+            color: AppColors.textOnPrimary,
+            fontWeight: FontWeight.w800,
           ),
           markersMaxCount: 4,
           markerSize: 5,
@@ -637,27 +695,22 @@ class _AppointmentsPageState extends ConsumerState<AppointmentsPage> {
         calendarBuilders: CalendarBuilders(
           markerBuilder: (context, day, events) {
             final counts = _calendarCounts[_dateKey(day)];
-
             if (counts == null || (counts['total'] ?? 0) <= 0) {
               return const SizedBox();
             }
 
             final markers = <Color>[];
-
             void addMarkers(String status, Color color) {
               final count = counts[status] ?? 0;
-
               for (var i = 0; i < count; i++) {
-                if (markers.length < 4) {
-                  markers.add(color);
-                }
+                if (markers.length < 4) markers.add(color);
               }
             }
 
-            addMarkers('pending', Colors.orange);
-            addMarkers('confirmed', Colors.blue);
-            addMarkers('completed', Colors.green);
-            addMarkers('cancelled', Colors.red);
+            addMarkers('pending', AppColors.statusPending);
+            addMarkers('confirmed', AppColors.statusBooked);
+            addMarkers('completed', AppColors.statusCompleted);
+            addMarkers('cancelled', AppColors.statusCancelled);
 
             if (markers.isEmpty) return const SizedBox();
 
@@ -686,44 +739,42 @@ class _AppointmentsPageState extends ConsumerState<AppointmentsPage> {
 
   Widget _buildSelectedDayHeader(int count, bool canViewAll) {
     final day = _selectedDay ?? DateTime.now();
-    final today = DateTime.now();
-    final isToday = _isSameDay(day, today);
-
+    final isToday = _isSameDay(day, DateTime.now());
     final label = isToday
         ? 'Today • ${DateFormat('MMM dd').format(day)}'
         : DateFormat('EEEE, MMM dd, yyyy').format(day);
 
     return Padding(
-      padding: const EdgeInsets.fromLTRB(16, 16, 16, 8),
+      padding:
+          const EdgeInsets.symmetric(vertical: AppDimensions.paddingSmall),
       child: Row(
         children: [
           Container(
-            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+            padding: const EdgeInsets.symmetric(
+              horizontal: 12,
+              vertical: 6,
+            ),
             decoration: BoxDecoration(
-              color: isToday
-                  ? Theme.of(context).colorScheme.primary
-                  : Theme.of(context).colorScheme.primaryContainer,
-              borderRadius: BorderRadius.circular(8),
+              color: isToday ? AppColors.primary : AppColors.accentLight,
+              borderRadius: BorderRadius.circular(999),
             ),
             child: Text(
               label,
               style: TextStyle(
-                fontWeight: FontWeight.bold,
+                fontWeight: FontWeight.w800,
                 fontSize: 13,
                 color: isToday
-                    ? Colors.white
-                    : Theme.of(context).colorScheme.onPrimaryContainer,
+                    ? AppColors.textOnPrimary
+                    : AppColors.primaryDark,
               ),
             ),
           ),
-          const SizedBox(width: 8),
+          const SizedBox(width: AppDimensions.paddingSmall),
           Expanded(
             child: Text(
-              '$count appointment${count != 1 ? "s" : ""}${canViewAll ? '' : ' (Your appointments)'}',
-              style: TextStyle(
-                color: Colors.grey.shade600,
-                fontSize: 12,
-              ),
+              '$count appointment${count != 1 ? "s" : ""}'
+              '${canViewAll ? '' : ' (Your appointments)'}',
+              style: AppTextStyles.bodySmall,
             ),
           ),
         ],
@@ -732,61 +783,218 @@ class _AppointmentsPageState extends ConsumerState<AppointmentsPage> {
   }
 
   Widget _buildEmptyDay() {
-    return Padding(
-      padding: const EdgeInsets.symmetric(vertical: 40, horizontal: 16),
+    return Container(
+      margin: const EdgeInsets.only(top: AppDimensions.paddingSmall),
+      padding: const EdgeInsets.all(AppDimensions.paddingXL),
+      decoration: BoxDecoration(
+        color: AppColors.background,
+        borderRadius:
+            BorderRadius.circular(AppDimensions.borderRadiusLarge),
+        border: Border.all(color: AppColors.border),
+      ),
       child: Column(
         children: [
-          Icon(
-            Icons.event_busy,
-            size: 56,
-            color: Colors.grey.shade300,
+          Container(
+            width: 64,
+            height: 64,
+            decoration: BoxDecoration(
+              color: AppColors.accentLight,
+              shape: BoxShape.circle,
+              border: Border.all(color: AppColors.border),
+            ),
+            child: const Icon(
+              Icons.event_busy_rounded,
+              color: AppColors.primary,
+              size: 30,
+            ),
           ),
-          const SizedBox(height: 12),
+          const SizedBox(height: AppDimensions.paddingMedium),
+          Text('No appointments on this day',
+              style: AppTextStyles.titleSmall),
+          const SizedBox(height: 6),
           Text(
-            'No appointments on this day',
-            style: TextStyle(color: Colors.grey.shade600),
+            'Book a new appointment for this date',
+            style: AppTextStyles.bodySmall,
           ),
-          const SizedBox(height: 8),
-          TextButton.icon(
+          const SizedBox(height: AppDimensions.paddingMedium),
+          FilledButton.icon(
             onPressed: _openCreate,
-            icon: const Icon(Icons.add),
+            style: FilledButton.styleFrom(
+              backgroundColor: AppColors.primary,
+              foregroundColor: AppColors.textOnPrimary,
+            ),
+            icon: const Icon(Icons.add_rounded),
             label: const Text('Add Appointment'),
           ),
         ],
       ),
     );
   }
+}
 
-  Widget _buildErrorContent(String error) {
-    return Padding(
-      padding: const EdgeInsets.all(32),
+// ── Reusable widgets ────────────────────────────────────────
+
+class _IconTile extends StatelessWidget {
+  final String tooltip;
+  final IconData icon;
+  final VoidCallback onTap;
+
+  const _IconTile({
+    required this.tooltip,
+    required this.icon,
+    required this.onTap,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      width: 42,
+      height: 42,
+      decoration: BoxDecoration(
+        color: AppColors.surface,
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: AppColors.border),
+      ),
+      child: IconButton(
+        tooltip: tooltip,
+        onPressed: onTap,
+        padding: EdgeInsets.zero,
+        icon: Icon(icon, color: AppColors.primaryDark, size: 20),
+      ),
+    );
+  }
+}
+
+class _EmptyStateCard extends StatelessWidget {
+  final IconData icon;
+  final String title;
+  final String subtitle;
+
+  const _EmptyStateCard({
+    required this.icon,
+    required this.title,
+    required this.subtitle,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.all(AppDimensions.paddingXL),
+      decoration: BoxDecoration(
+        color: AppColors.background,
+        borderRadius:
+            BorderRadius.circular(AppDimensions.borderRadiusLarge),
+        border: Border.all(color: AppColors.border),
+      ),
       child: Column(
-        mainAxisSize: MainAxisSize.min,
         children: [
-          Icon(
-            Icons.error_outline,
-            size: 64,
-            color: Colors.red.shade300,
+          Container(
+            width: 72,
+            height: 72,
+            decoration: BoxDecoration(
+              color: AppColors.accentLight,
+              shape: BoxShape.circle,
+              border: Border.all(color: AppColors.border),
+            ),
+            child: Icon(icon, size: 34, color: AppColors.primary),
           ),
-          const SizedBox(height: 16),
+          const SizedBox(height: AppDimensions.paddingMedium),
+          Text(title, style: AppTextStyles.titleMedium),
+          const SizedBox(height: 6),
+          Text(subtitle, style: AppTextStyles.bodySmall),
+        ],
+      ),
+    );
+  }
+}
+
+class _ErrorCard extends StatelessWidget {
+  final String error;
+  final Future<void> Function() onRetry;
+
+  const _ErrorCard({required this.error, required this.onRetry});
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.all(AppDimensions.paddingLarge),
+      decoration: BoxDecoration(
+        color: AppColors.background,
+        borderRadius:
+            BorderRadius.circular(AppDimensions.borderRadiusLarge),
+        border: Border.all(color: AppColors.error.withValues(alpha: 0.25)),
+      ),
+      child: Column(
+        children: [
+          const Icon(
+            Icons.error_outline_rounded,
+            size: 48,
+            color: AppColors.error,
+          ),
+          const SizedBox(height: AppDimensions.paddingMedium),
           Text(
             error,
             textAlign: TextAlign.center,
-            style: const TextStyle(fontSize: 15),
+            style: AppTextStyles.bodyMedium,
           ),
-          const SizedBox(height: 16),
+          const SizedBox(height: AppDimensions.paddingMedium),
           FilledButton.icon(
-            onPressed: () async {
-              await _loadCalendarCountsForMonth(_focusedDay);
-
-              if (_selectedDay != null) {
-                await _loadAppointmentsForDay(_selectedDay!);
-              }
-            },
-            icon: const Icon(Icons.refresh),
+            onPressed: onRetry,
+            style: FilledButton.styleFrom(
+              backgroundColor: AppColors.primary,
+              foregroundColor: AppColors.textOnPrimary,
+            ),
+            icon: const Icon(Icons.refresh_rounded),
             label: const Text('Retry'),
           ),
         ],
+      ),
+    );
+  }
+}
+
+class _NoAccessView extends StatelessWidget {
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      backgroundColor: AppColors.surface,
+      body: Center(
+        child: Container(
+          width: 420,
+          padding: const EdgeInsets.all(AppDimensions.paddingXL),
+          decoration: BoxDecoration(
+            color: AppColors.background,
+            borderRadius:
+                BorderRadius.circular(AppDimensions.borderRadiusLarge),
+            border: Border.all(color: AppColors.border),
+          ),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Container(
+                width: 72,
+                height: 72,
+                decoration: BoxDecoration(
+                  color: AppColors.error.withValues(alpha: 0.10),
+                  shape: BoxShape.circle,
+                ),
+                child: const Icon(
+                  Icons.lock_outline_rounded,
+                  size: 36,
+                  color: AppColors.error,
+                ),
+              ),
+              const SizedBox(height: AppDimensions.paddingMedium),
+              Text('Access Denied', style: AppTextStyles.titleMedium),
+              const SizedBox(height: 6),
+              Text(
+                'You do not have permission to view appointments.',
+                style: AppTextStyles.bodySmall,
+                textAlign: TextAlign.center,
+              ),
+            ],
+          ),
+        ),
       ),
     );
   }
