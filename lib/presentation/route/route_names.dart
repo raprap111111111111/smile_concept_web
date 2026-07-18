@@ -83,6 +83,11 @@ class RouteNames {
 
   // ── Operations ────────────────────────────────────────────
   static const String inventory = 'inventory';
+  static const String inventoryCreate = 'inventory-create'; 
+  static const String inventoryEdit = 'inventory-edit'; 
+  static const String inventoryDetail = 'inventory-detail'; 
+  static const String items = 'items'; 
+  static const String itemCreate = 'item-create';
   static const String branches = 'branches';
 
   // ── System ────────────────────────────────────────────────

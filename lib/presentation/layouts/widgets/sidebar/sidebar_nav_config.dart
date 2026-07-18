@@ -96,7 +96,6 @@ class SidebarNavConfig {
             routeName: RouteNames.doctorSchedules,
             permissions: [Perm.doctorScheduleViewAny],
           ),
-
           const NavItem(
             icon: Icons.healing_outlined,
             title: 'Treatments',
@@ -106,7 +105,6 @@ class SidebarNavConfig {
               Perm.treatmentView,
             ],
           ),
-
           NavItem(
             icon: Icons.folder_shared_outlined,
             title: isPatient ? 'My Records' : 'Clinical Records',
@@ -149,6 +147,12 @@ class SidebarNavConfig {
       const NavSection(
         title: 'OPERATIONS',
         items: [
+          NavItem(
+            icon: Icons.medical_services_outlined,
+            title: 'Items Catalog',
+            routeName: RouteNames.items, // ✅ NEW
+            permissions: [Perm.inventoryViewAny],
+          ),
           NavItem(
             icon: Icons.inventory_2_outlined,
             title: 'Inventory',
