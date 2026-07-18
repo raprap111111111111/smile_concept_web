@@ -26,9 +26,32 @@ class _EditProfileDialogState extends ConsumerState<EditProfileDialog> {
   late final TextEditingController _nameController;
   late final TextEditingController _emailController;
   late final TextEditingController _phoneController;
+  late final TextEditingController _emergencyNameController;
+  late final TextEditingController _emergencyPhoneController;
 
   XFile? _pickedImage;
   Uint8List? _webImageBytes;
+
+  /// Only patients have a medical profile to attach an emergency contact to.
+  bool get _showEmergencyContact =>
+      widget.profile.isPatient && widget.profile.patientProfile != null;
+
+  String? get _emergencyName =>
+      _emergencyNameController.text.trim().isEmpty
+          ? null
+          : _emergencyNameController.text.trim();
+
+  String? get _emergencyPhone =>
+      _emergencyPhoneController.text.trim().isEmpty
+          ? null
+          : _emergencyPhoneController.text.trim();
+
+  bool get _emergencyContactChanged {
+    if (!_showEmergencyContact) return false;
+    final patientProfile = widget.profile.patientProfile!;
+    return _emergencyName != patientProfile.emergencyContactName ||
+        _emergencyPhone != patientProfile.emergencyContactPhone;
+  }
 
   @override
   void initState() {
@@ -37,6 +60,14 @@ class _EditProfileDialogState extends ConsumerState<EditProfileDialog> {
     _emailController = TextEditingController(text: widget.profile.email);
     _phoneController =
         TextEditingController(text: widget.profile.phone ?? '');
+
+    final patientProfile = widget.profile.patientProfile;
+    _emergencyNameController = TextEditingController(
+      text: patientProfile?.emergencyContactName ?? '',
+    );
+    _emergencyPhoneController = TextEditingController(
+      text: patientProfile?.emergencyContactPhone ?? '',
+    );
   }
 
   @override
@@ -44,6 +75,8 @@ class _EditProfileDialogState extends ConsumerState<EditProfileDialog> {
     _nameController.dispose();
     _emailController.dispose();
     _phoneController.dispose();
+    _emergencyNameController.dispose();
+    _emergencyPhoneController.dispose();
     super.dispose();
   }
 
@@ -77,21 +110,34 @@ class _EditProfileDialogState extends ConsumerState<EditProfileDialog> {
   Future<void> _save() async {
     if (!_formKey.currentState!.validate()) return;
 
+    final notifier = ref.read(profileNotifierProvider.notifier);
+
     // ✅ Pick the right method based on platform
-    final success = await ref
-        .read(profileNotifierProvider.notifier)
-        .updateProfileWithPhoto(
-          name: _nameController.text.trim(),
-          email: _emailController.text.trim(),
-          phone: _phoneController.text.trim().isEmpty
-              ? null
-              : _phoneController.text.trim(),
-          // Web: send bytes
-          photoBytes: kIsWeb ? _webImageBytes : null,
-          photoFileName: _pickedImage?.name,
-          // Native: send path
-          photoFilePath: kIsWeb ? null : _pickedImage?.path,
-        );
+    var success = await notifier.updateProfileWithPhoto(
+      name: _nameController.text.trim(),
+      email: _emailController.text.trim(),
+      phone: _phoneController.text.trim().isEmpty
+          ? null
+          : _phoneController.text.trim(),
+      // Web: send bytes
+      photoBytes: kIsWeb ? _webImageBytes : null,
+      photoFileName: _pickedImage?.name,
+      // Native: send path
+      photoFilePath: kIsWeb ? null : _pickedImage?.path,
+    );
+
+    // The emergency contact lives on the patient profile, a separate endpoint.
+    // Only touched when it actually changed, so nothing else pays for a second
+    // round trip.
+    if (success && _emergencyContactChanged) {
+      final patientProfile = widget.profile.patientProfile!;
+      success = await notifier.updatePatientProfile(
+        patientProfile.withEmergencyContact(
+          name: _emergencyName,
+          phone: _emergencyPhone,
+        ),
+      );
+    }
 
     if (!mounted) return;
 
@@ -208,8 +254,37 @@ class _EditProfileDialogState extends ConsumerState<EditProfileDialog> {
                           icon: Icons.phone_outlined,
                           enabled: !isUpdating,
                           keyboardType: TextInputType.phone,
-                          textInputAction: TextInputAction.done,
+                          textInputAction: _showEmergencyContact
+                              ? TextInputAction.next
+                              : TextInputAction.done,
                         ),
+                        if (_showEmergencyContact) ...[
+                          const SizedBox(height: 24),
+                          _buildSectionLabel(
+                            'Emergency contact',
+                            'Optional — who we call if something happens '
+                                'during a visit.',
+                          ),
+                          const SizedBox(height: 14),
+                          _buildField(
+                            controller: _emergencyNameController,
+                            label: 'Contact name',
+                            hint: 'Optional',
+                            icon: Icons.contact_emergency_outlined,
+                            enabled: !isUpdating,
+                            textInputAction: TextInputAction.next,
+                          ),
+                          const SizedBox(height: 16),
+                          _buildField(
+                            controller: _emergencyPhoneController,
+                            label: 'Contact phone',
+                            hint: 'Optional',
+                            icon: Icons.phone_outlined,
+                            enabled: !isUpdating,
+                            keyboardType: TextInputType.phone,
+                            textInputAction: TextInputAction.done,
+                          ),
+                        ],
                       ],
                     ),
                   ),
@@ -387,6 +462,37 @@ class _EditProfileDialogState extends ConsumerState<EditProfileDialog> {
           ),
         ],
       ),
+    );
+  }
+
+  // ─── Section label ───────────────────────────────────────────────────
+  Widget _buildSectionLabel(String title, String caption) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        const Divider(
+          height: 1,
+          thickness: 1,
+          color: ProfileTokens.divider,
+        ),
+        const SizedBox(height: 16),
+        Text(
+          title,
+          style: const TextStyle(
+            color: ProfileTokens.text,
+            fontSize: 14,
+            fontWeight: FontWeight.w600,
+          ),
+        ),
+        const SizedBox(height: 4),
+        Text(
+          caption,
+          style: const TextStyle(
+            color: ProfileTokens.textMuted,
+            fontSize: 12.5,
+          ),
+        ),
+      ],
     );
   }
 

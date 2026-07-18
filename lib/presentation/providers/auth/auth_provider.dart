@@ -207,6 +207,8 @@ class AuthStateNotifier extends StateNotifier<AuthState> {
     required String email,
     required String password,
     String? phone,
+    String? emergencyContactName,
+    String? emergencyContactPhone,
   }) async {
     state = state.copyWith(
       status: AuthStatus.loading,
@@ -220,6 +222,8 @@ class AuthStateNotifier extends StateNotifier<AuthState> {
         email: email,
         password: password,
         phone: phone,
+        emergencyContactName: emergencyContactName,
+        emergencyContactPhone: emergencyContactPhone,
       );
 
       print('✅ Registration successful');
