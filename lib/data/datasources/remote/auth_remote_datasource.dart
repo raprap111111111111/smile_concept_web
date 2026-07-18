@@ -32,6 +32,8 @@ class AuthRemoteDataSource {
     required String email,
     required String password,
     String? phone,
+    String? emergencyContactName,
+    String? emergencyContactPhone,
   }) async {
     final fullName = '$firstName $lastName'.trim();
 
@@ -44,6 +46,12 @@ class AuthRemoteDataSource {
         'password_confirmation': password,
         if (phone != null && phone.trim().isNotEmpty)
           'phone': phone.trim(),
+        if (emergencyContactName != null &&
+            emergencyContactName.trim().isNotEmpty)
+          'emergency_contact_name': emergencyContactName.trim(),
+        if (emergencyContactPhone != null &&
+            emergencyContactPhone.trim().isNotEmpty)
+          'emergency_contact_phone': emergencyContactPhone.trim(),
       },
     );
 

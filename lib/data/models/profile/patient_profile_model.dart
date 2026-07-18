@@ -96,16 +96,37 @@ class PatientProfileModel {
         if (allergies != null) 'allergies': allergies,
         if (medicalHistory != null) 'medical_history': medicalHistory,
         if (bloodType != null) 'blood_type': bloodType,
-        if (emergencyContactName != null)
-          'emergency_contact_name': emergencyContactName,
-        if (emergencyContactPhone != null)
-          'emergency_contact_phone': emergencyContactPhone,
+        // Always sent, null included: the patient can clear their emergency
+        // contact, and the API reads a present key as "set me to this".
+        'emergency_contact_name': emergencyContactName,
+        'emergency_contact_phone': emergencyContactPhone,
         'requires_epinephrine_free_anesthesia':
             requiresEpinephrineFreeAnesthesia,
         'has_cardiac_conditions': hasCardiacConditions,
         'is_pregnant': isPregnant,
         'has_bleeding_disorders': hasBleedingDisorders,
       };
+
+  /// Sets both emergency contact fields outright. [copyWith] falls back to the
+  /// current value on null, so it cannot express "clear this".
+  PatientProfileModel withEmergencyContact({String? name, String? phone}) {
+    return PatientProfileModel(
+      id: id,
+      userId: userId,
+      allergies: allergies,
+      medicalHistory: medicalHistory,
+      bloodType: bloodType,
+      emergencyContactName: name,
+      emergencyContactPhone: phone,
+      requiresEpinephrineFreeAnesthesia: requiresEpinephrineFreeAnesthesia,
+      hasCardiacConditions: hasCardiacConditions,
+      isPregnant: isPregnant,
+      hasBleedingDisorders: hasBleedingDisorders,
+      deletedAt: deletedAt,
+      createdAt: createdAt,
+      updatedAt: updatedAt,
+    );
+  }
 
   PatientProfileModel copyWith({
     String? allergies,

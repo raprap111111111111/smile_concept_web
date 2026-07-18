@@ -61,6 +61,8 @@ class AuthRepository {
     required String email,
     required String password,
     String? phone,
+    String? emergencyContactName,
+    String? emergencyContactPhone,
   }) async {
     try {
       final response = await _remoteDataSource.register(
@@ -69,6 +71,8 @@ class AuthRepository {
         email: email,
         password: password,
         phone: phone,
+        emergencyContactName: emergencyContactName,
+        emergencyContactPhone: emergencyContactPhone,
       );
 
       await Future.wait([
