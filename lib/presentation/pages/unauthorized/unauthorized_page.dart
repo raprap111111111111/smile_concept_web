@@ -1,14 +1,16 @@
 // lib/presentation/pages/unauthorized/unauthorized_page.dart
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
-import '../../route/route_names.dart';
+import '../../providers/auth/permission_provider.dart';
+import '../../route/route_permissions.dart';
 import '/../../../presentation/theme/app_colors.dart';
 
-class UnauthorizedPage extends StatelessWidget {
+class UnauthorizedPage extends ConsumerWidget {
   const UnauthorizedPage({super.key});
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
     return Scaffold(
       backgroundColor: AppColors.backgroundDark,
       body: Center(
@@ -51,8 +53,12 @@ class UnauthorizedPage extends StatelessWidget {
                 ),
               ),
               icon: const Icon(Icons.arrow_back),
-              label: const Text('Go to Dashboard'),
-              onPressed: () => context.goNamed(RouteNames.dashboard),
+              label: const Text('Take Me Back'),
+              // Not hardcoded to the dashboard: a user who lacks dashboard.view
+              // would bounce straight back here.
+              onPressed: () => context.go(
+                RoutePermissions.landingFor(ref.read(permissionServiceProvider)),
+              ),
             ),
           ],
         ),

@@ -16,10 +16,10 @@ class PermissionService {
     return user?.role?.toString().toLowerCase() ?? '';
   }
 
+  /// Role only. The display name is user-editable text, so matching on it let
+  /// anyone who renamed themselves "Super Admin" bypass every permission check.
   bool get isSuperAdmin {
-    return role == 'super-admin' ||
-        role == 'super admin' ||
-        user?.name?.toString().toLowerCase().contains('super admin') == true;
+    return role == 'super-admin' || role == 'super admin';
   }
 
   Set<String> get permissions {
