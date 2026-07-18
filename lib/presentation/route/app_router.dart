@@ -38,6 +38,10 @@ import '../pages/treatment_plans/treatment_plan_form_page.dart';
 import '../pages/doctor_schedules/doctor_schedules_pages.dart';
 import '../pages/profile/profile_page.dart';
 import '../pages/clinical_records/clinical_records_page.dart';
+import '../pages/inventory/inventory_page.dart';
+import '../pages/inventory/items_page.dart';
+import '../pages/inventory/item_form_page.dart';
+import '../pages/inventory/inventory_form_page.dart';
 import 'route_names.dart';
 
 final routerProvider = Provider<GoRouter>((ref) {
@@ -97,7 +101,6 @@ final routerProvider = Provider<GoRouter>((ref) {
       }
 
       // Unauthenticated
-      // Unauthenticated
       if (location == '/splash') return '/';
 
       // Protected route accessed while logged out → landing page
@@ -156,6 +159,41 @@ final routerProvider = Provider<GoRouter>((ref) {
             builder: (context, state) => const ClinicalRecordsPage(),
           ),
 
+          // ── Inventory ──────────────────────────────────────
+          GoRoute(
+            path: '/inventory',
+            name: RouteNames.inventory,
+            builder: (context, state) => const InventoryPage(),
+            routes: [
+              GoRoute(
+                path: 'new',
+                name: RouteNames.inventoryCreate,
+                builder: (context, state) => const InventoryFormPage(),
+              ),
+              GoRoute(
+                path: ':id/edit',
+                name: RouteNames.inventoryEdit,
+                builder: (context, state) {
+                  final id = int.parse(state.pathParameters['id']!);
+                  return InventoryFormPage(inventoryId: id);
+                },
+              ),
+            ],
+          ),
+
+          // ── Items Catalog ──────────────────────────────────
+          GoRoute(
+            path: '/items',
+            name: RouteNames.items,
+            builder: (context, state) => const ItemsPage(),
+            routes: [
+              GoRoute(
+                path: 'new',
+                name: RouteNames.itemCreate,
+                builder: (context, state) => const ItemFormPage(),
+              ),
+            ],
+          ),
           // Appointments
           GoRoute(
             path: '/appointments',
