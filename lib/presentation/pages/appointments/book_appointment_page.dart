@@ -14,6 +14,9 @@ import '../../providers/appointment/appointment_provider.dart';
 import '../../providers/auth/auth_provider.dart';
 import '../../providers/auth/permission_provider.dart';
 import '../../providers/doctor_schedule/schedule_form_providers.dart';
+import '../../theme/app_colors.dart';
+import '../../theme/app_dimensions.dart';
+import '../../theme/app_text_styles.dart';
 import '../doctor_schedules/widgets/dropdown_states.dart';
 import 'widgets/patient_search_field.dart';
 import 'widgets/time_slot_picker.dart';
@@ -46,7 +49,6 @@ class _BookAppointmentPageState extends ConsumerState<BookAppointmentPage> {
   @override
   void initState() {
     super.initState();
-
     final currentUser = ref.read(authStateProvider).user;
     _fullNameController.text = currentUser?.name ?? '';
     _mobileController.text = currentUser?.phone ?? '';
@@ -83,12 +85,24 @@ class _BookAppointmentPageState extends ConsumerState<BookAppointmentPage> {
       initialDate: ref.read(selectedDateProvider) ?? DateTime.now(),
       firstDate: DateTime.now(),
       lastDate: DateTime.now().add(const Duration(days: 365)),
+      builder: (context, child) {
+        return Theme(
+          data: Theme.of(context).copyWith(
+            colorScheme: const ColorScheme.light(
+              primary: AppColors.primary,
+              onPrimary: AppColors.textOnPrimary,
+              surface: AppColors.background,
+              onSurface: AppColors.ink,
+            ),
+          ),
+          child: child!,
+        );
+      },
     );
 
     if (picked != null) {
       ref.read(selectedDateProvider.notifier).state = picked;
       ref.read(availabilityNotifierProvider.notifier).clearSlots();
-
       await _fetchSlots();
     }
   }
@@ -103,31 +117,19 @@ class _BookAppointmentPageState extends ConsumerState<BookAppointmentPage> {
     final permissionService = ref.read(permissionServiceProvider);
     final currentUser = ref.read(authStateProvider).user;
 
-    final canCreateSelf = permissionService.can(
-      Perm.appointmentCreate,
-    );
-
-    final canCreateForOthers = permissionService.can(
-      Perm.appointmentCreateForOthers,
-    );
+    final canCreateSelf = permissionService.can(Perm.appointmentCreate);
+    final canCreateForOthers =
+        permissionService.can(Perm.appointmentCreateForOthers);
 
     if (!canCreateSelf && !canCreateForOthers) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('You do not have permission to book appointments.'),
-        ),
-      );
+      _showError('You do not have permission to book appointments.');
       return;
     }
 
     if (doctorId == null || branchId == null || date == null) return;
 
     if (canCreateForOthers && _selectedPatientId == null) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('Please select a patient.'),
-        ),
-      );
+      _showError('Please select a patient.');
       return;
     }
 
@@ -137,19 +139,13 @@ class _BookAppointmentPageState extends ConsumerState<BookAppointmentPage> {
       final repo = ref.read(appointmentRepositoryProvider);
 
       final startDateTime = DateTime(
-        date.year,
-        date.month,
-        date.day,
-        slot.startDateTime.hour,
-        slot.startDateTime.minute,
+        date.year, date.month, date.day,
+        slot.startDateTime.hour, slot.startDateTime.minute,
       );
 
       final endDateTime = DateTime(
-        date.year,
-        date.month,
-        date.day,
-        slot.endDateTime.hour,
-        slot.endDateTime.minute,
+        date.year, date.month, date.day,
+        slot.endDateTime.hour, slot.endDateTime.minute,
       );
 
       final request = AppointmentRequest(
@@ -168,39 +164,44 @@ class _BookAppointmentPageState extends ConsumerState<BookAppointmentPage> {
             : _notesController.text.trim(),
       );
 
-      debugPrint('BOOK APPOINTMENT canCreateForOthers: $canCreateForOthers');
-      debugPrint('BOOK APPOINTMENT selectedPatientId: $_selectedPatientId');
-      debugPrint('BOOK APPOINTMENT currentUserId: ${currentUser?.id}');
-      debugPrint('BOOK APPOINTMENT payload: ${request.toJson()}');
-
       final result = await repo.createAppointment(request);
-
       ref.read(appointmentNotifierProvider.notifier).addAppointment(result);
 
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: const Text('Appointment created successfully.'),
-            backgroundColor: Colors.green.shade700,
-            behavior: SnackBarBehavior.floating,
-          ),
-        );
-
+        _showSuccess('Appointment created successfully.');
         Navigator.of(context).pop(result);
       }
     } catch (error) {
       if (!mounted) return;
-
       setState(() => _isSubmitting = false);
-
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text('Failed to book: $error'),
-          backgroundColor: Colors.red.shade700,
-          behavior: SnackBarBehavior.floating,
-        ),
-      );
+      _showError('Failed to book: $error');
     }
+  }
+
+  void _showError(String msg) {
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text(msg, style: const TextStyle(color: Colors.white)),
+        backgroundColor: AppColors.error,
+        behavior: SnackBarBehavior.floating,
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(AppDimensions.borderRadius),
+        ),
+      ),
+    );
+  }
+
+  void _showSuccess(String msg) {
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text(msg, style: const TextStyle(color: Colors.white)),
+        backgroundColor: AppColors.success,
+        behavior: SnackBarBehavior.floating,
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(AppDimensions.borderRadius),
+        ),
+      ),
+    );
   }
 
   @override
@@ -210,231 +211,374 @@ class _BookAppointmentPageState extends ConsumerState<BookAppointmentPage> {
     final selectedSlot = availState.selectedSlot;
 
     final permissionService = ref.watch(permissionServiceProvider);
-    final currentUser = ref.watch(authStateProvider).user;
-
-    final canCreateForOthers = permissionService.can(
-      Perm.appointmentCreateForOthers,
-    );
-
-    debugPrint('BOOK PAGE ROLE: ${currentUser?.role}');
-    debugPrint('BOOK PAGE PERMISSIONS: ${currentUser?.permissions}');
-    debugPrint('BOOK PAGE CAN CREATE FOR OTHERS: $canCreateForOthers');
+    final canCreateForOthers =
+        permissionService.can(Perm.appointmentCreateForOthers);
 
     return Scaffold(
-      appBar: AppBar(
-        title: const Text('New Appointment'),
-        leading: IconButton(
-          icon: const Icon(Icons.arrow_back),
-          onPressed: () => Navigator.of(context).pop(),
-        ),
-      ),
+      backgroundColor: AppColors.surface,
       body: SafeArea(
         child: SingleChildScrollView(
-          padding: const EdgeInsets.all(16),
-          child: Form(
-            key: _formKey,
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.stretch,
-              children: [
-                const Text(
-                  'Patient Information',
-                  style: TextStyle(fontSize: 16, fontWeight: FontWeight.w700),
-                ),
-
-                const SizedBox(height: 12),
-
-                TextFormField(
-                  controller: _fullNameController,
-                  textInputAction: TextInputAction.next,
-                  validator: (value) => Validators.validateName(
-                    value,
-                    fieldName: 'Full name',
+          padding: const EdgeInsets.all(AppDimensions.paddingLarge),
+          child: Center(
+            child: ConstrainedBox(
+              constraints: const BoxConstraints(maxWidth: 720),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                children: [
+                  _buildHeader(),
+                  const SizedBox(height: AppDimensions.paddingLarge),
+                  _buildFormCard(
+                    availState: availState,
+                    selectedDate: selectedDate,
+                    selectedSlot: selectedSlot,
+                    canCreateForOthers: canCreateForOthers,
                   ),
-                  decoration: const InputDecoration(
-                    labelText: 'Full Name *',
-                    prefixIcon: Icon(Icons.person_outline),
-                    border: OutlineInputBorder(),
-                  ),
-                ),
-
-                const SizedBox(height: 16),
-
-                TextFormField(
-                  controller: _mobileController,
-                  keyboardType: TextInputType.phone,
-                  textInputAction: TextInputAction.next,
-                  validator: (value) {
-                    final requiredError = Validators.required(
-                      value,
-                      fieldName: 'Mobile number',
-                    );
-                    if (requiredError != null) return requiredError;
-                    return Validators.validatePhone(value);
-                  },
-                  decoration: const InputDecoration(
-                    labelText: 'Mobile Number *',
-                    prefixIcon: Icon(Icons.phone_outlined),
-                    border: OutlineInputBorder(),
-                  ),
-                ),
-
-                const SizedBox(height: 16),
-
-                TextFormField(
-                  controller: _emailController,
-                  keyboardType: TextInputType.emailAddress,
-                  textInputAction: TextInputAction.next,
-                  validator: Validators.validateEmail,
-                  decoration: const InputDecoration(
-                    labelText: 'Email *',
-                    prefixIcon: Icon(Icons.email_outlined),
-                    border: OutlineInputBorder(),
-                  ),
-                ),
-
-                const SizedBox(height: 24),
-
-                const Text(
-                  'Appointment Details',
-                  style: TextStyle(fontSize: 16, fontWeight: FontWeight.w700),
-                ),
-
-                const SizedBox(height: 12),
-
-                _buildDoctorField(),
-
-                const SizedBox(height: 16),
-
-                _buildBranchField(),
-
-                const SizedBox(height: 16),
-
-                if (canCreateForOthers) ...[
-                  PatientSearchField(
-                    selectedPatientId: _selectedPatientId,
-                    selectedPatientName: _selectedPatientName,
-                    onPatientSelected: (PatientModel? patient) {
-                      setState(() {
-                        _selectedPatientId = patient?.userId;
-                        _selectedPatientName = patient?.name;
-                      });
-
-                      debugPrint('Selected patient: $_selectedPatientName');
-                      debugPrint(
-                        'Selected patient user_id: $_selectedPatientId',
-                      );
-                    },
-                  ),
-                  const SizedBox(height: 16),
                 ],
+              ),
+            ),
+          ),
+        ),
+      ),
+    );
+  }
 
-                GestureDetector(
-                  onTap: () => _selectDate(context),
-                  child: AbsorbPointer(
-                    child: TextFormField(
-                      validator: (value) => Validators.required(
-                        value,
-                        fieldName: 'Appointment date',
-                      ),
-                      decoration: const InputDecoration(
-                        labelText: 'Appointment Date *',
-                        prefixIcon: Icon(Icons.calendar_today),
-                        border: OutlineInputBorder(),
-                      ),
-                      controller: TextEditingController(
-                        text: selectedDate == null
-                            ? ''
-                            : DateFormat('EEE, MMM dd yyyy')
-                                .format(selectedDate),
-                      ),
-                    ),
-                  ),
+  // ── HEADER ─────────────────────────────────────────────────
+  Widget _buildHeader() {
+    return Container(
+      padding: const EdgeInsets.all(AppDimensions.paddingLarge),
+      decoration: BoxDecoration(
+        color: AppColors.background,
+        borderRadius: BorderRadius.circular(AppDimensions.borderRadiusLarge),
+        border: Border.all(color: AppColors.border),
+        boxShadow: const [
+          BoxShadow(
+            color: AppColors.cardShadow,
+            blurRadius: 16,
+            offset: Offset(0, 6),
+          ),
+        ],
+      ),
+      child: Row(
+        children: [
+          Container(
+            width: 52,
+            height: 52,
+            decoration: BoxDecoration(
+              gradient: AppColors.primaryGradient,
+              borderRadius: BorderRadius.circular(14),
+              boxShadow: [
+                BoxShadow(
+                  color: AppColors.primary.withValues(alpha: 0.25),
+                  blurRadius: 14,
+                  offset: const Offset(0, 6),
                 ),
-
-                const SizedBox(height: 16),
-
-                TextFormField(
-                  controller: _reasonController,
-                  maxLines: 3,
-                  maxLength: 500,
-                  validator: (value) => Validators.required(
-                    value,
-                    fieldName: 'Purpose of visit',
-                  ),
-                  decoration: const InputDecoration(
-                    labelText: 'Purpose of Visit *',
-                    hintText: 'e.g., Toothache, Cleaning, Check-up',
-                    prefixIcon: Icon(Icons.notes_outlined),
-                    border: OutlineInputBorder(),
-                    alignLabelWithHint: true,
-                  ),
-                ),
-
-                const SizedBox(height: 16),
-
-                TextFormField(
-                  controller: _notesController,
-                  maxLines: 3,
-                  maxLength: 1000,
-                  decoration: const InputDecoration(
-                    labelText: 'Additional Notes',
-                    hintText: 'Anything else the team should know?',
-                    prefixIcon: Icon(Icons.note_add_outlined),
-                    border: OutlineInputBorder(),
-                    alignLabelWithHint: true,
-                  ),
-                ),
-
-                const SizedBox(height: 24),
-
-                const Text(
-                  'Appointment Time *',
-                  style: TextStyle(fontWeight: FontWeight.w600),
-                ),
-
-                const SizedBox(height: 8),
-
-                if (availState.isLoading)
-                  const Center(child: CircularProgressIndicator())
-                else if (availState.error != null)
-                  Text(
-                    'Error: ${availState.error}',
-                    style: const TextStyle(color: Colors.red),
-                  )
-                else if (availState.slots.isEmpty)
-                  _infoBanner(
-                    'No slots available for this date.\nTry selecting a different date.',
-                  )
-                else
-                  TimeSlotPicker(
-                    state: availState,
-                    onSlotSelected: (slot) {
-                      ref
-                          .read(availabilityNotifierProvider.notifier)
-                          .selectSlot(slot);
-                    },
-                  ),
-
-                const SizedBox(height: 32),
-
-                FilledButton(
-                  onPressed: (selectedSlot == null || _isSubmitting)
-                      ? null
-                      : () => _bookAppointment(selectedSlot),
-                  child: _isSubmitting
-                      ? const SizedBox(
-                          height: 20,
-                          width: 20,
-                          child: CircularProgressIndicator(
-                            strokeWidth: 2,
-                            color: Colors.white,
-                          ),
-                        )
-                      : const Text('Book Appointment'),
+              ],
+            ),
+            child: const Icon(
+              Icons.event_available_rounded,
+              color: AppColors.textOnPrimary,
+              size: 26,
+            ),
+          ),
+          const SizedBox(width: AppDimensions.paddingMedium),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text('Book Appointment', style: AppTextStyles.headlineSmall),
+                const SizedBox(height: 2),
+                Text(
+                  'Fill in the details below to schedule a visit',
+                  style: AppTextStyles.bodySmall,
                 ),
               ],
             ),
           ),
+          IconButton(
+            tooltip: 'Close',
+            onPressed: () => Navigator.of(context).pop(),
+            icon: const Icon(Icons.close_rounded,
+                color: AppColors.textSecondary),
+          ),
+        ],
+      ),
+    );
+  }
+
+  // ── FORM CARD ──────────────────────────────────────────────
+  Widget _buildFormCard({
+    required dynamic availState,
+    required DateTime? selectedDate,
+    required TimeSlot? selectedSlot,
+    required bool canCreateForOthers,
+  }) {
+    return Container(
+      padding: const EdgeInsets.all(AppDimensions.paddingLarge),
+      decoration: BoxDecoration(
+        color: AppColors.background,
+        borderRadius: BorderRadius.circular(AppDimensions.borderRadiusLarge),
+        border: Border.all(color: AppColors.border),
+        boxShadow: const [
+          BoxShadow(
+            color: AppColors.cardShadow,
+            blurRadius: 16,
+            offset: Offset(0, 6),
+          ),
+        ],
+      ),
+      child: Form(
+        key: _formKey,
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            // ── Patient Info Section ─────────────────────
+            _sectionTitle('Patient Information'),
+            const SizedBox(height: AppDimensions.paddingMedium),
+
+            _fieldLabel('Full Name', required: true),
+            TextFormField(
+              controller: _fullNameController,
+              textInputAction: TextInputAction.next,
+              validator: (value) => Validators.validateName(
+                value,
+                fieldName: 'Full name',
+              ),
+              decoration: const InputDecoration(
+                hintText: 'Enter your full name',
+                prefixIcon: Icon(Icons.person_outline_rounded),
+              ),
+            ),
+            const SizedBox(height: AppDimensions.paddingMedium),
+
+            _fieldLabel('Mobile Number', required: true),
+            TextFormField(
+              controller: _mobileController,
+              keyboardType: TextInputType.phone,
+              textInputAction: TextInputAction.next,
+              validator: (value) {
+                final requiredError = Validators.required(
+                  value,
+                  fieldName: 'Mobile number',
+                );
+                if (requiredError != null) return requiredError;
+                return Validators.validatePhone(value);
+              },
+              decoration: const InputDecoration(
+                hintText: 'e.g., 0917-000-0000',
+                prefixIcon: Icon(Icons.phone_outlined),
+              ),
+            ),
+            const SizedBox(height: AppDimensions.paddingMedium),
+
+            _fieldLabel('Email', required: true),
+            TextFormField(
+              controller: _emailController,
+              keyboardType: TextInputType.emailAddress,
+              textInputAction: TextInputAction.next,
+              validator: Validators.validateEmail,
+              decoration: const InputDecoration(
+                hintText: 'name@example.com',
+                prefixIcon: Icon(Icons.email_outlined),
+              ),
+            ),
+            const SizedBox(height: AppDimensions.paddingLarge),
+
+            // ── Appointment Details Section ─────────────
+            _sectionTitle('Appointment Details'),
+            const SizedBox(height: AppDimensions.paddingMedium),
+
+            _fieldLabel('Doctor', required: true),
+            _buildDoctorField(),
+            const SizedBox(height: AppDimensions.paddingMedium),
+
+            _fieldLabel('Branch', required: true),
+            _buildBranchField(),
+            const SizedBox(height: AppDimensions.paddingMedium),
+
+            if (canCreateForOthers) ...[
+              _fieldLabel('Patient', required: true),
+              PatientSearchField(
+                selectedPatientId: _selectedPatientId,
+                selectedPatientName: _selectedPatientName,
+                onPatientSelected: (PatientModel? patient) {
+                  setState(() {
+                    _selectedPatientId = patient?.userId;
+                    _selectedPatientName = patient?.name;
+                  });
+                },
+              ),
+              const SizedBox(height: AppDimensions.paddingMedium),
+            ],
+
+            _fieldLabel('Appointment Date', required: true),
+            InkWell(
+              onTap: () => _selectDate(context),
+              borderRadius: BorderRadius.circular(AppDimensions.borderRadius),
+              child: Container(
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 14,
+                  vertical: 16,
+                ),
+                decoration: BoxDecoration(
+                  color: AppColors.surface,
+                  border: Border.all(color: AppColors.border),
+                  borderRadius:
+                      BorderRadius.circular(AppDimensions.borderRadius),
+                ),
+                child: Row(
+                  children: [
+                    const Icon(
+                      Icons.calendar_today_outlined,
+                      color: AppColors.primary,
+                      size: 20,
+                    ),
+                    const SizedBox(width: 12),
+                    Expanded(
+                      child: Text(
+                        selectedDate == null
+                            ? 'Select date'
+                            : DateFormat('EEE, MMM dd yyyy')
+                                .format(selectedDate),
+                        style: AppTextStyles.bodyMedium.copyWith(
+                          color: selectedDate != null
+                              ? AppColors.ink
+                              : AppColors.textMuted,
+                          fontWeight: FontWeight.w600,
+                        ),
+                      ),
+                    ),
+                    const Icon(
+                      Icons.arrow_drop_down_rounded,
+                      color: AppColors.textSecondary,
+                    ),
+                  ],
+                ),
+              ),
+            ),
+            const SizedBox(height: AppDimensions.paddingMedium),
+
+            _fieldLabel('Purpose of Visit', required: true),
+            TextFormField(
+              controller: _reasonController,
+              maxLines: 3,
+              maxLength: 500,
+              validator: (value) => Validators.required(
+                value,
+                fieldName: 'Purpose of visit',
+              ),
+              decoration: const InputDecoration(
+                hintText: 'e.g., Toothache, Cleaning, Check-up',
+                prefixIcon: Icon(Icons.notes_outlined),
+                alignLabelWithHint: true,
+              ),
+            ),
+            const SizedBox(height: AppDimensions.paddingMedium),
+
+            _fieldLabel('Additional Notes'),
+            TextFormField(
+              controller: _notesController,
+              maxLines: 3,
+              maxLength: 1000,
+              decoration: const InputDecoration(
+                hintText: 'Anything else the team should know?',
+                prefixIcon: Icon(Icons.note_add_outlined),
+                alignLabelWithHint: true,
+              ),
+            ),
+            const SizedBox(height: AppDimensions.paddingLarge),
+
+            // ── Time Slots Section ──────────────────────
+            _sectionTitle('Appointment Time'),
+            const SizedBox(height: AppDimensions.paddingMedium),
+
+            if (selectedDate == null)
+              _infoBanner(
+                'Please select a date first to see available time slots.',
+                icon: Icons.info_outline_rounded,
+              )
+            else if (availState.isLoading)
+              const Padding(
+                padding: EdgeInsets.symmetric(vertical: 24),
+                child: Center(
+                  child: CircularProgressIndicator(color: AppColors.primary),
+                ),
+              )
+            else if (availState.error != null)
+              _infoBanner(
+                'Error loading slots: ${availState.error}',
+                icon: Icons.error_outline_rounded,
+                isError: true,
+              )
+            else if (availState.slots.isEmpty)
+              _infoBanner(
+                'No slots available for this date.\nTry selecting a different date.',
+                icon: Icons.event_busy_rounded,
+              )
+            else
+              TimeSlotPicker(
+                state: availState,
+                onSlotSelected: (slot) {
+                  ref
+                      .read(availabilityNotifierProvider.notifier)
+                      .selectSlot(slot);
+                },
+              ),
+
+            const SizedBox(height: AppDimensions.paddingXL),
+
+            // ── Submit Button ───────────────────────────
+            SizedBox(
+              height: 52,
+              child: FilledButton.icon(
+                onPressed: (selectedSlot == null || _isSubmitting)
+                    ? null
+                    : () => _bookAppointment(selectedSlot),
+                style: FilledButton.styleFrom(
+                  backgroundColor: AppColors.primary,
+                  foregroundColor: AppColors.textOnPrimary,
+                  disabledBackgroundColor:
+                      AppColors.primary.withValues(alpha: 0.4),
+                  shape: RoundedRectangleBorder(
+                    borderRadius:
+                        BorderRadius.circular(AppDimensions.borderRadius),
+                  ),
+                ),
+                icon: _isSubmitting
+                    ? const SizedBox(
+                        height: 18,
+                        width: 18,
+                        child: CircularProgressIndicator(
+                          strokeWidth: 2,
+                          color: AppColors.textOnPrimary,
+                        ),
+                      )
+                    : const Icon(Icons.event_available_rounded),
+                label: Text(
+                  _isSubmitting ? 'Booking...' : 'Book Appointment',
+                  style: const TextStyle(fontWeight: FontWeight.w700),
+                ),
+              ),
+            ),
+            const SizedBox(height: AppDimensions.paddingSmall),
+
+            SizedBox(
+              height: 46,
+              child: OutlinedButton(
+                onPressed: _isSubmitting
+                    ? null
+                    : () => Navigator.of(context).pop(),
+                style: OutlinedButton.styleFrom(
+                  foregroundColor: AppColors.textSecondary,
+                  side: const BorderSide(color: AppColors.border),
+                  shape: RoundedRectangleBorder(
+                    borderRadius:
+                        BorderRadius.circular(AppDimensions.borderRadius),
+                  ),
+                ),
+                child: const Text('Cancel'),
+              ),
+            ),
+          ],
         ),
       ),
     );
@@ -453,11 +597,9 @@ class _BookAppointmentPageState extends ConsumerState<BookAppointmentPage> {
         initialValue: selected,
         isExpanded: true,
         decoration: const InputDecoration(
-          labelText: 'Doctor *',
-          prefixIcon: Icon(Icons.person_outline),
-          border: OutlineInputBorder(),
+          hintText: 'Select Doctor',
+          prefixIcon: Icon(Icons.medical_services_outlined),
         ),
-        hint: const Text('Select Doctor'),
         items: doctors.map((doctor) {
           return DropdownMenuItem<int>(
             value: doctor.id,
@@ -470,7 +612,6 @@ class _BookAppointmentPageState extends ConsumerState<BookAppointmentPage> {
         onChanged: (id) {
           ref.read(selectedDoctorProvider.notifier).state = id;
           ref.read(availabilityNotifierProvider.notifier).clearSlots();
-
           _fetchSlots();
         },
       ),
@@ -490,11 +631,9 @@ class _BookAppointmentPageState extends ConsumerState<BookAppointmentPage> {
         initialValue: selected,
         isExpanded: true,
         decoration: const InputDecoration(
-          labelText: 'Branch *',
+          hintText: 'Select Branch',
           prefixIcon: Icon(Icons.location_on_outlined),
-          border: OutlineInputBorder(),
         ),
-        hint: const Text('Select Branch'),
         items: branches.map((branch) {
           return DropdownMenuItem<int>(
             value: branch.id,
@@ -507,28 +646,88 @@ class _BookAppointmentPageState extends ConsumerState<BookAppointmentPage> {
         onChanged: (id) {
           ref.read(selectedBranchProvider.notifier).state = id;
           ref.read(availabilityNotifierProvider.notifier).clearSlots();
-
           _fetchSlots();
         },
       ),
     );
   }
 
-  Widget _infoBanner(String message) {
+  Widget _infoBanner(
+    String message, {
+    IconData icon = Icons.info_outline_rounded,
+    bool isError = false,
+  }) {
+    final color = isError ? AppColors.error : AppColors.primary;
+
     return Container(
-      padding: const EdgeInsets.all(12),
+      padding: const EdgeInsets.all(AppDimensions.paddingMedium),
       decoration: BoxDecoration(
-        color: Colors.grey.withValues(alpha: 0.15),
-        borderRadius: BorderRadius.circular(8),
+        color: color.withValues(alpha: 0.06),
+        border: Border.all(color: color.withValues(alpha: 0.20)),
+        borderRadius: BorderRadius.circular(AppDimensions.borderRadius),
       ),
       child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          const Icon(
-            Icons.info_outline,
-            size: 20,
+          Icon(icon, size: 20, color: color),
+          const SizedBox(width: 10),
+          Expanded(
+            child: Text(
+              message,
+              style: AppTextStyles.bodySmall.copyWith(
+                color: isError ? AppColors.error : AppColors.textSecondary,
+              ),
+            ),
           ),
-          const SizedBox(width: 8),
-          Expanded(child: Text(message)),
+        ],
+      ),
+    );
+  }
+
+  Widget _sectionTitle(String title) {
+    return Row(
+      children: [
+        Container(
+          width: 4,
+          height: 18,
+          decoration: BoxDecoration(
+            gradient: AppColors.primaryGradient,
+            borderRadius: BorderRadius.circular(2),
+          ),
+        ),
+        const SizedBox(width: 8),
+        Text(
+          title,
+          style: AppTextStyles.labelLarge.copyWith(
+            color: AppColors.primaryDark,
+          ),
+        ),
+      ],
+    );
+  }
+
+  Widget _fieldLabel(String text, {bool required = false}) {
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 6),
+      child: Row(
+        children: [
+          Text(
+            text,
+            style: AppTextStyles.labelMedium.copyWith(
+              color: AppColors.ink,
+              fontWeight: FontWeight.w700,
+            ),
+          ),
+          if (required) ...[
+            const SizedBox(width: 4),
+            const Text(
+              '*',
+              style: TextStyle(
+                color: AppColors.error,
+                fontWeight: FontWeight.bold,
+              ),
+            ),
+          ],
         ],
       ),
     );

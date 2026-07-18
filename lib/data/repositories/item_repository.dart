@@ -25,6 +25,7 @@ class ItemRepository {
 
   ItemRepository({required this.remoteDataSource});
 
+  // ── Get paginated list ─────────────────────────────────────
   Future<ItemPaginatedResult> getItems({
     int page = 1,
     String? search,
@@ -46,13 +47,12 @@ class ItemRepository {
     }
 
     final response = await remoteDataSource.fetchItems(
-      page: page,
-      search: search,
+      page:     page,
+      search:   search,
       category: category,
     );
 
     final data = response['data'] as Map<String, dynamic>;
-    // ✅ Uses 'records' to match your API
     final list = (data['records'] as List<dynamic>? ?? [])
         .map((e) => ItemModel.fromJson(e as Map<String, dynamic>))
         .toList();
@@ -66,12 +66,18 @@ class ItemRepository {
 
     if (isCacheable) {
       _cachedFirstPage = result;
-      _lastFetched = DateTime.now();
+      _lastFetched     = DateTime.now();
     }
 
     return result;
   }
 
+  // ── Get single by ID ───────────────────────────────────────  ← ADDED
+  Future<ItemModel> getItemById(int id) async {
+    return remoteDataSource.fetchItemById(id);
+  }
+
+  // ── Create ─────────────────────────────────────────────────
   Future<ItemModel> createItem({
     required String name,
     required String sku,
@@ -80,16 +86,17 @@ class ItemRepository {
     int minimumThreshold = 10,
   }) async {
     final result = await remoteDataSource.createItem(
-      name: name,
-      sku: sku,
-      category: category,
-      unitOfMeasure: unitOfMeasure,
+      name:             name,
+      sku:              sku,
+      category:         category,
+      unitOfMeasure:    unitOfMeasure,
       minimumThreshold: minimumThreshold,
     );
     clearCache();
     return result;
   }
 
+  // ── Update ─────────────────────────────────────────────────
   Future<ItemModel> updateItem({
     required int id,
     String? name,
@@ -99,25 +106,27 @@ class ItemRepository {
     int? minimumThreshold,
   }) async {
     final result = await remoteDataSource.updateItem(
-      id: id,
-      name: name,
-      sku: sku,
-      category: category,
-      unitOfMeasure: unitOfMeasure,
+      id:               id,
+      name:             name,
+      sku:              sku,
+      category:         category,
+      unitOfMeasure:    unitOfMeasure,
       minimumThreshold: minimumThreshold,
     );
     clearCache();
     return result;
   }
 
+  // ── Delete ─────────────────────────────────────────────────
   Future<void> deleteItem(int id) async {
     await remoteDataSource.deleteItem(id);
     clearCache();
   }
 
+  // ── Clear cache ────────────────────────────────────────────
   void clearCache() {
     _cachedFirstPage = null;
-    _lastFetched = null;
+    _lastFetched     = null;
   }
 
   static int _asInt(dynamic v) {

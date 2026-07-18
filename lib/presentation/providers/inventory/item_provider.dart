@@ -24,9 +24,11 @@ class ItemState {
   final List<ItemModel> items;
   final ItemModel? selected;
   final bool isListLoading;
+  final bool isDetailLoading;
   final bool isLoadingMore;
   final bool isSubmitting;
   final String? listError;
+  final String? detailError;
   final String? submitError;
   final int currentPage;
   final int lastPage;
@@ -36,46 +38,54 @@ class ItemState {
     this.items = const [],
     this.selected,
     this.isListLoading = false,
+    this.isDetailLoading = false,
     this.isLoadingMore = false,
     this.isSubmitting = false,
     this.listError,
+    this.detailError,
     this.submitError,
     this.currentPage = 1,
     this.lastPage = 1,
     this.total = 0,
   });
 
-  bool get hasListError => listError != null;
-  bool get hasMore => currentPage < lastPage;
-  bool get isEmpty =>
+  bool get hasListError   => listError != null;
+  bool get hasDetailError => detailError != null;
+  bool get hasMore        => currentPage < lastPage;
+  bool get isEmpty        =>
       !isListLoading && items.isEmpty && listError == null;
 
   ItemState copyWith({
     List<ItemModel>? items,
     ItemModel? selected,
     bool? isListLoading,
+    bool? isDetailLoading,
     bool? isLoadingMore,
     bool? isSubmitting,
     String? listError,
+    String? detailError,
     String? submitError,
     int? currentPage,
     int? lastPage,
     int? total,
-    bool clearListError = false,
+    bool clearListError   = false,
+    bool clearDetailError = false,
     bool clearSubmitError = false,
-    bool clearSelected = false,
+    bool clearSelected    = false,
   }) {
     return ItemState(
-      items:         items ?? this.items,
-      selected:      clearSelected ? null : selected ?? this.selected,
-      isListLoading: isListLoading ?? this.isListLoading,
-      isLoadingMore: isLoadingMore ?? this.isLoadingMore,
-      isSubmitting:  isSubmitting ?? this.isSubmitting,
-      listError:     clearListError ? null : listError ?? this.listError,
-      submitError:   clearSubmitError ? null : submitError ?? this.submitError,
-      currentPage:   currentPage ?? this.currentPage,
-      lastPage:      lastPage ?? this.lastPage,
-      total:         total ?? this.total,
+      items:           items ?? this.items,
+      selected:        clearSelected ? null : selected ?? this.selected,
+      isListLoading:   isListLoading ?? this.isListLoading,
+      isDetailLoading: isDetailLoading ?? this.isDetailLoading,
+      isLoadingMore:   isLoadingMore ?? this.isLoadingMore,
+      isSubmitting:    isSubmitting ?? this.isSubmitting,
+      listError:       clearListError ? null : listError ?? this.listError,
+      detailError:     clearDetailError ? null : detailError ?? this.detailError,
+      submitError:     clearSubmitError ? null : submitError ?? this.submitError,
+      currentPage:     currentPage ?? this.currentPage,
+      lastPage:        lastPage ?? this.lastPage,
+      total:           total ?? this.total,
     );
   }
 }
@@ -141,6 +151,28 @@ class ItemNotifier extends StateNotifier<ItemState> {
     }
   }
 
+  // ── Load single by ID ──────────────────────────────────────  ← THIS IS THE MISSING METHOD
+  Future<void> loadById(int id) async {
+    state = state.copyWith(
+      isDetailLoading: true,
+      clearDetailError: true,
+      clearSelected: true,
+    );
+
+    try {
+      final item = await _repository.getItemById(id);
+      state = state.copyWith(
+        selected: item,
+        isDetailLoading: false,
+      );
+    } catch (e) {
+      state = state.copyWith(
+        isDetailLoading: false,
+        detailError: e.toString().replaceAll('Exception: ', ''),
+      );
+    }
+  }
+
   // ── Create ─────────────────────────────────────────────────
   Future<void> createItem({
     required String name,
@@ -173,7 +205,7 @@ class ItemNotifier extends StateNotifier<ItemState> {
     }
   }
 
-  // ── Update ─────────────────────────────────────────────────  ← ADDED
+  // ── Update ─────────────────────────────────────────────────
   Future<void> updateItem({
     required int id,
     String? name,

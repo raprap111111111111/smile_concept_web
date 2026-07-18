@@ -1,3 +1,5 @@
+// lib/presentation/widgets/common/notification_bell.dart
+
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
@@ -8,9 +10,7 @@ import '../../route/route_names.dart';
 import '../../theme/app_colors.dart';
 
 class NotificationBell extends ConsumerStatefulWidget {
-  const NotificationBell({
-    super.key,
-  });
+  const NotificationBell({super.key});
 
   @override
   ConsumerState<NotificationBell> createState() => _NotificationBellState();
@@ -18,6 +18,7 @@ class NotificationBell extends ConsumerStatefulWidget {
 
 class _NotificationBellState extends ConsumerState<NotificationBell> {
   final GlobalKey _buttonKey = GlobalKey();
+  bool _isHovering = false;
 
   Future<void> _openDropdown() async {
     await ref.read(notificationListProvider.notifier).load();
@@ -26,7 +27,6 @@ class _NotificationBellState extends ConsumerState<NotificationBell> {
 
     final renderBox =
         _buttonKey.currentContext?.findRenderObject() as RenderBox?;
-
     if (renderBox == null) return;
 
     final offset = renderBox.localToGlobal(Offset.zero);
@@ -34,13 +34,12 @@ class _NotificationBellState extends ConsumerState<NotificationBell> {
 
     await showMenu(
       context: context,
-      color: AppColors.surfaceDark,
-      elevation: 14,
+      // ── CHANGED: Light theme background ────────────────
+      color: AppColors.background,
+      elevation: 12,
       shape: RoundedRectangleBorder(
-        borderRadius: BorderRadius.circular(18),
-        side: BorderSide(
-          color: Colors.white.withValues(alpha: 0.08),
-        ),
+        borderRadius: BorderRadius.circular(16),
+        side: const BorderSide(color: AppColors.border),
       ),
       position: RelativeRect.fromLTRB(
         offset.dx - 360 + size.width,
@@ -54,9 +53,7 @@ class _NotificationBellState extends ConsumerState<NotificationBell> {
           padding: EdgeInsets.zero,
           child: SizedBox(
             width: 380,
-            child: _NotificationDropdownContent(
-              parentContext: context,
-            ),
+            child: _NotificationDropdownContent(parentContext: context),
           ),
         ),
       ],
@@ -78,42 +75,73 @@ class _NotificationBellState extends ConsumerState<NotificationBell> {
       key: _buttonKey,
       clipBehavior: Clip.none,
       children: [
-        IconButton(
-          tooltip: 'Notifications',
-          onPressed: _openDropdown,
-          icon: Icon(
-            Icons.notifications_none_rounded,
-            color: Colors.white.withValues(alpha: 0.82),
-            size: 25,
+        // ── Button Container ─────────────────────────────────
+        MouseRegion(
+          onEnter: (_) => setState(() => _isHovering = true),
+          onExit: (_) => setState(() => _isHovering = false),
+          child: AnimatedContainer(
+            duration: const Duration(milliseconds: 140),
+            width: 40,
+            height: 40,
+            decoration: BoxDecoration(
+              color: _isHovering
+                  ? AppColors.primary.withValues(alpha: 0.08)
+                  : AppColors.surface,
+              borderRadius: BorderRadius.circular(12),
+              border: Border.all(color: AppColors.border),
+            ),
+            child: Material(
+              color: Colors.transparent,
+              child: IconButton(
+                tooltip: 'Notifications',
+                onPressed: _openDropdown,
+                splashRadius: 22,
+                padding: EdgeInsets.zero,
+                icon: const Icon(
+                  Icons.notifications_none_rounded,
+                  color: AppColors.ink,
+                  size: 22,
+                ),
+              ),
+            ),
           ),
         ),
+
+        // ── Badge ────────────────────────────────────────────
         if (hasUnread)
           Positioned(
-            right: 7,
-            top: 7,
+            right: -2,
+            top: -2,
             child: Container(
               padding: const EdgeInsets.symmetric(
                 horizontal: 5,
                 vertical: 2,
               ),
               constraints: const BoxConstraints(
-                minWidth: 16,
-                minHeight: 16,
+                minWidth: 18,
+                minHeight: 18,
               ),
               decoration: BoxDecoration(
-                color: Colors.redAccent,
+                color: AppColors.error,
                 borderRadius: BorderRadius.circular(999),
                 border: Border.all(
-                  color: AppColors.surfaceDark,
-                  width: 1.5,
+                  color: AppColors.background,
+                  width: 2,
                 ),
+                boxShadow: [
+                  BoxShadow(
+                    color: AppColors.error.withValues(alpha: 0.35),
+                    blurRadius: 6,
+                    offset: const Offset(0, 2),
+                  ),
+                ],
               ),
               child: Text(
                 unreadCount > 99 ? '99+' : unreadCount.toString(),
                 textAlign: TextAlign.center,
                 style: const TextStyle(
                   color: Colors.white,
-                  fontSize: 9,
+                  fontSize: 10,
                   fontWeight: FontWeight.bold,
                   height: 1,
                 ),
@@ -125,12 +153,11 @@ class _NotificationBellState extends ConsumerState<NotificationBell> {
   }
 }
 
+// ── Dropdown Content ─────────────────────────────────────────
 class _NotificationDropdownContent extends ConsumerWidget {
   final BuildContext parentContext;
 
-  const _NotificationDropdownContent({
-    required this.parentContext,
-  });
+  const _NotificationDropdownContent({required this.parentContext});
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
@@ -140,22 +167,19 @@ class _NotificationDropdownContent extends ConsumerWidget {
     final latest = state.notifications.take(5).toList();
 
     return Container(
-      constraints: const BoxConstraints(
-        maxHeight: 480,
-      ),
+      constraints: const BoxConstraints(maxHeight: 480),
       child: Column(
         mainAxisSize: MainAxisSize.min,
         children: [
           _buildHeader(context, ref, notifier),
-          Divider(
-            height: 1,
-            color: Colors.white.withValues(alpha: 0.08),
-          ),
+          const Divider(height: 1, color: AppColors.divider),
           if (state.isLoading)
             const Padding(
               padding: EdgeInsets.all(32),
               child: Center(
-                child: CircularProgressIndicator(),
+                child: CircularProgressIndicator(
+                  color: AppColors.primary,
+                ),
               ),
             )
           else if (state.error != null)
@@ -163,75 +187,45 @@ class _NotificationDropdownContent extends ConsumerWidget {
               padding: const EdgeInsets.all(20),
               child: Text(
                 state.error!,
-                style: const TextStyle(color: Colors.white70),
+                style: const TextStyle(color: AppColors.error),
               ),
             )
           else if (latest.isEmpty)
-            Padding(
-              padding: const EdgeInsets.symmetric(
-                vertical: 34,
-                horizontal: 20,
-              ),
-              child: Column(
-                children: [
-                  Icon(
-                    Icons.notifications_off_outlined,
-                    color: Colors.white.withValues(alpha: 0.35),
-                    size: 42,
-                  ),
-                  const SizedBox(height: 12),
-                  Text(
-                    'No notifications yet',
-                    style: TextStyle(
-                      color: Colors.white.withValues(alpha: 0.65),
-                    ),
-                  ),
-                ],
-              ),
-            )
+            const _EmptyState()
           else
             Flexible(
               child: ListView.separated(
                 shrinkWrap: true,
                 padding: const EdgeInsets.symmetric(vertical: 8),
                 itemCount: latest.length,
-                separatorBuilder: (_, __) => Divider(
+                separatorBuilder: (_, __) => const Divider(
                   height: 1,
-                  color: Colors.white.withValues(alpha: 0.05),
+                  color: AppColors.divider,
                 ),
                 itemBuilder: (context, index) {
                   final notification = latest[index];
-
                   return _DropdownNotificationItem(
                     notification: notification,
                     onTap: () async {
                       Navigator.pop(context);
-
                       if (notification.isUnread) {
                         await notifier.markAsRead(notification.id);
                       }
-
                       if (!parentContext.mounted) return;
-
-                      _showNotificationDetails(
-                        parentContext,
-                        notification,
-                      );
+                      _showNotificationDetails(parentContext, notification);
                     },
                   );
                 },
               ),
             ),
-          Divider(
-            height: 1,
-            color: Colors.white.withValues(alpha: 0.08),
-          ),
+          const Divider(height: 1, color: AppColors.divider),
           _buildFooter(context),
         ],
       ),
     );
   }
 
+  // ── Header ────────────────────────────────────────────────
   Widget _buildHeader(
     BuildContext context,
     WidgetRef ref,
@@ -245,23 +239,36 @@ class _NotificationDropdownContent extends ConsumerWidget {
             child: Text(
               'Notifications',
               style: TextStyle(
-                color: Colors.white,
+                color: AppColors.ink,
                 fontWeight: FontWeight.w800,
                 fontSize: 16,
               ),
             ),
           ),
-          TextButton(
+          TextButton.icon(
             onPressed: () async {
               await notifier.markAllAsRead();
             },
-            child: const Text('Mark all read'),
+            icon: const Icon(
+              Icons.done_all_rounded,
+              size: 16,
+              color: AppColors.primary,
+            ),
+            label: const Text(
+              'Mark all read',
+              style: TextStyle(
+                color: AppColors.primary,
+                fontWeight: FontWeight.w700,
+                fontSize: 13,
+              ),
+            ),
           ),
         ],
       ),
     );
   }
 
+  // ── Footer ────────────────────────────────────────────────
   Widget _buildFooter(BuildContext context) {
     return InkWell(
       onTap: () {
@@ -269,10 +276,7 @@ class _NotificationDropdownContent extends ConsumerWidget {
         parentContext.goNamed(RouteNames.notifications);
       },
       child: Padding(
-        padding: const EdgeInsets.symmetric(
-          horizontal: 16,
-          vertical: 14,
-        ),
+        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
         child: Row(
           mainAxisAlignment: MainAxisAlignment.center,
           children: const [
@@ -281,13 +285,14 @@ class _NotificationDropdownContent extends ConsumerWidget {
               style: TextStyle(
                 color: AppColors.primary,
                 fontWeight: FontWeight.w700,
+                fontSize: 13,
               ),
             ),
             SizedBox(width: 6),
             Icon(
               Icons.arrow_forward_rounded,
               color: AppColors.primary,
-              size: 18,
+              size: 16,
             ),
           ],
         ),
@@ -295,6 +300,7 @@ class _NotificationDropdownContent extends ConsumerWidget {
     );
   }
 
+  // ── Dialog ────────────────────────────────────────────────
   void _showNotificationDetails(
     BuildContext context,
     NotificationModel notification,
@@ -303,21 +309,33 @@ class _NotificationDropdownContent extends ConsumerWidget {
       context: context,
       builder: (_) {
         return AlertDialog(
-          backgroundColor: AppColors.surfaceDark,
+          backgroundColor: AppColors.background,
           shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(18),
+            borderRadius: BorderRadius.circular(16),
           ),
           title: Row(
             children: [
-              Icon(
-                _iconFor(notification.icon),
-                color: AppColors.primary,
+              Container(
+                padding: const EdgeInsets.all(8),
+                decoration: BoxDecoration(
+                  color: AppColors.primary.withValues(alpha: 0.10),
+                  borderRadius: BorderRadius.circular(10),
+                ),
+                child: Icon(
+                  _iconFor(notification.icon),
+                  color: AppColors.primary,
+                  size: 20,
+                ),
               ),
-              const SizedBox(width: 10),
+              const SizedBox(width: 12),
               Expanded(
                 child: Text(
                   notification.title,
-                  style: const TextStyle(color: Colors.white),
+                  style: const TextStyle(
+                    color: AppColors.ink,
+                    fontWeight: FontWeight.w800,
+                    fontSize: 16,
+                  ),
                 ),
               ),
             ],
@@ -326,9 +344,10 @@ class _NotificationDropdownContent extends ConsumerWidget {
             notification.message.isEmpty
                 ? 'No message content.'
                 : notification.message,
-            style: TextStyle(
-              color: Colors.white.withValues(alpha: 0.75),
-              height: 1.4,
+            style: const TextStyle(
+              color: AppColors.textSecondary,
+              height: 1.5,
+              fontSize: 14,
             ),
           ),
           actions: [
@@ -362,7 +381,54 @@ class _NotificationDropdownContent extends ConsumerWidget {
   }
 }
 
-class _DropdownNotificationItem extends StatelessWidget {
+// ── Empty State ──────────────────────────────────────────────
+class _EmptyState extends StatelessWidget {
+  const _EmptyState();
+
+  @override
+  Widget build(BuildContext context) {
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: 40, horizontal: 20),
+      child: Column(
+        children: [
+          Container(
+            padding: const EdgeInsets.all(16),
+            decoration: BoxDecoration(
+              color: AppColors.surface,
+              shape: BoxShape.circle,
+              border: Border.all(color: AppColors.border),
+            ),
+            child: const Icon(
+              Icons.notifications_off_outlined,
+              color: AppColors.textTertiary,
+              size: 32,
+            ),
+          ),
+          const SizedBox(height: 16),
+          const Text(
+            'No notifications yet',
+            style: TextStyle(
+              color: AppColors.ink,
+              fontWeight: FontWeight.w700,
+              fontSize: 15,
+            ),
+          ),
+          const SizedBox(height: 4),
+          const Text(
+            "We'll notify you when something arrives",
+            style: TextStyle(
+              color: AppColors.textSecondary,
+              fontSize: 12,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+// ── Notification Item ────────────────────────────────────────
+class _DropdownNotificationItem extends StatefulWidget {
   final NotificationModel notification;
   final VoidCallback onTap;
 
@@ -372,78 +438,99 @@ class _DropdownNotificationItem extends StatelessWidget {
   });
 
   @override
-  Widget build(BuildContext context) {
-    final unread = notification.isUnread;
+  State<_DropdownNotificationItem> createState() =>
+      _DropdownNotificationItemState();
+}
 
-    return InkWell(
-      onTap: onTap,
-      child: Container(
-        color: unread
-            ? AppColors.primary.withValues(alpha: 0.08)
-            : Colors.transparent,
-        padding: const EdgeInsets.symmetric(
-          horizontal: 14,
-          vertical: 12,
-        ),
-        child: Row(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            CircleAvatar(
-              radius: 18,
-              backgroundColor: unread
-                  ? AppColors.primary.withValues(alpha: 0.20)
-                  : Colors.white.withValues(alpha: 0.06),
-              child: Icon(
-                _iconFor(notification.icon),
-                size: 18,
-                color: unread
-                    ? AppColors.primary
-                    : Colors.white.withValues(alpha: 0.55),
-              ),
-            ),
-            const SizedBox(width: 10),
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    notification.title,
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
-                    style: TextStyle(
-                      color: Colors.white,
-                      fontWeight:
-                          unread ? FontWeight.w800 : FontWeight.w500,
-                      fontSize: 13,
-                    ),
-                  ),
-                  const SizedBox(height: 3),
-                  Text(
-                    notification.message,
-                    maxLines: 2,
-                    overflow: TextOverflow.ellipsis,
-                    style: TextStyle(
-                      color: Colors.white.withValues(alpha: 0.58),
-                      fontSize: 12,
-                      height: 1.25,
-                    ),
-                  ),
-                ],
-              ),
-            ),
-            if (unread) ...[
-              const SizedBox(width: 8),
+class _DropdownNotificationItemState
+    extends State<_DropdownNotificationItem> {
+  bool _isHovering = false;
+
+  @override
+  Widget build(BuildContext context) {
+    final unread = widget.notification.isUnread;
+
+    return MouseRegion(
+      onEnter: (_) => setState(() => _isHovering = true),
+      onExit: (_) => setState(() => _isHovering = false),
+      child: InkWell(
+        onTap: widget.onTap,
+        child: AnimatedContainer(
+          duration: const Duration(milliseconds: 120),
+          color: _isHovering
+              ? AppColors.primary.withValues(alpha: 0.06)
+              : unread
+                  ? AppColors.accentLight
+                  : Colors.transparent,
+          padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+          child: Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
               Container(
-                width: 8,
-                height: 8,
-                margin: const EdgeInsets.only(top: 5),
-                decoration: const BoxDecoration(
-                  color: Colors.redAccent,
-                  shape: BoxShape.circle,
+                width: 38,
+                height: 38,
+                decoration: BoxDecoration(
+                  color: unread
+                      ? AppColors.primary.withValues(alpha: 0.12)
+                      : AppColors.surface,
+                  borderRadius: BorderRadius.circular(10),
+                  border: Border.all(
+                    color: unread
+                        ? AppColors.primary.withValues(alpha: 0.20)
+                        : AppColors.border,
+                  ),
+                ),
+                child: Icon(
+                  _iconFor(widget.notification.icon),
+                  size: 18,
+                  color:
+                      unread ? AppColors.primary : AppColors.textSecondary,
                 ),
               ),
+              const SizedBox(width: 12),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      widget.notification.title,
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: TextStyle(
+                        color: AppColors.ink,
+                        fontWeight:
+                            unread ? FontWeight.w800 : FontWeight.w600,
+                        fontSize: 13,
+                      ),
+                    ),
+                    const SizedBox(height: 3),
+                    Text(
+                      widget.notification.message,
+                      maxLines: 2,
+                      overflow: TextOverflow.ellipsis,
+                      style: const TextStyle(
+                        color: AppColors.textSecondary,
+                        fontSize: 12,
+                        height: 1.35,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              if (unread) ...[
+                const SizedBox(width: 8),
+                Container(
+                  width: 8,
+                  height: 8,
+                  margin: const EdgeInsets.only(top: 5),
+                  decoration: const BoxDecoration(
+                    color: AppColors.primary,
+                    shape: BoxShape.circle,
+                  ),
+                ),
+              ],
             ],
-          ],
+          ),
         ),
       ),
     );

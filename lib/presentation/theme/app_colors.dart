@@ -68,6 +68,6 @@ class AppColors {
   static Color accentWithOpacity(double opacity) =>
       accent.withValues(alpha: opacity);
 
-  static Color primaryWithOpacity(double opacity) =>
+  static primaryWithOpacity(double opacity) =>
       primary.withValues(alpha: opacity);
 }

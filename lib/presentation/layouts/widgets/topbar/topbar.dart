@@ -1,4 +1,5 @@
 // lib/presentation/layouts/widgets/topbar/topbar.dart
+
 import 'package:flutter/material.dart';
 
 import '../../../theme/app_colors.dart';
@@ -15,15 +16,23 @@ class Topbar extends StatelessWidget {
     return Container(
       height: 72,
       padding: const EdgeInsets.symmetric(horizontal: 26),
-      decoration: const BoxDecoration(
+      decoration: BoxDecoration(
         color: AppColors.background,
-        border: Border(
+        border: const Border(
           bottom: BorderSide(color: AppColors.line),
         ),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withValues(alpha: 0.03),
+            blurRadius: 8,
+            offset: const Offset(0, 2),
+          ),
+        ],
       ),
       child: Row(
         mainAxisAlignment: MainAxisAlignment.spaceBetween,
         children: [
+          // ── Page Title ────────────────────────────────────
           Text(
             PageTitleResolver.resolve(context),
             style: AppTextStyles.titleLarge.copyWith(
@@ -31,11 +40,22 @@ class Topbar extends StatelessWidget {
               fontWeight: FontWeight.w800,
             ),
           ),
-          const Row(
+
+          // ── Right Actions ─────────────────────────────────
+          Row(
             children: [
-              NotificationBell(),
-              SizedBox(width: 12),
-              TopbarUserInfo(),
+              const NotificationBell(),
+              const SizedBox(width: 16),
+
+              // Vertical divider
+              Container(
+                width: 1,
+                height: 28,
+                color: AppColors.line,
+              ),
+              const SizedBox(width: 16),
+
+              const TopbarUserInfo(),
             ],
           ),
         ],
