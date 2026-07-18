@@ -4,7 +4,9 @@ import 'package:go_router/go_router.dart';
 
 import '../../../core/utils/validators.dart';
 import '../../providers/auth/auth_provider.dart';
+import '../../providers/auth/permission_provider.dart';
 import '../../route/auth_redirect.dart';
+import '../../route/router_redirect.dart';
 import 'auth_page_widgets.dart';
 
 class RegisterPage extends ConsumerStatefulWidget {
@@ -73,16 +75,17 @@ class _RegisterPageState extends ConsumerState<RegisterPage> {
 
     if (!mounted) return;
 
-    // Honor the destination the CTA asked for; someone who came here on their
-    // own (no `next`) has no pending errand, so the dashboard is right for them.
     // Navigating explicitly rather than leaning on the router's redirect: the
     // redirect only fires if the location is still /register when auth flips,
-    // which is a race we don't need to depend on.
+    // which is a race we don't need to depend on. Same destination logic as the
+    // guard, so a patient lands on a page they can actually open.
     if (ref.read(authStateProvider).isAuthenticated) {
-      final next = AuthRedirect.resolve(
-        GoRouterState.of(context).uri.queryParameters,
+      context.go(
+        postAuthDestination(
+          ref.read(permissionServiceProvider),
+          GoRouterState.of(context).uri.queryParameters,
+        ),
       );
-      context.go(next ?? '/dashboard');
     }
   }
 

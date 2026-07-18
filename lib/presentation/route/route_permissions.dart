@@ -43,6 +43,12 @@ class RoutePermissions {
     '/dashboard': [Perm.dashboardView],
     '/appointments': [Perm.appointmentViewAny, Perm.appointmentView],
     '/book-appointment': [Perm.appointmentCreate, Perm.appointmentCreateForOthers],
+    // The patient-facing booking form. Registered so it is guarded like every
+    // other booking entry point — an unregistered path is waved through.
+    '/appointment-patient-form': [
+      Perm.appointmentCreate,
+      Perm.appointmentCreateForOthers,
+    ],
 
     // ── Clinical ───────────────────────────────────────────────
     '/clinical-records': [
