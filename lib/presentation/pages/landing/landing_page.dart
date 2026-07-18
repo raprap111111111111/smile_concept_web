@@ -46,7 +46,7 @@ class LandingPage extends ConsumerWidget {
 
     // go, not push: an imperatively pushed route leaves the router's location
     // at '/', so the redirect guard can't tell where the user actually is and
-    // bounces them to /splash — and from there to /dashboard.
+    // bounces them to /splash — and from there to their landing page.
     if (authState.isAuthenticated) {
       context.goNamed(RouteNames.appointmentPatientForm);
       return;

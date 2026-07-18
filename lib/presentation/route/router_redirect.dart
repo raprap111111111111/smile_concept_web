@@ -11,6 +11,25 @@ import 'route_permissions.dart';
 
 const _publicRoutes = ['/', '/login', '/register', '/forgot-password'];
 
+/// Where a user goes the moment they become authenticated.
+///
+/// Shared by the redirect guard and by any auth page that navigates itself, so
+/// there is one answer to "where does a logged-in user belong". Hardcoding a
+/// destination here is what sent patients to /dashboard and bounced them to
+/// /unauthorized: the landing page has to be derived from permissions.
+String postAuthDestination(
+  PermissionService perm,
+  Map<String, String> queryParameters,
+) {
+  final landing = RoutePermissions.landingFor(perm);
+  final requested = AuthRedirect.resolve(queryParameters);
+  if (requested == null) return landing;
+
+  // `next` is attacker-supplied and can name a page this user is not allowed to
+  // open, so it is permission-checked like any other destination.
+  return RoutePermissions.allows(perm, requested) ? requested : landing;
+}
+
 // ── Renamed from _handleRedirect to handleRedirect (public) ───────────
 String? handleRedirect(Ref ref, GoRouterState state) {
   final authState = ref.read(authStateProvider);
@@ -54,16 +73,12 @@ String? _handleAuthenticatedState(
   if (location == '/splash' ||
       location == '/login' ||
       location == '/register') {
-    final requested = (location == '/login' || location == '/register')
-        ? AuthRedirect.resolve(state.uri.queryParameters)
-        : null;
+    // /splash is not a detour a CTA sent the user on, so it carries no `next`.
+    final queryParameters = location == '/splash'
+        ? const <String, String>{}
+        : state.uri.queryParameters;
 
-    final landing = RoutePermissions.landingFor(perm);
-    if (requested == null) return landing;
-
-    // A `next` param is attacker-supplied and can name a page this user is not
-    // allowed to open, so it is permission-checked like any other destination.
-    return RoutePermissions.allows(perm, requested) ? requested : landing;
+    return postAuthDestination(perm, queryParameters);
   }
 
   // ── Any other authenticated destination ──────────────────────────────
