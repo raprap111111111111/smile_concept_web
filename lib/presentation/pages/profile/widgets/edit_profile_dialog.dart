@@ -8,7 +8,7 @@ import 'package:image_picker/image_picker.dart';
 
 import '../../../../data/models/profile/profile_model.dart';
 import '../../../providers/profile/profile_provider.dart';
-import '../../../theme/app_colors.dart';
+import 'profile_theme.dart';
 
 class EditProfileDialog extends ConsumerStatefulWidget {
   final ProfileModel profile;
@@ -101,7 +101,7 @@ class _EditProfileDialogState extends ConsumerState<EditProfileDialog> {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
           content: Text(error ?? 'Update failed'),
-          backgroundColor: Colors.red,
+          backgroundColor: ProfileTokens.danger,
           behavior: SnackBarBehavior.floating,
           shape: RoundedRectangleBorder(
             borderRadius: BorderRadius.circular(10),
@@ -132,231 +132,83 @@ class _EditProfileDialogState extends ConsumerState<EditProfileDialog> {
     final isUpdating = state.isUpdating;
     final avatarImage = _getAvatarImage();
 
-    return Dialog(
-      backgroundColor: const Color(0xFF1E1E24),
-      shape: RoundedRectangleBorder(
-        borderRadius: BorderRadius.circular(20),
-        side: BorderSide(color: Colors.white.withValues(alpha: 0.08)),
-      ),
-      child: ConstrainedBox(
-        constraints: const BoxConstraints(maxWidth: 500),
-        child: SingleChildScrollView(
-          child: Padding(
-            padding: const EdgeInsets.all(28),
+    // The dialog is pushed from a context above the page's Theme override,
+    // so it re-applies the light theme itself. Without this the text fields
+    // and selection handles fall back to the app's dark root theme.
+    return Theme(
+      data: buildProfileTheme(context),
+      child: Dialog(
+        backgroundColor: ProfileTokens.card,
+        surfaceTintColor: Colors.transparent,
+        elevation: 8,
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(ProfileTokens.radius),
+        ),
+        child: ConstrainedBox(
+          constraints: const BoxConstraints(maxWidth: 480),
+          child: SingleChildScrollView(
             child: Form(
               key: _formKey,
               child: Column(
                 mainAxisSize: MainAxisSize.min,
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  // ─── Header ─────────────────────────────────────────
-                  Row(
-                    children: [
-                      Container(
-                        padding: const EdgeInsets.all(8),
-                        decoration: BoxDecoration(
-                          color: AppColors.primary.withValues(alpha: 0.15),
-                          borderRadius: BorderRadius.circular(10),
-                        ),
-                        child: Icon(
-                          Icons.edit_outlined,
-                          color: AppColors.primary,
-                          size: 20,
-                        ),
-                      ),
-                      const SizedBox(width: 12),
-                      const Text(
-                        'Edit Profile',
-                        style: TextStyle(
-                          color: Colors.white,
-                          fontSize: 20,
-                          fontWeight: FontWeight.w700,
-                        ),
-                      ),
-                      const Spacer(),
-                      IconButton(
-                        icon: Icon(
-                          Icons.close,
-                          color: Colors.white.withValues(alpha: 0.6),
-                        ),
-                        onPressed: isUpdating
-                            ? null
-                            : () => Navigator.of(context).pop(false),
-                      ),
-                    ],
+                  _buildHeader(isUpdating),
+                  const Divider(
+                    height: 1,
+                    thickness: 1,
+                    color: ProfileTokens.divider,
                   ),
-                  const SizedBox(height: 24),
-
-                  // ─── Photo picker ───────────────────────────────────
-                  Center(
-                    child: Stack(
+                  Padding(
+                    padding: const EdgeInsets.fromLTRB(24, 24, 24, 8),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        Container(
-                          padding: const EdgeInsets.all(3),
-                          decoration: BoxDecoration(
-                            shape: BoxShape.circle,
-                            gradient: LinearGradient(
-                              colors: [
-                                AppColors.primary,
-                                AppColors.primary.withValues(alpha: 0.5),
-                              ],
-                            ),
-                          ),
-                          child: CircleAvatar(
-                            radius: 55,
-                            backgroundColor: const Color(0xFF2A2A32),
-                            backgroundImage: avatarImage,
-                            child: avatarImage == null
-                                ? Text(
-                                    widget.profile.name.isNotEmpty
-                                        ? widget.profile.name[0].toUpperCase()
-                                        : '?',
-                                    style: const TextStyle(
-                                      fontSize: 40,
-                                      color: Colors.white,
-                                      fontWeight: FontWeight.bold,
-                                    ),
-                                  )
-                                : null,
-                          ),
+                        _buildPhotoPicker(avatarImage, isUpdating),
+                        const SizedBox(height: 24),
+                        _buildField(
+                          controller: _nameController,
+                          label: 'Full name',
+                          icon: Icons.person_outline,
+                          enabled: !isUpdating,
+                          textInputAction: TextInputAction.next,
+                          validator: (v) => v == null || v.trim().isEmpty
+                              ? 'Name is required'
+                              : null,
                         ),
-                        Positioned(
-                          bottom: 0,
-                          right: 0,
-                          child: GestureDetector(
-                            onTap: isUpdating ? null : _pickImage,
-                            child: Container(
-                              padding: const EdgeInsets.all(10),
-                              decoration: BoxDecoration(
-                                color: AppColors.primary,
-                                shape: BoxShape.circle,
-                                border: Border.all(
-                                  color: const Color(0xFF1E1E24),
-                                  width: 3,
-                                ),
-                                boxShadow: [
-                                  BoxShadow(
-                                    color: AppColors.primary
-                                        .withValues(alpha: 0.4),
-                                    blurRadius: 8,
-                                  ),
-                                ],
-                              ),
-                              child: const Icon(
-                                Icons.camera_alt_outlined,
-                                color: Colors.white,
-                                size: 18,
-                              ),
-                            ),
-                          ),
+                        const SizedBox(height: 16),
+                        _buildField(
+                          controller: _emailController,
+                          label: 'Email',
+                          icon: Icons.email_outlined,
+                          enabled: !isUpdating,
+                          keyboardType: TextInputType.emailAddress,
+                          textInputAction: TextInputAction.next,
+                          validator: (v) {
+                            if (v == null || v.trim().isEmpty) {
+                              return 'Email is required';
+                            }
+                            if (!RegExp(r'^[^@]+@[^@]+\.[^@]+')
+                                .hasMatch(v.trim())) {
+                              return 'Enter a valid email address';
+                            }
+                            return null;
+                          },
+                        ),
+                        const SizedBox(height: 16),
+                        _buildField(
+                          controller: _phoneController,
+                          label: 'Phone',
+                          hint: 'Optional',
+                          icon: Icons.phone_outlined,
+                          enabled: !isUpdating,
+                          keyboardType: TextInputType.phone,
+                          textInputAction: TextInputAction.done,
                         ),
                       ],
                     ),
                   ),
-                  const SizedBox(height: 8),
-                  Center(
-                    child: TextButton.icon(
-                      onPressed: isUpdating ? null : _pickImage,
-                      icon: const Icon(Icons.upload_outlined, size: 16),
-                      label: Text(
-                        _pickedImage != null
-                            ? 'Change Photo'
-                            : 'Upload Photo',
-                      ),
-                      style: TextButton.styleFrom(
-                        foregroundColor: AppColors.primary,
-                      ),
-                    ),
-                  ),
-                  const SizedBox(height: 20),
-
-                  // ─── Form fields ────────────────────────────────────
-                  _buildField(
-                    controller: _nameController,
-                    label: 'Full Name',
-                    icon: Icons.person_outline,
-                    validator: (v) => v == null || v.trim().isEmpty
-                        ? 'Name is required'
-                        : null,
-                  ),
-                  const SizedBox(height: 14),
-                  _buildField(
-                    controller: _emailController,
-                    label: 'Email',
-                    icon: Icons.email_outlined,
-                    keyboardType: TextInputType.emailAddress,
-                    validator: (v) {
-                      if (v == null || v.trim().isEmpty) {
-                        return 'Email required';
-                      }
-                      if (!RegExp(r'^[^@]+@[^@]+\.[^@]+')
-                          .hasMatch(v.trim())) {
-                        return 'Invalid email';
-                      }
-                      return null;
-                    },
-                  ),
-                  const SizedBox(height: 14),
-                  _buildField(
-                    controller: _phoneController,
-                    label: 'Phone (optional)',
-                    icon: Icons.phone_outlined,
-                    keyboardType: TextInputType.phone,
-                  ),
-                  const SizedBox(height: 28),
-
-                  // ─── Actions ────────────────────────────────────────
-                  Row(
-                    children: [
-                      Expanded(
-                        child: OutlinedButton(
-                          onPressed: isUpdating
-                              ? null
-                              : () => Navigator.of(context).pop(false),
-                          style: OutlinedButton.styleFrom(
-                            foregroundColor: Colors.white,
-                            side: BorderSide(
-                              color: Colors.white.withValues(alpha: 0.2),
-                            ),
-                            padding:
-                                const EdgeInsets.symmetric(vertical: 14),
-                            shape: RoundedRectangleBorder(
-                              borderRadius: BorderRadius.circular(12),
-                            ),
-                          ),
-                          child: const Text('Cancel'),
-                        ),
-                      ),
-                      const SizedBox(width: 12),
-                      Expanded(
-                        child: FilledButton(
-                          onPressed: isUpdating ? null : _save,
-                          style: FilledButton.styleFrom(
-                            backgroundColor: AppColors.primary,
-                            padding:
-                                const EdgeInsets.symmetric(vertical: 14),
-                            shape: RoundedRectangleBorder(
-                              borderRadius: BorderRadius.circular(12),
-                            ),
-                          ),
-                          child: isUpdating
-                              ? const SizedBox(
-                                  width: 20,
-                                  height: 20,
-                                  child: CircularProgressIndicator(
-                                    strokeWidth: 2,
-                                    color: Colors.white,
-                                  ),
-                                )
-                              : const Text(
-                                  'Save Changes',
-                                  style:
-                                      TextStyle(fontWeight: FontWeight.w600),
-                                ),
-                        ),
-                      ),
-                    ],
-                  ),
+                  _buildActions(isUpdating),
                 ],
               ),
             ),
@@ -366,41 +218,242 @@ class _EditProfileDialogState extends ConsumerState<EditProfileDialog> {
     );
   }
 
+  // ─── Header ──────────────────────────────────────────────────────────
+  Widget _buildHeader(bool isUpdating) {
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(24, 20, 16, 18),
+      child: Row(
+        children: [
+          const Expanded(
+            child: Text(
+              'Edit profile',
+              style: TextStyle(
+                color: ProfileTokens.text,
+                fontSize: 17,
+                fontWeight: FontWeight.w600,
+                letterSpacing: -0.2,
+              ),
+            ),
+          ),
+          IconButton(
+            icon: const Icon(Icons.close, size: 20),
+            color: ProfileTokens.textMuted,
+            tooltip: 'Close',
+            onPressed:
+                isUpdating ? null : () => Navigator.of(context).pop(false),
+          ),
+        ],
+      ),
+    );
+  }
+
+  // ─── Photo picker ────────────────────────────────────────────────────
+  Widget _buildPhotoPicker(ImageProvider? avatarImage, bool isUpdating) {
+    final initial = widget.profile.name.isNotEmpty
+        ? widget.profile.name[0].toUpperCase()
+        : '?';
+
+    return Center(
+      child: Column(
+        children: [
+          Stack(
+            children: [
+              Container(
+                decoration: BoxDecoration(
+                  shape: BoxShape.circle,
+                  border: Border.all(color: ProfileTokens.border),
+                ),
+                padding: const EdgeInsets.all(3),
+                child: CircleAvatar(
+                  radius: 42,
+                  backgroundColor: ProfileTokens.brandSubtle,
+                  backgroundImage: avatarImage,
+                  child: avatarImage == null
+                      ? Text(
+                          initial,
+                          style: const TextStyle(
+                            fontSize: 32,
+                            color: ProfileTokens.brandText,
+                            fontWeight: FontWeight.w600,
+                          ),
+                        )
+                      : null,
+                ),
+              ),
+              Positioned(
+                bottom: 0,
+                right: 0,
+                child: Material(
+                  color: ProfileTokens.brand,
+                  shape: const CircleBorder(
+                    side: BorderSide(color: ProfileTokens.card, width: 3),
+                  ),
+                  clipBehavior: Clip.antiAlias,
+                  child: InkWell(
+                    onTap: isUpdating ? null : _pickImage,
+                    child: const Padding(
+                      padding: EdgeInsets.all(8),
+                      child: Icon(
+                        Icons.camera_alt_outlined,
+                        color: Colors.white,
+                        size: 17,
+                      ),
+                    ),
+                  ),
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 10),
+          TextButton(
+            onPressed: isUpdating ? null : _pickImage,
+            style: TextButton.styleFrom(
+              foregroundColor: ProfileTokens.brandText,
+              minimumSize: const Size(0, ProfileTokens.minTouchTarget),
+              padding: const EdgeInsets.symmetric(horizontal: 12),
+              textStyle: const TextStyle(
+                fontSize: 13.5,
+                fontWeight: FontWeight.w600,
+              ),
+            ),
+            child: Text(
+              _pickedImage != null ? 'Change photo' : 'Upload photo',
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  // ─── Actions ─────────────────────────────────────────────────────────
+  Widget _buildActions(bool isUpdating) {
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(24, 12, 24, 20),
+      child: Row(
+        mainAxisAlignment: MainAxisAlignment.end,
+        children: [
+          TextButton(
+            onPressed:
+                isUpdating ? null : () => Navigator.of(context).pop(false),
+            style: TextButton.styleFrom(
+              foregroundColor: ProfileTokens.textMuted,
+              minimumSize: const Size(0, ProfileTokens.minTouchTarget),
+              padding: const EdgeInsets.symmetric(horizontal: 20),
+              textStyle: const TextStyle(
+                fontSize: 14,
+                fontWeight: FontWeight.w600,
+              ),
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(ProfileTokens.radiusSm),
+              ),
+            ),
+            child: const Text('Cancel'),
+          ),
+          const SizedBox(width: 8),
+          FilledButton(
+            onPressed: isUpdating ? null : _save,
+            style: FilledButton.styleFrom(
+              backgroundColor: ProfileTokens.brand,
+              foregroundColor: Colors.white,
+              disabledBackgroundColor: ProfileTokens.brand,
+              disabledForegroundColor: Colors.white,
+              minimumSize: const Size(0, ProfileTokens.minTouchTarget),
+              padding: const EdgeInsets.symmetric(horizontal: 22),
+              textStyle: const TextStyle(
+                fontSize: 14,
+                fontWeight: FontWeight.w600,
+              ),
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(ProfileTokens.radiusSm),
+              ),
+            ),
+            // Keeps the button's width stable while saving so the row
+            // doesn't jump when the spinner swaps in.
+            child: isUpdating
+                ? const SizedBox(
+                    width: 18,
+                    height: 18,
+                    child: CircularProgressIndicator(
+                      strokeWidth: 2,
+                      color: Colors.white,
+                    ),
+                  )
+                : const Text('Save changes'),
+          ),
+        ],
+      ),
+    );
+  }
+
+  // ─── Field ───────────────────────────────────────────────────────────
   Widget _buildField({
     required TextEditingController controller,
     required String label,
     required IconData icon,
+    String? hint,
+    bool enabled = true,
     TextInputType? keyboardType,
+    TextInputAction? textInputAction,
     String? Function(String?)? validator,
   }) {
-    return TextFormField(
-      controller: controller,
-      keyboardType: keyboardType,
-      validator: validator,
-      style: const TextStyle(color: Colors.white),
-      decoration: InputDecoration(
-        labelText: label,
-        labelStyle: TextStyle(color: Colors.white.withValues(alpha: 0.6)),
-        prefixIcon: Icon(icon, color: Colors.white.withValues(alpha: 0.5)),
-        filled: true,
-        fillColor: Colors.white.withValues(alpha: 0.05),
-        border: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(12),
-          borderSide: BorderSide(color: Colors.white.withValues(alpha: 0.1)),
+    OutlineInputBorder border(Color color, [double width = 1]) {
+      return OutlineInputBorder(
+        borderRadius: BorderRadius.circular(ProfileTokens.radiusSm),
+        borderSide: BorderSide(color: color, width: width),
+      );
+    }
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(
+          label,
+          style: const TextStyle(
+            color: ProfileTokens.text,
+            fontSize: 13,
+            fontWeight: FontWeight.w600,
+          ),
         ),
-        enabledBorder: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(12),
-          borderSide: BorderSide(color: Colors.white.withValues(alpha: 0.1)),
+        const SizedBox(height: 7),
+        TextFormField(
+          controller: controller,
+          keyboardType: keyboardType,
+          textInputAction: textInputAction,
+          validator: validator,
+          enabled: enabled,
+          cursorColor: ProfileTokens.brand,
+          style: const TextStyle(
+            color: ProfileTokens.text,
+            fontSize: 14.5,
+          ),
+          decoration: InputDecoration(
+            hintText: hint,
+            hintStyle: const TextStyle(
+              color: ProfileTokens.textMuted,
+              fontSize: 14,
+              fontWeight: FontWeight.w400,
+            ),
+            prefixIcon: Icon(icon, color: ProfileTokens.textMuted, size: 19),
+            filled: true,
+            fillColor: enabled ? ProfileTokens.card : ProfileTokens.subtle,
+            isDense: true,
+            contentPadding: const EdgeInsets.symmetric(
+              horizontal: 14,
+              vertical: 14,
+            ),
+            border: border(ProfileTokens.border),
+            enabledBorder: border(ProfileTokens.border),
+            disabledBorder: border(ProfileTokens.border),
+            focusedBorder: border(ProfileTokens.brand, 1.6),
+            errorBorder: border(ProfileTokens.danger),
+            focusedErrorBorder: border(ProfileTokens.danger, 1.6),
+            errorStyle: const TextStyle(
+              color: ProfileTokens.danger,
+              fontSize: 12,
+            ),
+          ),
         ),
-        focusedBorder: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(12),
-          borderSide: BorderSide(color: AppColors.primary, width: 2),
-        ),
-        errorBorder: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(12),
-          borderSide: const BorderSide(color: Colors.red),
-        ),
-      ),
+      ],
     );
   }
 }
