@@ -86,6 +86,7 @@ class ItemNotifier extends StateNotifier<ItemState> {
 
   ItemNotifier(this._repository) : super(const ItemState());
 
+  // ── Load list ──────────────────────────────────────────────
   Future<void> loadItems({
     String? search,
     bool forceRefresh = false,
@@ -117,6 +118,7 @@ class ItemNotifier extends StateNotifier<ItemState> {
     }
   }
 
+  // ── Load more ──────────────────────────────────────────────
   Future<void> loadMore() async {
     if (state.isLoadingMore || !state.hasMore) return;
     state = state.copyWith(isLoadingMore: true);
@@ -139,6 +141,7 @@ class ItemNotifier extends StateNotifier<ItemState> {
     }
   }
 
+  // ── Create ─────────────────────────────────────────────────
   Future<void> createItem({
     required String name,
     required String sku,
@@ -170,6 +173,41 @@ class ItemNotifier extends StateNotifier<ItemState> {
     }
   }
 
+  // ── Update ─────────────────────────────────────────────────  ← ADDED
+  Future<void> updateItem({
+    required int id,
+    String? name,
+    String? sku,
+    String? category,
+    String? unitOfMeasure,
+    int? minimumThreshold,
+  }) async {
+    state = state.copyWith(
+      isSubmitting: true,
+      clearSubmitError: true,
+    );
+
+    try {
+      await _repository.updateItem(
+        id: id,
+        name: name,
+        sku: sku,
+        category: category,
+        unitOfMeasure: unitOfMeasure,
+        minimumThreshold: minimumThreshold,
+      );
+      state = state.copyWith(isSubmitting: false);
+      await loadItems(forceRefresh: true);
+    } catch (e) {
+      state = state.copyWith(
+        isSubmitting: false,
+        submitError: e.toString().replaceAll('Exception: ', ''),
+      );
+      rethrow;
+    }
+  }
+
+  // ── Delete ─────────────────────────────────────────────────
   Future<bool> deleteItem(int id) async {
     try {
       await _repository.deleteItem(id);
@@ -185,6 +223,7 @@ class ItemNotifier extends StateNotifier<ItemState> {
     }
   }
 
+  // ── Refresh ────────────────────────────────────────────────
   Future<void> refresh() => loadItems(forceRefresh: true);
 }
 

@@ -4,7 +4,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
-import '/presentation/constant/permission_constants.dart';
+import '/../core/permissions/app_permissions.dart';
 import '../../providers/auth/auth_provider.dart';
 import '../../providers/inventory/inventory_provider.dart';
 import '../../route/route_names.dart';
@@ -224,12 +224,12 @@ class _InventoryPageState extends ConsumerState<InventoryPage> {
     return Container(
       decoration: BoxDecoration(
         color: state.lowStockOnly
-            ? AppColors.warning.withOpacity(0.12)
+            ? AppColors.warning.withValues(alpha:0.12)
             : AppColors.surface,
         borderRadius: BorderRadius.circular(AppDimensions.borderRadius),
         border: Border.all(
           color: state.lowStockOnly
-              ? AppColors.warning.withOpacity(0.4)
+              ? AppColors.warning.withValues(alpha:0.4)
               : AppColors.border,
         ),
       ),

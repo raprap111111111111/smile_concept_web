@@ -167,7 +167,7 @@ class InventoryCard extends StatelessWidget {
                   IconButton(
                     onPressed: onDelete,
                     icon: const Icon(Icons.delete_outline),
-                    color: AppColors.error.withOpacity(0.7),
+                    color: AppColors.error.withValues(alpha:0.7),
                     iconSize: AppDimensions.iconSizeMedium,
                     tooltip: 'Delete',
                   ),
@@ -180,14 +180,14 @@ class InventoryCard extends StatelessWidget {
   }
 
   Color get _borderColor {
-    if (inventory.isExpired) return AppColors.error.withOpacity(0.4);
-    if (inventory.isLowStock) return AppColors.warning.withOpacity(0.4);
+    if (inventory.isExpired) return AppColors.error.withValues(alpha:0.4);
+    if (inventory.isLowStock) return AppColors.warning.withValues(alpha:0.4);
     return AppColors.border;
   }
 
   Color get _iconBgColor {
-    if (inventory.isExpired) return AppColors.error.withOpacity(0.08);
-    if (inventory.isLowStock) return AppColors.warning.withOpacity(0.08);
+    if (inventory.isExpired) return AppColors.error.withValues(alpha:0.08);
+    if (inventory.isLowStock) return AppColors.warning.withValues(alpha:0.08);
     return AppColors.accentWithOpacity(0.12);
   }
 
@@ -228,10 +228,10 @@ class _StatusBadge extends StatelessWidget {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
       decoration: BoxDecoration(
-        color: color.withOpacity(0.1),
+        color: color.withValues(alpha:0.1),
         borderRadius:
             BorderRadius.circular(AppDimensions.borderRadiusSmall),
-        border: Border.all(color: color.withOpacity(0.3)),
+        border: Border.all(color: color.withValues(alpha:0.3)),
       ),
       child: Row(
         mainAxisSize: MainAxisSize.min,
@@ -268,7 +268,7 @@ class _InfoChip extends StatelessWidget {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
       decoration: BoxDecoration(
-        color: color.withOpacity(0.08),
+        color: color.withValues(alpha:0.08),
         borderRadius:
             BorderRadius.circular(AppDimensions.borderRadiusSmall),
       ),

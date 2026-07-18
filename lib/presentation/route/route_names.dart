@@ -89,6 +89,7 @@ class RouteNames {
   static const String items = 'items'; 
   static const String itemCreate = 'item-create';
   static const String branches = 'branches';
+  static const String itemEdit   = 'item-edit';
 
   // ── System ────────────────────────────────────────────────
   static const String settings = 'settings';

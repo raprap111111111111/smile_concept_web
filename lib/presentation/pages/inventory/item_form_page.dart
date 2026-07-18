@@ -9,7 +9,12 @@ import '../../theme/app_dimensions.dart';
 import '../../theme/app_text_styles.dart';
 
 class ItemFormPage extends ConsumerStatefulWidget {
-  const ItemFormPage({super.key});
+  final int? itemId; // ← ADDED
+
+  const ItemFormPage({
+    super.key,
+    this.itemId, // ← ADDED
+  });
 
   @override
   ConsumerState<ItemFormPage> createState() => _ItemFormPageState();
@@ -24,6 +29,9 @@ class _ItemFormPageState extends ConsumerState<ItemFormPage> {
   String? _selectedCategory;
   String? _selectedUnit;
   bool _isSubmitting = false;
+
+  // ── Edit mode helper ───────────────────────────────────────
+  bool get _isEditMode => widget.itemId != null;
 
   static const _categories = [
     'PPE',
@@ -65,20 +73,38 @@ class _ItemFormPageState extends ConsumerState<ItemFormPage> {
     setState(() => _isSubmitting = true);
 
     try {
-      await ref.read(itemProvider.notifier).createItem(
-            name: _nameController.text.trim(),
-            sku: _skuController.text.trim(),
-            category: _selectedCategory!,
-            unitOfMeasure: _selectedUnit!,
-            minimumThreshold:
-                int.tryParse(_thresholdController.text.trim()) ?? 10,
-          );
+      if (_isEditMode) {
+        // ── Update existing item ─────────────────────────────
+        await ref.read(itemProvider.notifier).updateItem(
+              id: widget.itemId!,
+              name: _nameController.text.trim(),
+              sku: _skuController.text.trim(),
+              category: _selectedCategory!,
+              unitOfMeasure: _selectedUnit!,
+              minimumThreshold:
+                  int.tryParse(_thresholdController.text.trim()) ?? 10,
+            );
+      } else {
+        // ── Create new item ──────────────────────────────────
+        await ref.read(itemProvider.notifier).createItem(
+              name: _nameController.text.trim(),
+              sku: _skuController.text.trim(),
+              category: _selectedCategory!,
+              unitOfMeasure: _selectedUnit!,
+              minimumThreshold:
+                  int.tryParse(_thresholdController.text.trim()) ?? 10,
+            );
+      }
 
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: const Text('Item created successfully',
-                style: TextStyle(color: Colors.white)),
+            content: Text(
+              _isEditMode
+                  ? 'Item updated successfully'
+                  : 'Item created successfully',
+              style: const TextStyle(color: Colors.white),
+            ),
             backgroundColor: AppColors.success,
             behavior: SnackBarBehavior.floating,
             shape: RoundedRectangleBorder(
@@ -93,8 +119,10 @@ class _ItemFormPageState extends ConsumerState<ItemFormPage> {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: Text('Error: $e',
-                style: const TextStyle(color: Colors.white)),
+            content: Text(
+              'Error: $e',
+              style: const TextStyle(color: Colors.white),
+            ),
             backgroundColor: AppColors.error,
             behavior: SnackBarBehavior.floating,
           ),
@@ -111,7 +139,10 @@ class _ItemFormPageState extends ConsumerState<ItemFormPage> {
       backgroundColor: AppColors.surface,
       appBar: AppBar(
         backgroundColor: AppColors.background,
-        title: const Text('New Item', style: AppTextStyles.titleLarge),
+        title: Text(
+          _isEditMode ? 'Edit Item' : 'New Item',
+          style: AppTextStyles.titleLarge,
+        ),
         actions: [
           if (_isSubmitting)
             const Padding(
@@ -128,8 +159,10 @@ class _ItemFormPageState extends ConsumerState<ItemFormPage> {
           else
             TextButton.icon(
               onPressed: _submit,
-              icon: const Icon(Icons.save,
-                  size: AppDimensions.iconSizeSmall),
+              icon: const Icon(
+                Icons.save,
+                size: AppDimensions.iconSizeSmall,
+              ),
               label: const Text('Save'),
             ),
         ],
@@ -142,7 +175,7 @@ class _ItemFormPageState extends ConsumerState<ItemFormPage> {
             _sectionTitle('Item Details'),
             const SizedBox(height: AppDimensions.paddingMedium),
 
-            // ── Name ────────────────────────────────
+            // ── Name ────────────────────────────────────────
             TextFormField(
               controller: _nameController,
               style: AppTextStyles.bodyMedium,
@@ -158,7 +191,7 @@ class _ItemFormPageState extends ConsumerState<ItemFormPage> {
             ),
             const SizedBox(height: AppDimensions.paddingMedium),
 
-            // ── SKU ─────────────────────────────────
+            // ── SKU ─────────────────────────────────────────
             TextFormField(
               controller: _skuController,
               style: AppTextStyles.bodyMedium,
@@ -175,56 +208,62 @@ class _ItemFormPageState extends ConsumerState<ItemFormPage> {
             ),
             const SizedBox(height: AppDimensions.paddingMedium),
 
-            // ── Category ────────────────────────────
+            // ── Category ─────────────────────────────────────
             DropdownButtonFormField<String>(
-              value: _selectedCategory,
+              initialValue: _selectedCategory,
               isExpanded: true,
               style: AppTextStyles.bodyMedium,
               decoration: const InputDecoration(
                 labelText: 'Category *',
                 prefixIcon: Icon(Icons.category_outlined),
               ),
-              hint: Text('Select category',
-                  style: AppTextStyles.bodyMedium
-                      .copyWith(color: AppColors.textMuted)),
+              hint: Text(
+                'Select category',
+                style: AppTextStyles.bodyMedium
+                    .copyWith(color: AppColors.textMuted),
+              ),
               items: _categories
-                  .map((c) => DropdownMenuItem(
+                  .map(
+                    (c) => DropdownMenuItem(
                       value: c,
-                      child:
-                          Text(c, style: AppTextStyles.bodyMedium)))
+                      child: Text(c, style: AppTextStyles.bodyMedium),
+                    ),
+                  )
                   .toList(),
-              onChanged: (v) =>
-                  setState(() => _selectedCategory = v),
+              onChanged: (v) => setState(() => _selectedCategory = v),
               validator: (v) =>
                   v == null ? 'Category is required' : null,
             ),
             const SizedBox(height: AppDimensions.paddingMedium),
 
-            // ── Unit of Measure ─────────────────────
+            // ── Unit of Measure ──────────────────────────────
             DropdownButtonFormField<String>(
-              value: _selectedUnit,
+              initialValue: _selectedUnit,
               isExpanded: true,
               style: AppTextStyles.bodyMedium,
               decoration: const InputDecoration(
                 labelText: 'Unit of Measure *',
                 prefixIcon: Icon(Icons.straighten_outlined),
               ),
-              hint: Text('Select unit',
-                  style: AppTextStyles.bodyMedium
-                      .copyWith(color: AppColors.textMuted)),
+              hint: Text(
+                'Select unit',
+                style: AppTextStyles.bodyMedium
+                    .copyWith(color: AppColors.textMuted),
+              ),
               items: _units
-                  .map((u) => DropdownMenuItem(
+                  .map(
+                    (u) => DropdownMenuItem(
                       value: u,
-                      child:
-                          Text(u, style: AppTextStyles.bodyMedium)))
+                      child: Text(u, style: AppTextStyles.bodyMedium),
+                    ),
+                  )
                   .toList(),
               onChanged: (v) => setState(() => _selectedUnit = v),
-              validator: (v) =>
-                  v == null ? 'Unit is required' : null,
+              validator: (v) => v == null ? 'Unit is required' : null,
             ),
             const SizedBox(height: AppDimensions.paddingMedium),
 
-            // ── Min Threshold ───────────────────────
+            // ── Min Threshold ────────────────────────────────
             TextFormField(
               controller: _thresholdController,
               style: AppTextStyles.bodyMedium,
@@ -247,7 +286,7 @@ class _ItemFormPageState extends ConsumerState<ItemFormPage> {
 
             const SizedBox(height: AppDimensions.paddingXL),
 
-            // ── Submit ──────────────────────────────
+            // ── Submit Button ────────────────────────────────
             SizedBox(
               height: 48,
               child: ElevatedButton.icon(
@@ -261,13 +300,18 @@ class _ItemFormPageState extends ConsumerState<ItemFormPage> {
                           color: AppColors.textOnPrimary,
                         ),
                       )
-                    : const Icon(Icons.save,
-                        size: AppDimensions.iconSizeSmall),
-                label: const Text('Create Item'),
+                    : const Icon(
+                        Icons.save,
+                        size: AppDimensions.iconSizeSmall,
+                      ),
+                label: Text(
+                  _isEditMode ? 'Update Item' : 'Create Item',
+                ),
                 style: ElevatedButton.styleFrom(
                   shape: RoundedRectangleBorder(
                     borderRadius: BorderRadius.circular(
-                        AppDimensions.borderRadius),
+                      AppDimensions.borderRadius,
+                    ),
                   ),
                 ),
               ),
@@ -290,9 +334,11 @@ class _ItemFormPageState extends ConsumerState<ItemFormPage> {
           ),
         ),
         const SizedBox(width: AppDimensions.paddingXS),
-        Text(title,
-            style: AppTextStyles.labelLarge
-                .copyWith(color: AppColors.primaryDark)),
+        Text(
+          title,
+          style: AppTextStyles.labelLarge
+              .copyWith(color: AppColors.primaryDark),
+        ),
       ],
     );
   }

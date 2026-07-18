@@ -181,7 +181,6 @@ class _PrescriptionFormPageState
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               // ── Role badge (for context) ─────────────────
-              if (authState.role != null)
                 _RoleBadge(role: authState.role),
 
               const SizedBox(height: 16),

@@ -4,7 +4,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
-import '/presentation/constant/permission_constants.dart';
+import '/../core/permissions/app_permissions.dart';
 import '/presentation/providers/treatment/treatment_plan_provider.dart';
 import '../../../data/models/treatment/treatment_plan_model.dart';
 import '../../providers/auth/auth_provider.dart';
