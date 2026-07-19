@@ -5,6 +5,8 @@ import '../../../data/models/branch/branch_model.dart';
 import '../../../data/repositories/branch_repository.dart';
 import '../../providers/branch/branch_provider.dart';
 import '../../theme/app_colors.dart';
+import '../../theme/app_dimensions.dart';
+import '../../theme/app_text_styles.dart';
 import 'widgets/branch_card.dart';
 import 'widgets/branch_filters.dart';
 import 'widgets/branch_form_dialog.dart';
@@ -18,16 +20,16 @@ class BranchesPage extends ConsumerWidget {
     final filter = ref.watch(branchFilterProvider);
 
     return Scaffold(
-      backgroundColor: AppColors.backgroundDark,
+      backgroundColor: AppColors.background,
       body: Padding(
-        padding: const EdgeInsets.all(32),
+        padding: const EdgeInsets.all(AppDimensions.paddingXL),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             BranchesHeader(
               onAdd: () => _openBranchDialog(context, ref),
             ),
-            const SizedBox(height: 24),
+            const SizedBox(height: AppDimensions.paddingLarge),
             BranchFilters(
               search: filter.search,
               activeFilter: filter.isActive,
@@ -41,7 +43,7 @@ class BranchesPage extends ConsumerWidget {
                     : filter.copyWith(isActive: value);
               },
             ),
-            const SizedBox(height: 24),
+            const SizedBox(height: AppDimensions.paddingLarge),
             Expanded(
               child: branchesAsync.when(
                 data: (branches) {
@@ -53,8 +55,8 @@ class BranchesPage extends ConsumerWidget {
                     gridDelegate:
                         const SliverGridDelegateWithMaxCrossAxisExtent(
                       maxCrossAxisExtent: 420,
-                      mainAxisSpacing: 20,
-                      crossAxisSpacing: 20,
+                      mainAxisSpacing: AppDimensions.paddingMedium,
+                      crossAxisSpacing: AppDimensions.paddingMedium,
                       childAspectRatio: 1.3,
                     ),
                     itemCount: branches.length,
@@ -78,12 +80,16 @@ class BranchesPage extends ConsumerWidget {
                   );
                 },
                 loading: () => const Center(
-                  child: CircularProgressIndicator(),
+                  child: CircularProgressIndicator(
+                    color: AppColors.primary,
+                  ),
                 ),
                 error: (error, _) => Center(
                   child: Text(
                     'Error: $error',
-                    style: const TextStyle(color: Colors.white),
+                    style: AppTextStyles.bodyMedium.copyWith(
+                      color: AppColors.error,
+                    ),
                   ),
                 ),
               ),
@@ -123,8 +129,11 @@ class BranchesPage extends ConsumerWidget {
 
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
-          backgroundColor: const Color(0xFF10B981),
-          content: Text(isEdit ? 'Branch updated' : 'Branch created'),
+          backgroundColor: AppColors.success,
+          content: Text(
+            isEdit ? 'Branch updated' : 'Branch created',
+            style: AppTextStyles.bodySmall.copyWith(color: Colors.white),
+          ),
         ),
       );
     } catch (error) {
@@ -132,8 +141,11 @@ class BranchesPage extends ConsumerWidget {
 
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
-          backgroundColor: Colors.red,
-          content: Text('Error: $error'),
+          backgroundColor: AppColors.error,
+          content: Text(
+            'Error: $error',
+            style: AppTextStyles.bodySmall.copyWith(color: Colors.white),
+          ),
         ),
       );
     }
@@ -147,27 +159,48 @@ class BranchesPage extends ConsumerWidget {
     final confirmed = await showDialog<bool>(
       context: context,
       builder: (dialogContext) => AlertDialog(
-        backgroundColor: AppColors.surfaceDark,
-        title: const Text(
+        backgroundColor: AppColors.background,
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(AppDimensions.borderRadiusLarge),
+          side: const BorderSide(color: AppColors.border),
+        ),
+        title: Text(
           'Delete Branch',
-          style: TextStyle(color: Colors.white),
+          style: AppTextStyles.titleMedium,
         ),
         content: Text(
           "Are you sure you want to delete '${branch.name}'?",
-          style: const TextStyle(color: Colors.white70),
+          style: AppTextStyles.bodyMedium,
         ),
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(dialogContext, false),
-            child: const Text(
+            child: Text(
               'Cancel',
-              style: TextStyle(color: Colors.white70),
+              style: AppTextStyles.labelLarge.copyWith(
+                color: AppColors.textSecondary,
+              ),
             ),
           ),
           ElevatedButton(
-            style: ElevatedButton.styleFrom(backgroundColor: Colors.red),
+            style: ElevatedButton.styleFrom(
+              backgroundColor: AppColors.error,
+              foregroundColor: Colors.white,
+              elevation: 0,
+              padding: const EdgeInsets.symmetric(
+                horizontal: AppDimensions.paddingMedium,
+                vertical: AppDimensions.paddingSmall,
+              ),
+              shape: RoundedRectangleBorder(
+                borderRadius:
+                    BorderRadius.circular(AppDimensions.borderRadius),
+              ),
+            ),
             onPressed: () => Navigator.pop(dialogContext, true),
-            child: const Text('Delete'),
+            child: Text(
+              'Delete',
+              style: AppTextStyles.labelLarge.copyWith(color: Colors.white),
+            ),
           ),
         ],
       ),
@@ -183,9 +216,12 @@ class BranchesPage extends ConsumerWidget {
       if (!context.mounted) return;
 
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          backgroundColor: Color(0xFF10B981),
-          content: Text('Branch deleted'),
+        SnackBar(
+          backgroundColor: AppColors.success,
+          content: Text(
+            'Branch deleted',
+            style: AppTextStyles.bodySmall.copyWith(color: Colors.white),
+          ),
         ),
       );
     } catch (error) {
@@ -193,8 +229,11 @@ class BranchesPage extends ConsumerWidget {
 
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
-          backgroundColor: Colors.red,
-          content: Text('Error: $error'),
+          backgroundColor: AppColors.error,
+          content: Text(
+            'Error: $error',
+            style: AppTextStyles.bodySmall.copyWith(color: Colors.white),
+          ),
         ),
       );
     }
@@ -217,41 +256,30 @@ class BranchesHeader extends StatelessWidget {
         Row(
           children: [
             Container(
-              padding: const EdgeInsets.all(12),
+              padding: const EdgeInsets.all(AppDimensions.paddingSmall),
               decoration: BoxDecoration(
-                gradient: const LinearGradient(
-                  colors: [
-                    Color(0xFF10B981),
-                    Color(0xFF059669),
-                  ],
-                ),
-                borderRadius: BorderRadius.circular(12),
+                gradient: AppColors.primaryGradient,
+                borderRadius:
+                    BorderRadius.circular(AppDimensions.borderRadiusLarge),
               ),
               child: const Icon(
                 Icons.business_outlined,
                 color: Colors.white,
-                size: 28,
+                size: AppDimensions.iconBadgeSize * 0.6,
               ),
             ),
-            const SizedBox(width: 16),
-            const Column(
+            const SizedBox(width: AppDimensions.paddingMedium),
+            Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Text(
                   'Branches',
-                  style: TextStyle(
-                    color: Colors.white,
-                    fontSize: 26,
-                    fontWeight: FontWeight.bold,
-                  ),
+                  style: AppTextStyles.headlineSmall,
                 ),
-                SizedBox(height: 4),
+                const SizedBox(height: 4),
                 Text(
                   'Manage your clinic locations',
-                  style: TextStyle(
-                    color: Colors.white54,
-                    fontSize: 14,
-                  ),
+                  style: AppTextStyles.bodySmall,
                 ),
               ],
             ),
@@ -259,16 +287,12 @@ class BranchesHeader extends StatelessWidget {
         ),
         Container(
           decoration: BoxDecoration(
-            gradient: const LinearGradient(
-              colors: [
-                Color(0xFF10B981),
-                Color(0xFF059669),
-              ],
-            ),
-            borderRadius: BorderRadius.circular(12),
+            gradient: AppColors.primaryGradient,
+            borderRadius:
+                BorderRadius.circular(AppDimensions.borderRadiusLarge),
             boxShadow: [
               BoxShadow(
-                color: const Color(0xFF10B981).withValues(alpha: 0.4),
+                color: AppColors.primaryWithOpacity(0.25),
                 blurRadius: 12,
                 offset: const Offset(0, 4),
               ),
@@ -277,22 +301,26 @@ class BranchesHeader extends StatelessWidget {
           child: Material(
             color: Colors.transparent,
             child: InkWell(
-              borderRadius: BorderRadius.circular(12),
+              borderRadius:
+                  BorderRadius.circular(AppDimensions.borderRadiusLarge),
               onTap: onAdd,
-              child: const Padding(
-                padding: EdgeInsets.symmetric(
-                  horizontal: 20,
-                  vertical: 14,
+              child: Padding(
+                padding: const EdgeInsets.symmetric(
+                  horizontal: AppDimensions.paddingLarge,
+                  vertical: AppDimensions.paddingMedium,
                 ),
                 child: Row(
                   children: [
-                    Icon(Icons.add, color: Colors.white),
-                    SizedBox(width: 8),
+                    const Icon(
+                      Icons.add,
+                      color: Colors.white,
+                      size: AppDimensions.iconSize,
+                    ),
+                    const SizedBox(width: AppDimensions.paddingXS),
                     Text(
                       'Add Branch',
-                      style: TextStyle(
+                      style: AppTextStyles.labelLarge.copyWith(
                         color: Colors.white,
-                        fontWeight: FontWeight.w600,
                       ),
                     ),
                   ],
@@ -315,18 +343,30 @@ class BranchesEmptyState extends StatelessWidget {
       child: Column(
         mainAxisAlignment: MainAxisAlignment.center,
         children: [
-          Icon(
-            Icons.storefront_outlined,
-            size: 64,
-            color: Colors.white.withValues(alpha: 0.2),
-          ),
-          const SizedBox(height: 16),
-          const Text(
-            'No branches found',
-            style: TextStyle(
-              color: Colors.white54,
-              fontSize: 16,
+          Container(
+            padding: const EdgeInsets.all(AppDimensions.paddingLarge),
+            decoration: BoxDecoration(
+              color: AppColors.surface,
+              shape: BoxShape.circle,
+              border: Border.all(color: AppColors.border),
             ),
+            child: Icon(
+              Icons.storefront_outlined,
+              size: 48,
+              color: AppColors.textTertiary,
+            ),
+          ),
+          const SizedBox(height: AppDimensions.paddingMedium),
+          Text(
+            'No branches found',
+            style: AppTextStyles.titleSmall.copyWith(
+              color: AppColors.textSecondary,
+            ),
+          ),
+          const SizedBox(height: AppDimensions.paddingXS),
+          Text(
+            'Add a branch to get started',
+            style: AppTextStyles.bodySmall,
           ),
         ],
       ),

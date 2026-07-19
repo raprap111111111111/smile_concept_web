@@ -2,6 +2,8 @@ import 'package:flutter/material.dart';
 
 import '../../../../data/models/branch/branch_model.dart';
 import '../../../theme/app_colors.dart';
+import '../../../theme/app_dimensions.dart';
+import '../../../theme/app_text_styles.dart';
 
 class BranchCard extends StatelessWidget {
   final BranchModel branch;
@@ -19,23 +21,25 @@ class BranchCard extends StatelessWidget {
   Widget build(BuildContext context) {
     return Container(
       decoration: BoxDecoration(
-        color: AppColors.surfaceDark,
-        borderRadius: BorderRadius.circular(16),
-        border: Border.all(
-          color: Colors.white.withValues(alpha: 0.05),
-        ),
+        color: AppColors.background,
+        borderRadius: BorderRadius.circular(AppDimensions.borderRadiusLarge),
+        border: Border.all(color: AppColors.border),
+        boxShadow: const [
+          BoxShadow(
+            color: AppColors.cardShadow,
+            blurRadius: 8,
+            offset: Offset(0, 2),
+          ),
+        ],
       ),
-      padding: const EdgeInsets.all(20),
+      padding: const EdgeInsets.all(AppDimensions.cardPaddingMedium),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           _buildHeader(),
-          const SizedBox(height: 16),
+          const SizedBox(height: AppDimensions.paddingMedium),
           if (branch.fullAddress.isNotEmpty)
-            _infoRow(
-              Icons.location_on_outlined,
-              branch.fullAddress,
-            ),
+            _infoRow(Icons.location_on_outlined, branch.fullAddress),
           if (branch.phone != null && branch.phone!.isNotEmpty) ...[
             const SizedBox(height: 6),
             _infoRow(Icons.phone_outlined, branch.phone!),
@@ -44,7 +48,7 @@ class BranchCard extends StatelessWidget {
             const SizedBox(height: 6),
             _infoRow(Icons.email_outlined, branch.email!),
           ],
-          const SizedBox(height: 14),
+          const SizedBox(height: AppDimensions.paddingSmall),
           Row(
             children: [
               Expanded(
@@ -52,16 +56,16 @@ class BranchCard extends StatelessWidget {
                   Icons.people,
                   branch.staffCount.toString(),
                   'Staff',
-                  const Color(0xFF06B6D4),
+                  AppColors.info,
                 ),
               ),
-              const SizedBox(width: 10),
+              const SizedBox(width: AppDimensions.paddingXS),
               Expanded(
                 child: _statChip(
                   Icons.event,
                   branch.appointmentsCount.toString(),
                   'Appointments',
-                  const Color(0xFFF59E0B),
+                  AppColors.warning,
                 ),
               ),
             ],
@@ -72,32 +76,44 @@ class BranchCard extends StatelessWidget {
               Expanded(
                 child: OutlinedButton.icon(
                   onPressed: onEdit,
-                  icon: const Icon(Icons.edit, size: 14),
-                  label: const Text('Edit'),
-                  style: OutlinedButton.styleFrom(
-                    foregroundColor: Colors.white,
-                    side: BorderSide(
-                      color: Colors.white.withValues(alpha: 0.1),
+                  icon: const Icon(
+                    Icons.edit,
+                    size: AppDimensions.iconSizeSmall,
+                  ),
+                  label: Text(
+                    'Edit',
+                    style: AppTextStyles.labelMedium.copyWith(
+                      color: AppColors.primary,
                     ),
+                  ),
+                  style: OutlinedButton.styleFrom(
+                    foregroundColor: AppColors.primary,
+                    side: const BorderSide(color: AppColors.border),
                     shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(10),
+                      borderRadius: BorderRadius.circular(
+                        AppDimensions.borderRadius,
+                      ),
+                    ),
+                    padding: const EdgeInsets.symmetric(
+                      vertical: AppDimensions.paddingSmall,
                     ),
                   ),
                 ),
               ),
-              const SizedBox(width: 8),
+              const SizedBox(width: AppDimensions.paddingXS),
               Material(
-                color: Colors.red.withValues(alpha: 0.15),
-                borderRadius: BorderRadius.circular(10),
+                color: AppColors.error.withValues(alpha: 0.08),
+                borderRadius: BorderRadius.circular(AppDimensions.borderRadius),
                 child: InkWell(
                   onTap: onDelete,
-                  borderRadius: BorderRadius.circular(10),
-                  child: const Padding(
-                    padding: EdgeInsets.all(10),
+                  borderRadius:
+                      BorderRadius.circular(AppDimensions.borderRadius),
+                  child: Padding(
+                    padding: const EdgeInsets.all(AppDimensions.paddingSmall),
                     child: Icon(
                       Icons.delete_outline,
-                      color: Colors.red,
-                      size: 18,
+                      color: AppColors.error,
+                      size: AppDimensions.iconSizeSmall,
                     ),
                   ),
                 ),
@@ -110,50 +126,41 @@ class BranchCard extends StatelessWidget {
   }
 
   Widget _buildHeader() {
+    final isActive = branch.isActive;
+
     return Row(
       children: [
         Container(
-          padding: const EdgeInsets.all(12),
+          padding: const EdgeInsets.all(AppDimensions.paddingSmall),
           decoration: BoxDecoration(
-            gradient: LinearGradient(
-              colors: branch.isActive
-                  ? const [
-                      Color(0xFF10B981),
-                      Color(0xFF059669),
-                    ]
-                  : const [
-                      Color(0xFF64748B),
-                      Color(0xFF475569),
-                    ],
-            ),
-            borderRadius: BorderRadius.circular(10),
+            gradient: isActive
+                ? AppColors.primaryGradient
+                : const LinearGradient(
+                    colors: [Color(0xFF94A3B8), Color(0xFF64748B)],
+                  ),
+            borderRadius: BorderRadius.circular(AppDimensions.borderRadius),
           ),
           child: const Icon(
             Icons.storefront_outlined,
             color: Colors.white,
-            size: 22,
+            size: AppDimensions.iconSizeMedium,
           ),
         ),
-        const SizedBox(width: 12),
+        const SizedBox(width: AppDimensions.paddingSmall),
         Expanded(
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               Text(
                 branch.name,
-                style: const TextStyle(
-                  color: Colors.white,
-                  fontSize: 16,
-                  fontWeight: FontWeight.w700,
-                ),
+                style: AppTextStyles.titleSmall,
                 overflow: TextOverflow.ellipsis,
               ),
               if (branch.branchCode != null && branch.branchCode!.isNotEmpty)
                 Text(
                   '#${branch.branchCode}',
-                  style: const TextStyle(
-                    color: Colors.white54,
-                    fontSize: 12,
+                  style: AppTextStyles.labelSmall.copyWith(
+                    color: AppColors.textTertiary,
                   ),
                 ),
             ],
@@ -161,21 +168,24 @@ class BranchCard extends StatelessWidget {
         ),
         Container(
           padding: const EdgeInsets.symmetric(
-            horizontal: 8,
+            horizontal: AppDimensions.paddingXS,
             vertical: 4,
           ),
           decoration: BoxDecoration(
-            color: branch.isActive
-                ? Colors.green.withValues(alpha: 0.15)
-                : Colors.red.withValues(alpha: 0.15),
+            color: isActive
+                ? AppColors.success.withValues(alpha: 0.1)
+                : AppColors.error.withValues(alpha: 0.1),
             borderRadius: BorderRadius.circular(20),
+            border: Border.all(
+              color: isActive
+                  ? AppColors.success.withValues(alpha: 0.3)
+                  : AppColors.error.withValues(alpha: 0.3),
+            ),
           ),
           child: Text(
-            branch.isActive ? 'Active' : 'Inactive',
-            style: TextStyle(
-              color: branch.isActive ? Colors.green : Colors.red,
-              fontSize: 10,
-              fontWeight: FontWeight.w700,
+            isActive ? 'Active' : 'Inactive',
+            style: AppTextStyles.labelSmall.copyWith(
+              color: isActive ? AppColors.success : AppColors.error,
             ),
           ),
         ),
@@ -188,16 +198,16 @@ class BranchCard extends StatelessWidget {
       children: [
         Icon(
           icon,
-          size: 14,
-          color: Colors.white38,
+          size: AppDimensions.iconSizeSmall,
+          color: AppColors.textTertiary,
         ),
         const SizedBox(width: 6),
         Expanded(
           child: Text(
             text,
-            style: const TextStyle(
-              color: Colors.white70,
-              fontSize: 12,
+            style: AppTextStyles.labelSmall.copyWith(
+              color: AppColors.textSecondary,
+              fontWeight: FontWeight.w400,
             ),
             overflow: TextOverflow.ellipsis,
           ),
@@ -214,35 +224,32 @@ class BranchCard extends StatelessWidget {
   ) {
     return Container(
       padding: const EdgeInsets.symmetric(
-        horizontal: 12,
-        vertical: 8,
+        horizontal: AppDimensions.paddingSmall,
+        vertical: AppDimensions.paddingXS,
       ),
       decoration: BoxDecoration(
-        color: color.withValues(alpha: 0.1),
-        borderRadius: BorderRadius.circular(10),
-        border: Border.all(
-          color: color.withValues(alpha: 0.3),
-        ),
+        color: color.withValues(alpha: 0.08),
+        borderRadius: BorderRadius.circular(AppDimensions.borderRadius),
+        border: Border.all(color: color.withValues(alpha: 0.2)),
       ),
       child: Row(
         children: [
-          Icon(icon, size: 14, color: color),
+          Icon(icon, size: AppDimensions.iconSizeSmall, color: color),
           const SizedBox(width: 6),
           Text(
             value,
-            style: TextStyle(
+            style: AppTextStyles.labelMedium.copyWith(
               color: color,
               fontWeight: FontWeight.w700,
-              fontSize: 13,
             ),
           ),
           const SizedBox(width: 4),
           Expanded(
             child: Text(
               label,
-              style: const TextStyle(
-                color: Colors.white54,
-                fontSize: 11,
+              style: AppTextStyles.labelSmall.copyWith(
+                color: AppColors.textSecondary,
+                fontWeight: FontWeight.w400,
               ),
               overflow: TextOverflow.ellipsis,
             ),
