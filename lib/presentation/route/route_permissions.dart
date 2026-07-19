@@ -57,6 +57,7 @@ class RoutePermissions {
       Perm.dentalChartView,
     ],
     '/patients/new': [Perm.patientCreate],
+    '/patients/:id/edit': [Perm.patientUpdate],
     '/patients': [Perm.patientViewAny, Perm.patientView],
     '/doctors': [Perm.doctorViewAny],
     '/doctor-schedules': [Perm.doctorScheduleViewAny],
@@ -87,9 +88,16 @@ class RoutePermissions {
     '/notifications': [Perm.notificationViewAny, Perm.notificationView],
   };
 
-  /// Prefixes sorted longest-first, so the most specific rule matches.
+  /// Prefixes sorted most-specific-first. Segment count leads, since a
+  /// wildcard rule such as `/patients/:id/edit` is more specific than
+  /// `/patients` while being no longer as a string in every case.
   static final List<String> _orderedPaths = _requirements.keys.toList()
-    ..sort((a, b) => b.length.compareTo(a.length));
+    ..sort((a, b) {
+      final bySegments =
+          _segments(b).length.compareTo(_segments(a).length);
+      if (bySegments != 0) return bySegments;
+      return b.length.compareTo(a.length);
+    });
 
   /// Permissions required for [location], or null when nothing is registered.
   ///
@@ -134,10 +142,27 @@ class RoutePermissions {
     return path;
   }
 
-  /// True when [path] is [prefix] or a child of it. The segment-boundary check
-  /// keeps `/items` from matching a future `/items-archive`.
+  /// True when [path] is [prefix] or a child of it.
+  ///
+  /// Compared segment by segment, so `/items` never matches a future
+  /// `/items-archive`. A `:name` segment in [prefix] stands for exactly one
+  /// segment of [path], which is what lets `/patients/:id/edit` cover the
+  /// concrete `/patients/42/edit`.
   static bool _matches(String path, String prefix) {
-    if (path == prefix) return true;
-    return path.startsWith('$prefix/');
+    final pathSegments = _segments(path);
+    final prefixSegments = _segments(prefix);
+
+    // A longer prefix cannot be a parent of a shorter path.
+    if (prefixSegments.length > pathSegments.length) return false;
+
+    for (var i = 0; i < prefixSegments.length; i++) {
+      final expected = prefixSegments[i];
+      if (expected.startsWith(':')) continue; // any single segment
+      if (expected != pathSegments[i]) return false;
+    }
+    return true;
   }
+
+  static List<String> _segments(String path) =>
+      path.split('/').where((segment) => segment.isNotEmpty).toList();
 }

@@ -3,6 +3,8 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
+import '../../../core/permissions/app_permissions.dart';
+import '../../providers/auth/permission_provider.dart';
 import '../../providers/patient/patient_list_provider.dart';
 import '../../route/route_names.dart';
 import '../../theme/app_colors.dart';
@@ -15,6 +17,11 @@ class PatientDetailPage extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final patientAsync = ref.watch(patientDetailProvider(patientId));
+
+    // Read-only roles reach this page; the edit form is guarded by
+    // patient.update, so offering it to them only leads to /unauthorized.
+    final canUpdate =
+        ref.watch(permissionServiceProvider).can(Perm.patientUpdate);
 
     return Padding(
       padding: const EdgeInsets.all(24),
@@ -65,21 +72,23 @@ class PatientDetailPage extends ConsumerWidget {
                         overflow: TextOverflow.ellipsis,
                       ),
                     ),
-                    const SizedBox(width: 12),
-                    ElevatedButton.icon(
-                      onPressed: () => context.goNamed(
-                        RouteNames.patientEdit,
-                        pathParameters: {'id': '$patientId'},
+                    if (canUpdate) ...[
+                      const SizedBox(width: 12),
+                      ElevatedButton.icon(
+                        onPressed: () => context.goNamed(
+                          RouteNames.patientEdit,
+                          pathParameters: {'id': '$patientId'},
+                        ),
+                        icon: const Icon(Icons.edit, size: 18),
+                        label: const Text('Edit'),
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: AppColors.primary,
+                          foregroundColor: Colors.black,
+                          padding: const EdgeInsets.symmetric(
+                              horizontal: 20, vertical: 12),
+                        ),
                       ),
-                      icon: const Icon(Icons.edit, size: 18),
-                      label: const Text('Edit'),
-                      style: ElevatedButton.styleFrom(
-                        backgroundColor: AppColors.primary,
-                        foregroundColor: Colors.black,
-                        padding: const EdgeInsets.symmetric(
-                            horizontal: 20, vertical: 12),
-                      ),
-                    ),
+                    ],
                   ],
                 ),
 

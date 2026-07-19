@@ -1,7 +1,7 @@
 // lib/data/models/patient/create_patient_payload.dart
 
 /// Payload for creating a new Patient (User + PatientProfile).
-/// Backend endpoint: POST /patient-profiles
+/// Backend endpoint: POST /patients
 class CreatePatientPayload {
   // ─── User account fields ──────────────────────────
   final String name;
