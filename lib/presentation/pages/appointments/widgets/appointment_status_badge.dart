@@ -6,6 +6,10 @@ import '../../../../data/models/appointment/appointment_model.dart';
 class AppointmentStatusBadge extends StatelessWidget {
   final AppointmentStatus status;
   final bool canUpdate;
+
+  /// Cancel-only mode (patients): badge menu offers just
+  /// "Cancel Appointment" — no status transitions.
+  final bool canCancel;
   final ValueChanged<String>? onStatusChanged;
   final VoidCallback? onCancel;
 
@@ -13,6 +17,7 @@ class AppointmentStatusBadge extends StatelessWidget {
     super.key,
     required this.status,
     this.canUpdate = false,
+    this.canCancel = false,
     this.onStatusChanged,
     this.onCancel,
   });
@@ -50,7 +55,8 @@ class AppointmentStatusBadge extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final isClickable = canUpdate && (_nextStatus != null || _canCancel);
+    final isClickable = (canUpdate && (_nextStatus != null || _canCancel)) ||
+        (canCancel && _canCancel);
 
     if (!isClickable) {
       // Just display the badge - no action available
@@ -59,13 +65,13 @@ class AppointmentStatusBadge extends StatelessWidget {
 
     // Clickable badge - shows menu on tap
     return PopupMenuButton<String>(
-      tooltip: 'Change status',
+      tooltip: canUpdate ? 'Change status' : 'Cancel appointment',
       offset: const Offset(0, 30),
       shape: RoundedRectangleBorder(
         borderRadius: BorderRadius.circular(8),
       ),
       itemBuilder: (context) => [
-        if (_nextStatus != null)
+        if (canUpdate && _nextStatus != null)
           PopupMenuItem<String>(
             value: _nextStatus,
             child: Row(

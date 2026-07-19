@@ -10,6 +10,10 @@ class AppointmentCalendarCard extends StatelessWidget {
   final int? currentUserId;
   final bool canViewAll;
   final bool canUpdateStatus;
+
+  /// Cancel-only badge menu for patients without update-status.
+  final bool canCancel;
+  final VoidCallback? onEdit;
   final VoidCallback? onDelete;
   final ValueChanged<String>? onStatusChanged;
   final VoidCallback? onCancel;
@@ -20,6 +24,8 @@ class AppointmentCalendarCard extends StatelessWidget {
     this.currentUserId,
     this.canViewAll = false,
     this.canUpdateStatus = false,
+    this.canCancel = false,
+    this.onEdit,
     this.onDelete,
     this.onStatusChanged,
     this.onCancel,
@@ -144,6 +150,7 @@ class AppointmentCalendarCard extends StatelessWidget {
                         AppointmentStatusBadge(
                           status: status,
                           canUpdate: canUpdateStatus,
+                          canCancel: canCancel,
                           onStatusChanged: onStatusChanged,
                           onCancel: onCancel,
                         ),
@@ -223,23 +230,47 @@ class AppointmentCalendarCard extends StatelessWidget {
                       ),
                     ],
 
-                    // Delete only (status changes via badge now)
-                    if (onDelete != null) ...[
+                    // Actions: reschedule + delete (status changes via badge)
+                    if (onEdit != null || onDelete != null) ...[
                       const SizedBox(height: 8),
-                      Align(
-                        alignment: Alignment.centerRight,
-                        child: InkWell(
-                          onTap: onDelete,
-                          borderRadius: BorderRadius.circular(6),
-                          child: Padding(
-                            padding: const EdgeInsets.all(6),
-                            child: Icon(
-                              Icons.delete_outline,
-                              size: 18,
-                              color: Colors.red.shade400,
+                      Row(
+                        mainAxisAlignment: MainAxisAlignment.end,
+                        children: [
+                          if (onEdit != null)
+                            Tooltip(
+                              message: 'Reschedule',
+                              child: InkWell(
+                                onTap: onEdit,
+                                borderRadius: BorderRadius.circular(6),
+                                child: Padding(
+                                  padding: const EdgeInsets.all(6),
+                                  child: Icon(
+                                    Icons.edit_calendar_outlined,
+                                    size: 18,
+                                    color: Colors.blue.shade400,
+                                  ),
+                                ),
+                              ),
                             ),
-                          ),
-                        ),
+                          if (onEdit != null && onDelete != null)
+                            const SizedBox(width: 4),
+                          if (onDelete != null)
+                            Tooltip(
+                              message: 'Delete',
+                              child: InkWell(
+                                onTap: onDelete,
+                                borderRadius: BorderRadius.circular(6),
+                                child: Padding(
+                                  padding: const EdgeInsets.all(6),
+                                  child: Icon(
+                                    Icons.delete_outline,
+                                    size: 18,
+                                    color: Colors.red.shade400,
+                                  ),
+                                ),
+                              ),
+                            ),
+                        ],
                       ),
                     ],
                   ],
