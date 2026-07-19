@@ -115,8 +115,32 @@ class SidebarNavConfig {
               Perm.dentalChartView,
             ],
           ),
+
+          // ✅ ADD HERE
+          NavItem(
+            icon: Icons.attach_file_outlined,
+            title: isPatient ? 'My Attachments' : 'Patient Attachments',
+            routeName: RouteNames.patientAttachments,
+            permissions: const [
+              Perm.patientAttachmentViewAny, // staff/admin
+              Perm.patientAttachmentView, // patient
+            ],
+          ),
+          NavItem(
+            icon: Icons.folder_shared_outlined,
+            title: isPatient ? 'My Attachments' : 'Patient Files',
+            routeName: isPatient
+                ? RouteNames.patientAttachments
+                : RouteNames.patientFolders,
+            permissions: const [
+              Perm.patientAttachmentViewAny, // staff/admin
+              Perm.patientAttachmentView, // patient
+            ],
+          ),
         ],
       ),
+
+      // ✅ Patient Files / Attachments (role-aware)
 
       // ═══ BILLING ═════════════════════════════════════════════
       NavSection(
