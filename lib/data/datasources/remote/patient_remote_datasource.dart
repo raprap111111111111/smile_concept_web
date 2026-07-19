@@ -15,7 +15,10 @@ class PatientRemoteDataSource {
   final Dio _dio;
   PatientRemoteDataSource(this._dio);
 
-  static const _basePath = '/patient-profiles';
+  /// `/patients` is the full-CRUD resource: User account + medical profile in
+  /// one call. `/patient-profiles` is the medical-only view and registers no
+  /// store or destroy, so creating through it returns 405.
+  static const _basePath = '/patients';
 
   Future<PatientPaginatedResult> getAllPaginated({
     int page = 1,
