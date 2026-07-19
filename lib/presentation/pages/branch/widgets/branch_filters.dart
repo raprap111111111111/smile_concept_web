@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 
 import '../../../theme/app_colors.dart';
+import '../../../theme/app_dimensions.dart';
+import '../../../theme/app_text_styles.dart';
 
 class BranchFilters extends StatelessWidget {
   final String search;
@@ -24,44 +26,46 @@ class BranchFilters extends StatelessWidget {
           flex: 2,
           child: Container(
             decoration: BoxDecoration(
-              color: AppColors.surfaceDark,
-              borderRadius: BorderRadius.circular(12),
-              border: Border.all(
-                color: Colors.white.withValues(alpha: 0.05),
-              ),
+              color: AppColors.surface,
+              borderRadius:
+                  BorderRadius.circular(AppDimensions.borderRadiusLarge),
+              border: Border.all(color: AppColors.border),
             ),
             child: TextField(
-              style: const TextStyle(color: Colors.white),
+              style: AppTextStyles.bodyMedium.copyWith(color: AppColors.ink),
               onChanged: onSearchChanged,
-              decoration: const InputDecoration(
+              decoration: InputDecoration(
                 hintText: 'Search by name, code, city, or province...',
-                hintStyle: TextStyle(color: Colors.white38),
+                hintStyle: AppTextStyles.bodyMedium.copyWith(
+                  color: AppColors.textTertiary,
+                ),
                 prefixIcon: Icon(
                   Icons.search,
-                  color: Colors.white38,
+                  color: AppColors.textTertiary,
+                  size: AppDimensions.iconSize,
                 ),
                 border: InputBorder.none,
-                contentPadding: EdgeInsets.symmetric(
-                  horizontal: 16,
-                  vertical: 16,
+                contentPadding: const EdgeInsets.symmetric(
+                  horizontal: AppDimensions.paddingMedium,
+                  vertical: AppDimensions.paddingMedium,
                 ),
               ),
             ),
           ),
         ),
-        const SizedBox(width: 12),
+        const SizedBox(width: AppDimensions.paddingSmall),
         _filterChip(
           label: 'All',
           active: activeFilter == null,
           onTap: () => onActiveFilterChanged(null),
         ),
-        const SizedBox(width: 8),
+        const SizedBox(width: AppDimensions.paddingXS),
         _filterChip(
           label: 'Active',
           active: activeFilter == true,
           onTap: () => onActiveFilterChanged(true),
         ),
-        const SizedBox(width: 8),
+        const SizedBox(width: AppDimensions.paddingXS),
         _filterChip(
           label: 'Inactive',
           active: activeFilter == false,
@@ -78,29 +82,28 @@ class BranchFilters extends StatelessWidget {
   }) {
     return Material(
       color: active
-          ? const Color(0xFF10B981).withValues(alpha: 0.2)
-          : AppColors.surfaceDark,
-      borderRadius: BorderRadius.circular(10),
+          ? AppColors.primary.withValues(alpha: 0.08)
+          : AppColors.surface,
+      borderRadius: BorderRadius.circular(AppDimensions.borderRadiusLarge),
       child: InkWell(
-        borderRadius: BorderRadius.circular(10),
+        borderRadius: BorderRadius.circular(AppDimensions.borderRadiusLarge),
         onTap: onTap,
         child: Container(
           padding: const EdgeInsets.symmetric(
-            horizontal: 16,
-            vertical: 14,
+            horizontal: AppDimensions.paddingMedium,
+            vertical: AppDimensions.paddingSmall,
           ),
           decoration: BoxDecoration(
-            borderRadius: BorderRadius.circular(10),
+            borderRadius:
+                BorderRadius.circular(AppDimensions.borderRadiusLarge),
             border: Border.all(
-              color: active
-                  ? const Color(0xFF10B981)
-                  : Colors.white.withValues(alpha: 0.05),
+              color: active ? AppColors.primary : AppColors.border,
             ),
           ),
           child: Text(
             label,
-            style: TextStyle(
-              color: active ? const Color(0xFF10B981) : Colors.white70,
+            style: AppTextStyles.labelMedium.copyWith(
+              color: active ? AppColors.primary : AppColors.textSecondary,
               fontWeight: FontWeight.w600,
             ),
           ),

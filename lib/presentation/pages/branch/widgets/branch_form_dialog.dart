@@ -2,6 +2,8 @@ import 'package:flutter/material.dart';
 
 import '../../../../data/models/branch/branch_model.dart';
 import '../../../theme/app_colors.dart';
+import '../../../theme/app_dimensions.dart';
+import '../../../theme/app_text_styles.dart';
 
 class BranchFormDialog extends StatefulWidget {
   final BranchModel? branch;
@@ -71,8 +73,16 @@ class _BranchFormDialogState extends State<BranchFormDialog> {
         width: 560,
         constraints: const BoxConstraints(maxHeight: 700),
         decoration: BoxDecoration(
-          color: AppColors.surfaceDark,
-          borderRadius: BorderRadius.circular(20),
+          color: AppColors.background,
+          borderRadius: BorderRadius.circular(AppDimensions.borderRadiusLarge),
+          border: Border.all(color: AppColors.border),
+          boxShadow: const [
+            BoxShadow(
+              color: AppColors.cardShadow,
+              blurRadius: 24,
+              offset: Offset(0, 8),
+            ),
+          ],
         ),
         child: Column(
           mainAxisSize: MainAxisSize.min,
@@ -80,55 +90,76 @@ class _BranchFormDialogState extends State<BranchFormDialog> {
             _buildHeader(),
             Flexible(
               child: SingleChildScrollView(
-                padding: const EdgeInsets.all(24),
+                padding: const EdgeInsets.all(AppDimensions.paddingLarge),
                 child: Form(
                   key: _formKey,
                   child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
                       _field(
                         _nameCtrl,
-                        'Branch Name *',
+                        'Branch Name',
+                        hint: 'e.g. Main Branch',
+                        isRequired: true,
                         validator: (value) {
                           if (value == null || value.trim().isEmpty) {
                             return 'Branch name is required';
                           }
-
                           return null;
                         },
                       ),
-                      const SizedBox(height: 14),
-                      _field(_codeCtrl, 'Branch Code'),
-                      const SizedBox(height: 14),
-                      _field(_addressCtrl, 'Address'),
-                      const SizedBox(height: 14),
+                      const SizedBox(height: AppDimensions.paddingSmall),
+                      _field(
+                        _codeCtrl,
+                        'Branch Code',
+                        hint: 'e.g. BR-001',
+                      ),
+                      const SizedBox(height: AppDimensions.paddingSmall),
+                      _field(
+                        _addressCtrl,
+                        'Address',
+                        hint: 'Street address',
+                      ),
+                      const SizedBox(height: AppDimensions.paddingSmall),
                       Row(
                         children: [
-                          Expanded(child: _field(_cityCtrl, 'City')),
-                          const SizedBox(width: 12),
-                          Expanded(child: _field(_provinceCtrl, 'Province')),
+                          Expanded(
+                            child: _field(
+                              _cityCtrl,
+                              'City',
+                              hint: 'e.g. Manila',
+                            ),
+                          ),
+                          const SizedBox(width: AppDimensions.paddingSmall),
+                          Expanded(
+                            child: _field(
+                              _provinceCtrl,
+                              'Province',
+                              hint: 'e.g. Metro Manila',
+                            ),
+                          ),
                         ],
                       ),
-                      const SizedBox(height: 14),
-                      _field(_phoneCtrl, 'Phone'),
-                      const SizedBox(height: 14),
-                      _field(_emailCtrl, 'Email'),
-                      const SizedBox(height: 14),
-                      _field(_hoursCtrl, 'Opening Hours e.g. 9AM–6PM'),
-                      const SizedBox(height: 8),
-                      SwitchListTile(
-                        contentPadding: EdgeInsets.zero,
-                        title: const Text(
-                          'Active',
-                          style: TextStyle(color: Colors.white),
-                        ),
-                        value: _isActive,
-                        activeThumbColor: const Color(0xFF10B981),
-                        onChanged: (value) {
-                          setState(() {
-                            _isActive = value;
-                          });
-                        },
+                      const SizedBox(height: AppDimensions.paddingSmall),
+                      _field(
+                        _phoneCtrl,
+                        'Phone',
+                        hint: 'e.g. +63 912 345 6789',
                       ),
+                      const SizedBox(height: AppDimensions.paddingSmall),
+                      _field(
+                        _emailCtrl,
+                        'Email',
+                        hint: 'e.g. branch@clinic.com',
+                      ),
+                      const SizedBox(height: AppDimensions.paddingSmall),
+                      _field(
+                        _hoursCtrl,
+                        'Opening Hours',
+                        hint: 'e.g. 9AM – 6PM',
+                      ),
+                      const SizedBox(height: AppDimensions.paddingXS),
+                      _buildActiveToggle(),
                     ],
                   ),
                 ),
@@ -143,78 +174,95 @@ class _BranchFormDialogState extends State<BranchFormDialog> {
 
   Widget _buildHeader() {
     return Container(
-      padding: const EdgeInsets.all(24),
+      padding: const EdgeInsets.all(AppDimensions.paddingLarge),
       decoration: const BoxDecoration(
-        gradient: LinearGradient(
-          colors: [
-            Color(0xFF10B981),
-            Color(0xFF059669),
-          ],
-        ),
+        gradient: AppColors.primaryGradient,
         borderRadius: BorderRadius.only(
-          topLeft: Radius.circular(20),
-          topRight: Radius.circular(20),
+          topLeft: Radius.circular(AppDimensions.borderRadiusLarge),
+          topRight: Radius.circular(AppDimensions.borderRadiusLarge),
         ),
       ),
       child: Row(
         children: [
           Icon(
-            _isEdit ? Icons.edit : Icons.add_business,
+            _isEdit ? Icons.edit_outlined : Icons.add_business_outlined,
             color: Colors.white,
+            size: AppDimensions.iconSize,
           ),
-          const SizedBox(width: 12),
+          const SizedBox(width: AppDimensions.paddingSmall),
           Text(
             _isEdit ? 'Edit Branch' : 'Create New Branch',
-            style: const TextStyle(
-              color: Colors.white,
-              fontSize: 18,
-              fontWeight: FontWeight.bold,
-            ),
+            style: AppTextStyles.titleMedium.copyWith(color: Colors.white),
           ),
         ],
       ),
     );
   }
 
-  Widget _buildFooter() {
+  Widget _buildActiveToggle() {
     return Container(
-      padding: const EdgeInsets.all(20),
       decoration: BoxDecoration(
-        border: Border(
-          top: BorderSide(
-            color: Colors.white.withValues(alpha: 0.05),
+        color: AppColors.surface,
+        borderRadius: BorderRadius.circular(AppDimensions.borderRadius),
+        border: Border.all(color: AppColors.border),
+      ),
+      child: SwitchListTile(
+        contentPadding: const EdgeInsets.symmetric(
+          horizontal: AppDimensions.paddingMedium,
+          vertical: 4,
+        ),
+        title: Text('Active Branch', style: AppTextStyles.labelLarge),
+        subtitle: Text(
+          _isActive ? 'Branch is visible and operational' : 'Branch is hidden',
+          style: AppTextStyles.labelSmall.copyWith(
+            color: _isActive ? AppColors.success : AppColors.textMuted,
+            fontWeight: FontWeight.w400,
           ),
         ),
+        value: _isActive,
+        activeColor: AppColors.primary,
+        onChanged: (value) => setState(() => _isActive = value),
+      ),
+    );
+  }
+
+  Widget _buildFooter() {
+    return Container(
+      padding: const EdgeInsets.all(AppDimensions.paddingMedium),
+      decoration: const BoxDecoration(
+        border: Border(top: BorderSide(color: AppColors.divider)),
       ),
       child: Row(
         mainAxisAlignment: MainAxisAlignment.end,
         children: [
           TextButton(
             onPressed: () => Navigator.pop(context),
-            child: const Text(
+            child: Text(
               'Cancel',
-              style: TextStyle(color: Colors.white70),
+              style: AppTextStyles.labelLarge.copyWith(
+                color: AppColors.textSecondary,
+              ),
             ),
           ),
-          const SizedBox(width: 12),
+          const SizedBox(width: AppDimensions.paddingSmall),
           ElevatedButton(
             style: ElevatedButton.styleFrom(
-              backgroundColor: const Color(0xFF10B981),
+              backgroundColor: AppColors.primary,
+              foregroundColor: Colors.white,
+              elevation: 0,
               padding: const EdgeInsets.symmetric(
-                horizontal: 24,
-                vertical: 14,
+                horizontal: AppDimensions.paddingLarge,
+                vertical: AppDimensions.paddingSmall,
               ),
               shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(10),
+                borderRadius:
+                    BorderRadius.circular(AppDimensions.borderRadius),
               ),
             ),
             onPressed: _submit,
             child: Text(
-              _isEdit ? 'Update' : 'Create',
-              style: const TextStyle(
-                color: Colors.white,
-                fontWeight: FontWeight.w600,
-              ),
+              _isEdit ? 'Update Branch' : 'Create Branch',
+              style: AppTextStyles.labelLarge.copyWith(color: Colors.white),
             ),
           ),
         ],
@@ -224,41 +272,77 @@ class _BranchFormDialogState extends State<BranchFormDialog> {
 
   Widget _field(
     TextEditingController controller,
-    String hint, {
+    String label, {
+    String? hint,
+    bool isRequired = false,
     String? Function(String?)? validator,
   }) {
-    return TextFormField(
-      controller: controller,
-      validator: validator,
-      style: const TextStyle(color: Colors.white),
-      decoration: InputDecoration(
-        hintText: hint,
-        hintStyle: const TextStyle(color: Colors.white38),
-        filled: true,
-        fillColor: Colors.white.withValues(alpha: 0.05),
-        border: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(10),
-          borderSide: BorderSide(
-            color: Colors.white.withValues(alpha: 0.1),
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        RichText(
+          text: TextSpan(
+            text: label,
+            style: AppTextStyles.labelMedium.copyWith(color: AppColors.ink),
+            children: isRequired
+                ? [
+                    TextSpan(
+                      text: ' *',
+                      style: AppTextStyles.labelMedium.copyWith(
+                        color: AppColors.error,
+                      ),
+                    ),
+                  ]
+                : [],
           ),
         ),
-        enabledBorder: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(10),
-          borderSide: BorderSide(
-            color: Colors.white.withValues(alpha: 0.1),
+        const SizedBox(height: 6),
+        TextFormField(
+          controller: controller,
+          validator: validator,
+          style: AppTextStyles.bodyMedium.copyWith(color: AppColors.ink),
+          decoration: InputDecoration(
+            hintText: hint,
+            hintStyle: AppTextStyles.bodyMedium.copyWith(
+              color: AppColors.textTertiary,
+            ),
+            filled: true,
+            fillColor: AppColors.surface,
+            border: OutlineInputBorder(
+              borderRadius:
+                  BorderRadius.circular(AppDimensions.borderRadius),
+              borderSide: const BorderSide(color: AppColors.border),
+            ),
+            enabledBorder: OutlineInputBorder(
+              borderRadius:
+                  BorderRadius.circular(AppDimensions.borderRadius),
+              borderSide: const BorderSide(color: AppColors.border),
+            ),
+            focusedBorder: OutlineInputBorder(
+              borderRadius:
+                  BorderRadius.circular(AppDimensions.borderRadius),
+              borderSide: const BorderSide(
+                color: AppColors.primary,
+                width: 2,
+              ),
+            ),
+            errorBorder: OutlineInputBorder(
+              borderRadius:
+                  BorderRadius.circular(AppDimensions.borderRadius),
+              borderSide: const BorderSide(color: AppColors.error),
+            ),
+            focusedErrorBorder: OutlineInputBorder(
+              borderRadius:
+                  BorderRadius.circular(AppDimensions.borderRadius),
+              borderSide: const BorderSide(
+                color: AppColors.error,
+                width: 2,
+              ),
+            ),
+            contentPadding: const EdgeInsets.all(AppDimensions.paddingMedium),
           ),
         ),
-        focusedBorder: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(10),
-          borderSide: const BorderSide(
-            color: Color(0xFF10B981),
-          ),
-        ),
-        errorBorder: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(10),
-          borderSide: const BorderSide(color: Colors.red),
-        ),
-      ),
+      ],
     );
   }
 
