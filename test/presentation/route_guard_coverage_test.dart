@@ -12,6 +12,7 @@ import 'dart:io';
 
 import 'package:flutter_test/flutter_test.dart';
 
+import 'package:smile_concept_web/core/permissions/app_permissions.dart';
 import 'package:smile_concept_web/presentation/route/route_permissions.dart';
 
 /// Paths reachable without being logged in; the redirect guard handles them
@@ -98,5 +99,34 @@ void main() {
 
   test('the landing fallback is a page every authenticated user can open', () {
     expect(RoutePermissions.requirementsFor('/profile'), isEmpty);
+  });
+
+  group('path matching', () {
+    test('the edit form requires update, not merely view', () {
+      // Was gated by the '/patients' fallback, so anyone who could open the
+      // list could open the edit form and be rejected only at the API.
+      expect(
+        RoutePermissions.requirementsFor('/patients/42/edit'),
+        [Perm.patientUpdate],
+      );
+    });
+
+    test('a concrete patient page still falls back to the list rule', () {
+      expect(
+        RoutePermissions.requirementsFor('/patients/42'),
+        [Perm.patientViewAny, Perm.patientView],
+      );
+    });
+
+    test('the create form keeps its own rule', () {
+      expect(
+        RoutePermissions.requirementsFor('/patients/new'),
+        [Perm.patientCreate],
+      );
+    });
+
+    test('a rule never matches a longer sibling segment', () {
+      expect(RoutePermissions.requirementsFor('/items-archive'), isNull);
+    });
   });
 }

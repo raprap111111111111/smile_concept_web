@@ -2,6 +2,8 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
+import '../../../core/permissions/app_permissions.dart';
+import '../../providers/auth/permission_provider.dart';
 import '../../providers/patient/patient_list_provider.dart';
 import '../../theme/app_colors.dart';
 
@@ -12,6 +14,14 @@ class PatientsListPage extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final state = ref.watch(patientListProvider);
     final notifier = ref.read(patientListProvider.notifier);
+
+    // A dentist reaches this page with patient read-only. Without these
+    // checks the write actions still render and fail late — the route guard
+    // bounces Add/Edit to /unauthorized and the API 403s Delete.
+    final permissions = ref.watch(permissionServiceProvider);
+    final canCreate = permissions.can(Perm.patientCreate);
+    final canUpdate = permissions.can(Perm.patientUpdate);
+    final canDelete = permissions.can(Perm.patientDelete);
 
     return Padding(
       padding: const EdgeInsets.all(24),
@@ -30,22 +40,23 @@ class PatientsListPage extends ConsumerWidget {
                   color: Colors.white,
                 ),
               ),
-              ElevatedButton.icon(
-                onPressed: () => context.push('/patients/new'),
-                icon: const Icon(Icons.add, size: 18),
-                label: const Text('Add Patient'),
-                style: ElevatedButton.styleFrom(
-                  backgroundColor: AppColors.primary,
-                  foregroundColor: Colors.black,
-                  padding: const EdgeInsets.symmetric(
-                    horizontal: 20,
-                    vertical: 14,
-                  ),
-                  shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(10),
+              if (canCreate)
+                ElevatedButton.icon(
+                  onPressed: () => context.push('/patients/new'),
+                  icon: const Icon(Icons.add, size: 18),
+                  label: const Text('Add Patient'),
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: AppColors.primary,
+                    foregroundColor: Colors.black,
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 20,
+                      vertical: 14,
+                    ),
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(10),
+                    ),
                   ),
                 ),
-              ),
             ],
           ),
 
@@ -139,7 +150,13 @@ class PatientsListPage extends ConsumerWidget {
                     ? _buildError(state, notifier)
                     : state.patients.isEmpty
                         ? _buildEmpty()
-                        : _buildTable(context, ref, state),
+                        : _buildTable(
+                            context,
+                            ref,
+                            state,
+                            canUpdate: canUpdate,
+                            canDelete: canDelete,
+                          ),
           ),
 
           // ─── Pagination Controls ─────────────────────────
@@ -199,8 +216,10 @@ class PatientsListPage extends ConsumerWidget {
   Widget _buildTable(
     BuildContext context,
     WidgetRef ref,
-    PatientListState state,
-  ) {
+    PatientListState state, {
+    required bool canUpdate,
+    required bool canDelete,
+  }) {
     return Container(
       decoration: BoxDecoration(
         color: AppColors.surfaceDark,
@@ -285,22 +304,26 @@ class PatientsListPage extends ConsumerWidget {
                             onPressed: () =>
                                 context.push('/patients/${patient.id}'),
                           ),
-                          const SizedBox(width: 4),
-                          _actionButton(
-                            icon: Icons.edit_outlined,
-                            color: Colors.orangeAccent,
-                            tooltip: 'Edit',
-                            onPressed: () =>
-                                context.push('/patients/${patient.id}/edit'),
-                          ),
-                          const SizedBox(width: 4),
-                          _actionButton(
-                            icon: Icons.delete_outline,
-                            color: Colors.redAccent,
-                            tooltip: 'Delete',
-                            onPressed: () =>
-                                _confirmDelete(context, ref, patient.id),
-                          ),
+                          if (canUpdate) ...[
+                            const SizedBox(width: 4),
+                            _actionButton(
+                              icon: Icons.edit_outlined,
+                              color: Colors.orangeAccent,
+                              tooltip: 'Edit',
+                              onPressed: () =>
+                                  context.push('/patients/${patient.id}/edit'),
+                            ),
+                          ],
+                          if (canDelete) ...[
+                            const SizedBox(width: 4),
+                            _actionButton(
+                              icon: Icons.delete_outline,
+                              color: Colors.redAccent,
+                              tooltip: 'Delete',
+                              onPressed: () =>
+                                  _confirmDelete(context, ref, patient.id),
+                            ),
+                          ],
                         ],
                       ),
                     ),
