@@ -42,7 +42,10 @@ class RoutePermissions {
     // ── Main ───────────────────────────────────────────────────
     '/dashboard': [Perm.dashboardView],
     '/appointments': [Perm.appointmentViewAny, Perm.appointmentView],
-    '/book-appointment': [Perm.appointmentCreate, Perm.appointmentCreateForOthers],
+    '/book-appointment': [
+      Perm.appointmentCreate,
+      Perm.appointmentCreateForOthers
+    ],
     // The patient-facing booking form. Registered so it is guarded like every
     // other booking entry point — an unregistered path is waved through.
     '/appointment-patient-form': [
@@ -68,6 +71,17 @@ class RoutePermissions {
     '/treatment-plans/new': [Perm.treatmentPlanCreate],
     '/treatment-plans': [Perm.treatmentPlanViewAny, Perm.treatmentPlanView],
     '/lab-cases': [Perm.labCaseViewAny],
+    '/patient-attachments/upload': [
+      Perm.patientAttachmentCreate,
+    ],
+    '/patient-attachments/:id': [
+      Perm.patientAttachmentViewAny,
+      Perm.patientAttachmentView,
+    ],
+    '/patient-attachments': [
+      Perm.patientAttachmentViewAny,
+      Perm.patientAttachmentView,
+    ],
 
     // ── Billing ────────────────────────────────────────────────
     '/invoices': [Perm.invoiceViewAny, Perm.invoiceView],
@@ -93,8 +107,7 @@ class RoutePermissions {
   /// `/patients` while being no longer as a string in every case.
   static final List<String> _orderedPaths = _requirements.keys.toList()
     ..sort((a, b) {
-      final bySegments =
-          _segments(b).length.compareTo(_segments(a).length);
+      final bySegments = _segments(b).length.compareTo(_segments(a).length);
       if (bySegments != 0) return bySegments;
       return b.length.compareTo(a.length);
     });

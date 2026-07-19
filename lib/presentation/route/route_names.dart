@@ -55,7 +55,11 @@ class RouteNames {
   static const String labCaseCreate = 'labCaseCreate';
 
   static const String patientAttachments = 'patientAttachments';
+  static const String patientAttachmentDetail = 'patientAttachmentDetail';
   static const String attachmentUpload = 'attachmentUpload';
+
+  static const String patientFolders = 'patient-folders';
+  static const String patientAttachmentsByPatient = 'patient-attachments-by-patient';
 
   static const String consents = 'consents';
   static const String consentSign = 'consentSign';
