@@ -62,6 +62,14 @@ class _AppointmentFormPageState extends ConsumerState<AppointmentFormPage> {
       _selectedPatientName = appointment.user?.name;
       _reasonController.text = appointment.reasonForVisit ?? '';
     }
+
+    // Clear any slot selection left over from a previous booking session,
+    // otherwise _submit could silently reuse a stale slot time.
+    Future.microtask(() {
+      if (mounted) {
+        ref.read(availabilityNotifierProvider.notifier).clearSlots();
+      }
+    });
   }
 
   @override
@@ -119,8 +127,15 @@ class _AppointmentFormPageState extends ConsumerState<AppointmentFormPage> {
     final canCreateForOthers =
         permissionService.can(Perm.appointmentCreateForOthers);
     final canUpdateStatus = permissionService.can(Perm.appointmentUpdateStatus);
+    final canUpdate = permissionService.can(Perm.appointmentUpdate);
+    final canReschedule = permissionService.can(Perm.appointmentReschedule);
 
-    if (!canCreateSelf && !canCreateForOthers) {
+    if (_isEditing) {
+      if (!canUpdate && !canReschedule) {
+        _showError('You do not have permission to update appointments.');
+        return;
+      }
+    } else if (!canCreateSelf && !canCreateForOthers) {
       _showError('You do not have permission to create appointments.');
       return;
     }
@@ -223,6 +238,11 @@ class _AppointmentFormPageState extends ConsumerState<AppointmentFormPage> {
     final canUpdateStatus =
         permissionService.can(Perm.appointmentUpdateStatus);
 
+    // Reschedule-only users (patients) can change date/time + reason,
+    // but not the doctor or branch — the API strips those fields anyway.
+    final lockClinicians =
+        _isEditing && !permissionService.can(Perm.appointmentUpdate);
+
     final dateLabel = _selectedDate != null
         ? DateFormat('EEE, MMM dd yyyy').format(_selectedDate!)
         : 'Select Date';
@@ -245,6 +265,7 @@ class _AppointmentFormPageState extends ConsumerState<AppointmentFormPage> {
                   availState: availState,
                   canCreateForOthers: canCreateForOthers,
                   canUpdateStatus: canUpdateStatus,
+                  lockClinicians: lockClinicians,
                   currentUser: currentUser,
                   dateLabel: dateLabel,
                 ),
@@ -330,6 +351,7 @@ class _AppointmentFormPageState extends ConsumerState<AppointmentFormPage> {
     required dynamic availState,
     required bool canCreateForOthers,
     required bool canUpdateStatus,
+    required bool lockClinicians,
     required dynamic currentUser,
     required String dateLabel,
   }) {
@@ -380,11 +402,15 @@ class _AppointmentFormPageState extends ConsumerState<AppointmentFormPage> {
                     child: Text(name),
                   );
                 }).toList(),
-                onChanged: (value) {
-                  setState(() => _doctorId = value);
-                  ref.read(availabilityNotifierProvider.notifier).clearSlots();
-                  _fetchSlots();
-                },
+                onChanged: lockClinicians
+                    ? null
+                    : (value) {
+                        setState(() => _doctorId = value);
+                        ref
+                            .read(availabilityNotifierProvider.notifier)
+                            .clearSlots();
+                        _fetchSlots();
+                      },
                 validator: (value) =>
                     value == null ? 'Doctor is required' : null,
               ),
@@ -412,11 +438,15 @@ class _AppointmentFormPageState extends ConsumerState<AppointmentFormPage> {
                     child: Text(branch.name),
                   );
                 }).toList(),
-                onChanged: (value) {
-                  setState(() => _branchId = value);
-                  ref.read(availabilityNotifierProvider.notifier).clearSlots();
-                  _fetchSlots();
-                },
+                onChanged: lockClinicians
+                    ? null
+                    : (value) {
+                        setState(() => _branchId = value);
+                        ref
+                            .read(availabilityNotifierProvider.notifier)
+                            .clearSlots();
+                        _fetchSlots();
+                      },
                 validator: (value) =>
                     value == null ? 'Branch is required' : null,
               ),

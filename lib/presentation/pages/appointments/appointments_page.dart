@@ -15,6 +15,7 @@ import '../../providers/auth/permission_provider.dart';
 import '../../theme/app_colors.dart';
 import '../../theme/app_dimensions.dart';
 import '../../theme/app_text_styles.dart';
+import 'appointment_form_page.dart';
 import 'book_appointment_page.dart';
 import 'widgets/appointment_calendar_card.dart';
 import 'widgets/appointment_filter_bar.dart';
@@ -135,6 +136,30 @@ class _AppointmentsPageState extends ConsumerState<AppointmentsPage> {
 
     if (mounted) {
       ToastHelper.success(context, 'Appointment created successfully');
+    }
+  }
+
+  Future<void> _openEdit(AppointmentModel appointment) async {
+    final updated = await Navigator.of(context).push<AppointmentModel>(
+      MaterialPageRoute(
+        builder: (_) => AppointmentFormPage(existingAppointment: appointment),
+      ),
+    );
+
+    if (updated == null || !mounted) return;
+
+    await _loadCalendarCountsForMonth(updated.startTime);
+    setState(() {
+      _selectedDay = updated.startTime;
+      _focusedDay = updated.startTime;
+    });
+
+    await ref
+        .read(appointmentNotifierProvider.notifier)
+        .loadForDate(updated.startTime);
+
+    if (mounted) {
+      ToastHelper.success(context, 'Appointment updated successfully');
     }
   }
 
@@ -314,6 +339,9 @@ class _AppointmentsPageState extends ConsumerState<AppointmentsPage> {
     final canCreate = permissions.can(Perm.appointmentCreate);
     final canDelete = permissions.can(Perm.appointmentDelete);
     final canUpdateStatus = permissions.can(Perm.appointmentUpdateStatus);
+    final canUpdate = permissions.can(Perm.appointmentUpdate);
+    final canReschedule = permissions.can(Perm.appointmentReschedule);
+    final canCancelPerm = permissions.can(Perm.appointmentCancel);
     final currentUserId = ref.watch(authStateProvider).user?.id;
 
     if (!canViewAll && !canView) {
@@ -363,6 +391,9 @@ class _AppointmentsPageState extends ConsumerState<AppointmentsPage> {
                 currentUserId: currentUserId,
                 canDelete: canDelete,
                 canUpdateStatus: canUpdateStatus,
+                canUpdate: canUpdate,
+                canReschedule: canReschedule,
+                canCancelPerm: canCancelPerm,
               ),
             ),
           ],
@@ -489,6 +520,9 @@ class _AppointmentsPageState extends ConsumerState<AppointmentsPage> {
     required int? currentUserId,
     required bool canDelete,
     required bool canUpdateStatus,
+    required bool canUpdate,
+    required bool canReschedule,
+    required bool canCancelPerm,
   }) {
     if (_selectedDay == null) {
       return RefreshIndicator(
@@ -582,24 +616,40 @@ class _AppointmentsPageState extends ConsumerState<AppointmentsPage> {
             _buildEmptyDay()
           else
             ...dayAppointments.map(
-              (appointment) => Padding(
-                padding: const EdgeInsets.only(
-                  bottom: AppDimensions.paddingSmall,
-                ),
-                child: AppointmentCalendarCard(
-                  appointment: appointment,
-                  currentUserId: currentUserId,
-                  canViewAll: canViewAll,
-                  canUpdateStatus: canUpdateStatus,
-                  onDelete: canDelete ? () => _delete(appointment) : null,
-                  onStatusChanged: canUpdateStatus
-                      ? (newStatus) => _updateStatus(appointment, newStatus)
-                      : null,
-                  onCancel: canUpdateStatus
-                      ? () => _showCancelDialog(appointment)
-                      : null,
-                ),
-              ),
+              (appointment) {
+                // Staff (update) → any appointment.
+                // Patient (reschedule) → own pending/confirmed only.
+                final isOwn = appointment.userId == currentUserId;
+                final isActive =
+                    appointment.status == AppointmentStatus.pending ||
+                        appointment.status == AppointmentStatus.confirmed;
+                final canEditThis =
+                    canUpdate || (canReschedule && isOwn && isActive);
+                final canCancelThis = canUpdateStatus ||
+                    (canCancelPerm && isOwn && isActive);
+
+                return Padding(
+                  padding: const EdgeInsets.only(
+                    bottom: AppDimensions.paddingSmall,
+                  ),
+                  child: AppointmentCalendarCard(
+                    appointment: appointment,
+                    currentUserId: currentUserId,
+                    canViewAll: canViewAll,
+                    canUpdateStatus: canUpdateStatus,
+                    canCancel: canCancelThis,
+                    onEdit:
+                        canEditThis ? () => _openEdit(appointment) : null,
+                    onDelete: canDelete ? () => _delete(appointment) : null,
+                    onStatusChanged: canUpdateStatus
+                        ? (newStatus) => _updateStatus(appointment, newStatus)
+                        : null,
+                    onCancel: canCancelThis
+                        ? () => _showCancelDialog(appointment)
+                        : null,
+                  ),
+                );
+              },
             ),
           const SizedBox(height: 100),
         ],
