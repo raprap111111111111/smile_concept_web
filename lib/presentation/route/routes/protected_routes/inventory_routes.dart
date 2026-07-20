@@ -7,13 +7,17 @@ import '../../../pages/inventory/inventory_form_page.dart';
 import '../../../pages/inventory/items_page.dart';
 import '../../../pages/inventory/item_form_page.dart';
 import '../../route_names.dart';
+import '../../page_transitions.dart';
 
 final List<GoRoute> inventoryRoutes = [
   // ── Inventory ─────────────────────────────────────────────
   GoRoute(
     path: '/inventory',
     name: RouteNames.inventory,
-    builder: (context, state) => const InventoryPage(),
+    pageBuilder: (context, state) => FadeThroughPage(
+      key: state.pageKey,
+      child: const InventoryPage(),
+    ),
     routes: [
       GoRoute(
         path: 'new',
@@ -25,10 +29,7 @@ final List<GoRoute> inventoryRoutes = [
         name: RouteNames.inventoryEdit,
         builder: (context, state) {
           final id = int.parse(state.pathParameters['id']!);
-
-          return InventoryFormPage(
-            inventoryId: id,
-          );
+          return InventoryFormPage(inventoryId: id);
         },
       ),
     ],
@@ -38,7 +39,10 @@ final List<GoRoute> inventoryRoutes = [
   GoRoute(
     path: '/items',
     name: RouteNames.items,
-    builder: (context, state) => const ItemsPage(),
+    pageBuilder: (context, state) => FadeThroughPage(
+      key: state.pageKey,
+      child: const ItemsPage(),
+    ),
     routes: [
       GoRoute(
         path: 'new',
@@ -50,10 +54,7 @@ final List<GoRoute> inventoryRoutes = [
         name: RouteNames.itemEdit,
         builder: (context, state) {
           final id = int.parse(state.pathParameters['id']!);
-
-          return ItemFormPage(
-            itemId: id,
-          );
+          return ItemFormPage(itemId: id);
         },
       ),
     ],

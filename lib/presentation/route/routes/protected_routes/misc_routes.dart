@@ -11,46 +11,71 @@ import '../../../pages/users/users_page.dart';
 import '../../../pages/branch/branches_page.dart';
 import '../../../pages/notifications/notifications_page.dart';
 import '../../route_names.dart';
+import '../../page_transitions.dart';
 
 final List<GoRoute> miscRoutes = [
   GoRoute(
     path: '/doctors',
     name: RouteNames.doctors,
-    builder: (context, state) => const DoctorsPage(),
+    pageBuilder: (context, state) => FadeThroughPage(
+      key: state.pageKey,
+      child: const DoctorsPage(),
+    ),
   ),
   GoRoute(
     path: '/doctor-schedules',
     name: RouteNames.doctorSchedules,
-    builder: (context, state) => const DoctorSchedulePage(),
+    pageBuilder: (context, state) => FadeThroughPage(
+      key: state.pageKey,
+      child: const DoctorSchedulePage(),
+    ),
   ),
   GoRoute(
     path: '/profile',
     name: RouteNames.profile,
-    builder: (context, state) => const ProfilePage(),
+    pageBuilder: (context, state) => FadeThroughPage(
+      key: state.pageKey,
+      child: const ProfilePage(),
+    ),
   ),
   GoRoute(
     path: '/settings',
     name: RouteNames.settings,
-    builder: (context, state) => const SettingsPage(),
+    pageBuilder: (context, state) => FadeThroughPage(
+      key: state.pageKey,
+      child: const SettingsPage(),
+    ),
   ),
   GoRoute(
     path: '/roles',
     name: RouteNames.roles,
-    builder: (context, state) => const RolesPermissionsPage(),
+    pageBuilder: (context, state) => FadeThroughPage(
+      key: state.pageKey,
+      child: const RolesPermissionsPage(),
+    ),
   ),
   GoRoute(
     path: '/users',
     name: RouteNames.users,
-    builder: (context, state) => const UsersPage(),
+    pageBuilder: (context, state) => FadeThroughPage(
+      key: state.pageKey,
+      child: const UsersPage(),
+    ),
   ),
   GoRoute(
     path: '/branches',
     name: RouteNames.branches,
-    builder: (context, state) => const BranchesPage(),
+    pageBuilder: (context, state) => FadeThroughPage(
+      key: state.pageKey,
+      child: const BranchesPage(),
+    ),
   ),
   GoRoute(
     path: '/notifications',
     name: RouteNames.notifications,
-    builder: (context, state) => const NotificationsPage(),
+    pageBuilder: (context, state) => FadeThroughPage(
+      key: state.pageKey,
+      child: const NotificationsPage(),
+    ),
   ),
 ];

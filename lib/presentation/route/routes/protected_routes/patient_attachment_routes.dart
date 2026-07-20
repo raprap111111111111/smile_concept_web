@@ -6,25 +6,27 @@ import '/presentation/theme/app_colors.dart';
 import '/presentation/theme/app_dimensions.dart';
 import '/presentation/theme/app_text_styles.dart';
 import '/data/models/patient_attachment/patient_attachment_model.dart';
-import '/data/models/patient_attachment/patient_with_attachments.dart'; // ✅ NEW
+import '/data/models/patient_attachment/patient_with_attachments.dart';
 import '../../../pages/patient_attachments/patient_attachment_list_page.dart';
 import '../../../pages/patient_attachments/patient_attachment_create_page.dart';
 import '../../../pages/patient_attachments/patient_attachment_detail_page.dart';
-import '../../../pages/patient_attachments/patient_folders_page.dart'; // ✅ NEW
+import '../../../pages/patient_attachments/patient_folders_page.dart';
 import '../../route_names.dart';
+import '../../page_transitions.dart';
 
 final List<RouteBase> patientAttachmentRoutes = [
   // ═══════════════════════════════════════════════════════
-  // ✅ NEW: Patient Folders (main entry point)
+  // Patient Folders (main entry point) — fade-through
   // ═══════════════════════════════════════════════════════
   GoRoute(
     path: '/patient-folders',
     name: RouteNames.patientFolders,
-    pageBuilder: (context, state) => const NoTransitionPage(
-      child: PatientFoldersPage(),
+    pageBuilder: (context, state) => FadeThroughPage(
+      key: state.pageKey,
+      child: const PatientFoldersPage(),
     ),
     routes: [
-      // ── Folder detail (patient's files) ──────────────────
+      // ── Folder detail: no transition ──────────────────
       GoRoute(
         path: ':userId',
         name: RouteNames.patientAttachmentsByPatient,
@@ -45,16 +47,17 @@ final List<RouteBase> patientAttachmentRoutes = [
   ),
 
   // ═══════════════════════════════════════════════════════
-  // Existing: All Attachments
+  // All Attachments — fade-through
   // ═══════════════════════════════════════════════════════
   GoRoute(
     path: '/patient-attachments',
     name: RouteNames.patientAttachments,
-    pageBuilder: (context, state) => const NoTransitionPage(
-      child: PatientAttachmentListPage(),
+    pageBuilder: (context, state) => FadeThroughPage(
+      key: state.pageKey,
+      child: const PatientAttachmentListPage(),
     ),
     routes: [
-      // ── Upload ─────────────────────────────────────────
+      // ── Upload: no transition ─────────────────────────
       GoRoute(
         path: 'upload',
         name: RouteNames.attachmentUpload,
@@ -63,7 +66,7 @@ final List<RouteBase> patientAttachmentRoutes = [
         ),
       ),
 
-      // ── Detail ─────────────────────────────────────────
+      // ── Detail: no transition ─────────────────────────
       GoRoute(
         path: ':id',
         name: RouteNames.patientAttachmentDetail,

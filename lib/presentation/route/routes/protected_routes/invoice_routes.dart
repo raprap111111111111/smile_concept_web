@@ -5,12 +5,16 @@ import 'package:go_router/go_router.dart';
 import '../../../pages/invoices/invoices_page.dart';
 import '../../../pages/invoices/invoice_detail_page.dart';
 import '../../route_names.dart';
+import '../../page_transitions.dart';
 
 final List<GoRoute> invoiceRoutes = [
   GoRoute(
     path: '/invoices',
     name: RouteNames.invoices,
-    builder: (context, state) => const InvoicesPage(),
+    pageBuilder: (context, state) => FadeThroughPage(
+      key: state.pageKey,
+      child: const InvoicesPage(),
+    ),
     routes: [
       GoRoute(
         path: ':id',

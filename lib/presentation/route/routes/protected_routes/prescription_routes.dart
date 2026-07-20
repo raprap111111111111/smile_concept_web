@@ -6,12 +6,16 @@ import '../../../pages/prescriptions/prescriptions_page.dart';
 import '../../../pages/prescriptions/prescription_form_page.dart';
 import '../../../pages/prescriptions/prescription_detail_page.dart';
 import '../../route_names.dart';
+import '../../page_transitions.dart';
 
 final List<GoRoute> prescriptionRoutes = [
   GoRoute(
     path: '/prescriptions',
     name: RouteNames.prescriptions,
-    builder: (context, state) => const PrescriptionsPage(),
+    pageBuilder: (context, state) => FadeThroughPage(
+      key: state.pageKey,
+      child: const PrescriptionsPage(),
+    ),
     routes: [
       GoRoute(
         path: 'new',
