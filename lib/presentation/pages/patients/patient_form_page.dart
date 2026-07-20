@@ -2,6 +2,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
+import '../../../core/utils/validators.dart';
 import '../../../data/repositories/patient_repository.dart';
 import '../../providers/patient/patient_list_provider.dart';
 import '../../route/route_names.dart';
@@ -22,7 +23,10 @@ class _PatientFormPageState extends ConsumerState<PatientFormPage> {
   final _formKey = GlobalKey<FormState>();
 
   // ─── Personal ──────────────────────────────────
-  final _nameController = TextEditingController();
+  // Split first/last to match the patient-facing register form. The backend
+  // stores a single `name`, so they're joined on submit and split on load.
+  final _firstNameController = TextEditingController();
+  final _lastNameController = TextEditingController();
   final _emailController = TextEditingController();
   final _phoneController = TextEditingController();
   final _passwordController = TextEditingController(); // ✅ NEW
@@ -64,7 +68,10 @@ class _PatientFormPageState extends ConsumerState<PatientFormPage> {
       final repo = ref.read(patientRepositoryProvider);
       final patient = await repo.getById(widget.patientId!);
 
-      _nameController.text = patient.name;
+      // First token is the first name, whatever follows is the last name.
+      final parts = patient.name.trim().split(RegExp(r'\s+'));
+      _firstNameController.text = parts.isEmpty ? '' : parts.first;
+      _lastNameController.text = parts.length > 1 ? parts.sublist(1).join(' ') : '';
       _emailController.text = patient.email;
       _phoneController.text = patient.phone ?? '';
 
@@ -92,7 +99,8 @@ class _PatientFormPageState extends ConsumerState<PatientFormPage> {
 
   @override
   void dispose() {
-    _nameController.dispose();
+    _firstNameController.dispose();
+    _lastNameController.dispose();
     _emailController.dispose();
     _phoneController.dispose();
     _passwordController.dispose();
@@ -111,10 +119,15 @@ class _PatientFormPageState extends ConsumerState<PatientFormPage> {
     try {
       final repo = ref.read(patientRepositoryProvider);
 
+      // Backend keeps one `name` column, so recombine the two fields.
+      final fullName =
+          '${_firstNameController.text.trim()} ${_lastNameController.text.trim()}'
+              .trim();
+
       // ─── Build payload ─────────────────────────
       final data = <String, dynamic>{
         // User fields (only send if non-empty)
-        'name': _nameController.text.trim(),
+        'name': fullName,
         'email': _emailController.text.trim(),
         if (_phoneController.text.trim().isNotEmpty)
           'phone': _phoneController.text.trim(),
@@ -221,21 +234,37 @@ class _PatientFormPageState extends ConsumerState<PatientFormPage> {
                 icon: Icons.person_outline,
                 children: [
                   _textField(
-                    controller: _nameController,
-                    label: 'Full Name',
+                    controller: _firstNameController,
+                    label: 'First Name',
                     required: true,
+                    validator: (v) =>
+                        Validators.validateName(v, fieldName: 'First name'),
+                  ),
+                  // Patients created before this form was split can have a
+                  // single-token name, which leaves this empty on load. Making
+                  // it required in edit mode would block unrelated saves until
+                  // someone invents a surname.
+                  _textField(
+                    controller: _lastNameController,
+                    label: 'Last Name',
+                    required: !widget.isEditing,
+                    validator: widget.isEditing
+                        ? null
+                        : (v) =>
+                            Validators.validateName(v, fieldName: 'Last name'),
                   ),
                   _textField(
                     controller: _emailController,
                     label: 'Email',
                     required: true,
                     keyboardType: TextInputType.emailAddress,
-                    validator: _validateEmail,
+                    validator: Validators.validateEmail,
                   ),
                   _textField(
                     controller: _phoneController,
                     label: 'Phone Number',
                     keyboardType: TextInputType.phone,
+                    validator: Validators.validatePhone,
                   ),
 
                   // ✅ Password field ONLY in create mode
@@ -568,16 +597,5 @@ class _PatientFormPageState extends ConsumerState<PatientFormPage> {
         contentPadding: EdgeInsets.zero,
       ),
     );
-  }
-
-  String? _validateEmail(String? value) {
-    if (value == null || value.trim().isEmpty) {
-      return 'Email is required';
-    }
-    final regex = RegExp(r'^[^@]+@[^@]+\.[^@]+');
-    if (!regex.hasMatch(value.trim())) {
-      return 'Enter a valid email';
-    }
-    return null;
   }
 }
