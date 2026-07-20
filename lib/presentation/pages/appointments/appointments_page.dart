@@ -336,7 +336,11 @@ class _AppointmentsPageState extends ConsumerState<AppointmentsPage> {
     final permissions = ref.watch(permissionServiceProvider);
     final canViewAll = permissions.can(Perm.appointmentViewAny);
     final canView = permissions.can(Perm.appointmentView);
-    final canCreate = permissions.can(Perm.appointmentCreate);
+    // Either permission opens the form: `create` books for yourself,
+    // `create-for-others` books on a patient's behalf. A role holding only the
+    // latter still needs the button.
+    final canCreate = permissions.can(Perm.appointmentCreate) ||
+        permissions.can(Perm.appointmentCreateForOthers);
     final canDelete = permissions.can(Perm.appointmentDelete);
     final canUpdateStatus = permissions.can(Perm.appointmentUpdateStatus);
     final canUpdate = permissions.can(Perm.appointmentUpdate);
