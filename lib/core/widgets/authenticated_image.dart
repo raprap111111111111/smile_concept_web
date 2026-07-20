@@ -11,7 +11,7 @@ class AuthenticatedImage extends ConsumerStatefulWidget {
   final double? height;
   final Widget? placeholder;
   final Widget Function(BuildContext, VoidCallback retry)? errorBuilder;
-  final BorderRadius? borderRadius; // ✅ THIS MUST EXIST
+  final BorderRadius? borderRadius;
   final Duration timeout;
   final bool useCache;
 
@@ -23,7 +23,7 @@ class AuthenticatedImage extends ConsumerStatefulWidget {
     this.height,
     this.placeholder,
     this.errorBuilder,
-    this.borderRadius, // ✅ AND HERE
+    this.borderRadius, 
     this.timeout = const Duration(seconds: 30),
     this.useCache = true,
   });

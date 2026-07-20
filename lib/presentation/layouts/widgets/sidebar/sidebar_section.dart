@@ -12,7 +12,7 @@ class SidebarSection extends StatefulWidget {
     super.key,
     required this.title,
     required this.children,
-    this.initiallyExpanded = true,
+    this.initiallyExpanded = false,
   });
 
   @override

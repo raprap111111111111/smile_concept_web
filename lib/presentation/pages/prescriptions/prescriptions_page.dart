@@ -7,6 +7,9 @@ import 'package:go_router/go_router.dart';
 import '../../providers/auth/auth_provider.dart';
 import '../../providers/prescription/prescription_provider.dart';
 import '../../route/route_names.dart';
+import '../../theme/app_colors.dart';
+import '../../theme/app_dimensions.dart';
+import '../../theme/app_text_styles.dart';
 import 'widgets/prescription_card.dart';
 import 'widgets/prescription_empty_state.dart';
 
@@ -37,7 +40,6 @@ class _PrescriptionsPageState
     super.dispose();
   }
 
-  // ── Helpers ────────────────────────────────────────────────
   AuthState get _auth => ref.read(authStateProvider);
 
   void _load({bool forceRefresh = false}) {
@@ -54,18 +56,17 @@ class _PrescriptionsPageState
     }
   }
 
-  void _openDetail(int prescriptionId) {
+  void _openDetail(int id) {
     context.pushNamed(
       RouteNames.prescriptionDetail,
-      pathParameters: {'id': prescriptionId.toString()},
+      pathParameters: {'id': id.toString()},
     );
   }
 
-  // ── Permission-Guarded Delete ──────────────────────────────
   Future<void> _deletePrescription(int id) async {
-    // ✅ RBAC check BEFORE any action
     if (!_auth.canDeletePrescription) {
-      _showPermissionDenied('delete prescriptions');
+      _showSnack('You do not have permission to delete prescriptions',
+          isError: true);
       return;
     }
 
@@ -75,126 +76,178 @@ class _PrescriptionsPageState
 
     if (!mounted) return;
 
-    ScaffoldMessenger.of(context).showSnackBar(
-      success
-          ? const SnackBar(
-              content: Text('✅ Prescription deleted'),
-              backgroundColor: Colors.green,
-            )
-          : SnackBar(
-              content: Text(
-                ref.read(prescriptionProvider).listError ??
-                    'Failed to delete',
-              ),
-              backgroundColor: Colors.red,
-            ),
-    );
+    if (success) {
+      _showSnack('Prescription deleted successfully');
+    } else {
+      _showSnack(
+        ref.read(prescriptionProvider).listError ?? 'Failed to delete',
+        isError: true,
+      );
+    }
   }
 
-  void _showPermissionDenied(String action) {
+  void _showSnack(String message, {bool isError = false}) {
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(
-        content: Text('❌ You do not have permission to $action'),
-        backgroundColor: Colors.red,
+        content: Row(
+          children: [
+            Icon(
+              isError
+                  ? Icons.error_outline
+                  : Icons.check_circle_outline,
+              color: Colors.white,
+              size: 20,
+            ),
+            const SizedBox(width: 12),
+            Expanded(child: Text(message)),
+          ],
+        ),
+        backgroundColor:
+            isError ? AppColors.error : AppColors.success,
+        behavior: SnackBarBehavior.floating,
+        margin: const EdgeInsets.all(16),
+        shape: RoundedRectangleBorder(
+          borderRadius:
+              BorderRadius.circular(AppDimensions.borderRadius),
+        ),
       ),
     );
   }
 
   @override
   Widget build(BuildContext context) {
-    final state    = ref.watch(prescriptionProvider);
+    final state = ref.watch(prescriptionProvider);
     final authState = ref.watch(authStateProvider);
-
-    // ── Derived permission flags ───────────────────────────
     final canCreate = authState.canCreatePrescription;
     final canDelete = authState.canDeletePrescription;
 
     return Scaffold(
+      backgroundColor: AppColors.background,
       appBar: AppBar(
-        title: const Text('Prescriptions'),
+        backgroundColor: AppColors.background,
+        surfaceTintColor: Colors.transparent,
+        elevation: 0,
+        titleSpacing: AppDimensions.paddingLarge,
+        title: Row(
+          children: [
+            Container(
+              width: 38,
+              height: 38,
+              decoration: BoxDecoration(
+                color: AppColors.accentWithOpacity(0.15),
+                borderRadius: BorderRadius.circular(
+                    AppDimensions.borderRadius),
+              ),
+              child: const Icon(
+                Icons.medication_outlined,
+                color: AppColors.primaryDark,
+                size: 20,
+              ),
+            ),
+            const SizedBox(width: 12),
+            Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                const Text('Prescriptions',
+                    style: AppTextStyles.titleLarge),
+                if (!state.isListLoading &&
+                    state.prescriptions.isNotEmpty)
+                  Text(
+                    '${state.prescriptions.length} total',
+                    style: AppTextStyles.labelSmall.copyWith(
+                      color: AppColors.textTertiary,
+                    ),
+                  ),
+              ],
+            ),
+          ],
+        ),
+        bottom: PreferredSize(
+          preferredSize: const Size.fromHeight(1),
+          child: Container(height: 1, color: AppColors.line),
+        ),
         actions: [
           IconButton(
             onPressed: () => _load(forceRefresh: true),
-            icon: const Icon(Icons.refresh),
+            icon: const Icon(Icons.refresh_outlined,
+                color: AppColors.textSecondary),
             tooltip: 'Refresh',
           ),
+          if (canCreate) ...[
+            const SizedBox(width: 4),
+            Padding(
+              padding: const EdgeInsets.only(
+                  right: AppDimensions.paddingLarge),
+              child: FilledButton.icon(
+                onPressed: () =>
+                    context.pushNamed(RouteNames.prescriptionCreate),
+                style: FilledButton.styleFrom(
+                  backgroundColor: AppColors.primary,
+                  foregroundColor: Colors.white,
+                  padding: const EdgeInsets.symmetric(
+                      horizontal: 16, vertical: 12),
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(
+                        AppDimensions.borderRadius),
+                  ),
+                ),
+                icon: const Icon(Icons.add, size: 18),
+                label: const Text('New Prescription',
+                    style: AppTextStyles.labelLarge),
+              ),
+            ),
+          ],
         ],
       ),
       body: _buildBody(state, canDelete),
-
-      // ✅ FAB only shown if user CAN create
-      floatingActionButton: canCreate
-          ? FloatingActionButton.extended(
-              onPressed: () =>
-                  context.pushNamed(RouteNames.prescriptionCreate),
-              icon: const Icon(Icons.add),
-              label: const Text('New Prescription'),
-            )
-          : null,
     );
   }
 
   Widget _buildBody(PrescriptionState state, bool canDelete) {
-    // ── Loading ────────────────────────────────────────────
     if (state.isListLoading) {
-      return const Center(child: CircularProgressIndicator());
-    }
-
-    // ── Error ──────────────────────────────────────────────
-    if (state.hasListError) {
-      return Center(
-        child: Padding(
-          padding: const EdgeInsets.all(24),
-          child: Column(
-            mainAxisAlignment: MainAxisAlignment.center,
-            children: [
-              const Icon(Icons.error_outline,
-                  size: 48, color: Colors.red),
-              const SizedBox(height: 12),
-              Text(
-                state.listError ?? 'Failed to load prescriptions',
-                textAlign: TextAlign.center,
-              ),
-              const SizedBox(height: 16),
-              ElevatedButton.icon(
-                onPressed: () => _load(forceRefresh: true),
-                icon: const Icon(Icons.refresh),
-                label: const Text('Retry'),
-              ),
-            ],
-          ),
-        ),
+      return const Center(
+        child: CircularProgressIndicator(color: AppColors.primary),
       );
     }
 
-    // ── Empty ──────────────────────────────────────────────
+    if (state.hasListError) {
+      return _ErrorView(
+        message: state.listError ?? 'Failed to load prescriptions',
+        onRetry: () => _load(forceRefresh: true),
+      );
+    }
+
     if (state.isEmpty) {
       return PrescriptionEmptyState(
         onRefresh: () => _load(forceRefresh: true),
       );
     }
 
-    // ── List ───────────────────────────────────────────────
     return RefreshIndicator(
+      color: AppColors.primary,
       onRefresh: () =>
           ref.read(prescriptionProvider.notifier).refresh(),
-      child: ListView.builder(
+      child: ListView.separated(
         controller: _scrollController,
-        padding: const EdgeInsets.symmetric(vertical: 10),
+        padding: const EdgeInsets.all(AppDimensions.paddingLarge),
         itemCount: state.prescriptions.length +
             (state.isLoadingMore ? 1 : 0),
+        separatorBuilder: (_, __) =>
+            const SizedBox(height: AppDimensions.paddingSmall),
         itemBuilder: (context, index) {
-          // ── Load more indicator ──────────────────────
           if (index == state.prescriptions.length) {
             return const Padding(
-              padding: EdgeInsets.all(16),
-              child: Center(child: CircularProgressIndicator()),
+              padding: EdgeInsets.all(AppDimensions.paddingMedium),
+              child: Center(
+                child: CircularProgressIndicator(
+                    color: AppColors.primary),
+              ),
             );
           }
 
           final prescription = state.prescriptions[index];
 
-          // ✅ Swipe-to-delete ONLY if user has permission
           if (canDelete) {
             return _DismissiblePrescriptionCard(
               prescription: prescription,
@@ -203,7 +256,6 @@ class _PrescriptionsPageState
             );
           }
 
-          // ── Read-only card (no swipe) ─────────────────
           return PrescriptionCard(
             prescription: prescription,
             onTap: () => _openDetail(prescription.id),
@@ -214,7 +266,51 @@ class _PrescriptionsPageState
   }
 }
 
-// ─── Dismissible Card (extracted for clarity) ─────────────────
+// ── Error View ────────────────────────────────────────────────
+class _ErrorView extends StatelessWidget {
+  final String message;
+  final VoidCallback onRetry;
+
+  const _ErrorView({required this.message, required this.onRetry});
+
+  @override
+  Widget build(BuildContext context) {
+    return Center(
+      child: Padding(
+        padding: const EdgeInsets.all(AppDimensions.paddingXL),
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Container(
+              padding: const EdgeInsets.all(20),
+              decoration: BoxDecoration(
+                color: AppColors.error.withValues(alpha: 0.08),
+                shape: BoxShape.circle,
+              ),
+              child: const Icon(Icons.error_outline,
+                  size: 48, color: AppColors.error),
+            ),
+            const SizedBox(height: AppDimensions.paddingMedium),
+            const Text('Something went wrong',
+                style: AppTextStyles.titleMedium),
+            const SizedBox(height: 4),
+            Text(message,
+                style: AppTextStyles.bodySmall,
+                textAlign: TextAlign.center),
+            const SizedBox(height: AppDimensions.paddingLarge),
+            OutlinedButton.icon(
+              onPressed: onRetry,
+              icon: const Icon(Icons.refresh, size: 18),
+              label: const Text('Retry'),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+// ── Dismissible Card ──────────────────────────────────────────
 class _DismissiblePrescriptionCard extends StatelessWidget {
   final dynamic prescription;
   final VoidCallback onTap;
@@ -230,21 +326,44 @@ class _DismissiblePrescriptionCard extends StatelessWidget {
     return showDialog<bool>(
       context: context,
       builder: (ctx) => AlertDialog(
-        title: const Text('Delete Prescription?'),
+        backgroundColor: AppColors.background,
+        shape: RoundedRectangleBorder(
+          borderRadius:
+              BorderRadius.circular(AppDimensions.borderRadiusLarge),
+          side: const BorderSide(color: AppColors.line),
+        ),
+        title: Row(
+          children: [
+            Container(
+              padding: const EdgeInsets.all(8),
+              decoration: BoxDecoration(
+                color: AppColors.error.withValues(alpha: 0.08),
+                borderRadius: BorderRadius.circular(8),
+              ),
+              child: const Icon(Icons.delete_outline,
+                  color: AppColors.error, size: 20),
+            ),
+            const SizedBox(width: 12),
+            const Text('Delete Prescription',
+                style: AppTextStyles.titleMedium),
+          ],
+        ),
         content: Text(
           'Are you sure you want to delete '
-          'Prescription #${prescription.id}?\n'
+          'Prescription #${prescription.id}? '
           'This action cannot be undone.',
+          style: AppTextStyles.bodySmall,
         ),
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(ctx, false),
             child: const Text('Cancel'),
           ),
-          TextButton(
+          FilledButton(
             onPressed: () => Navigator.pop(ctx, true),
-            style:
-                TextButton.styleFrom(foregroundColor: Colors.red),
+            style: FilledButton.styleFrom(
+              backgroundColor: AppColors.error,
+            ),
             child: const Text('Delete'),
           ),
         ],
@@ -258,16 +377,27 @@ class _DismissiblePrescriptionCard extends StatelessWidget {
       key: ValueKey(prescription.id),
       direction: DismissDirection.endToStart,
       background: Container(
-        margin: const EdgeInsets.symmetric(
-            horizontal: 16, vertical: 6),
         decoration: BoxDecoration(
-          color: Colors.red,
-          borderRadius: BorderRadius.circular(12),
+          color: AppColors.error,
+          borderRadius:
+              BorderRadius.circular(AppDimensions.borderRadiusLarge),
         ),
         alignment: Alignment.centerRight,
-        padding: const EdgeInsets.only(right: 20),
-        child: const Icon(Icons.delete,
-            color: Colors.white, size: 28),
+        padding: const EdgeInsets.only(right: 24),
+        child: const Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Icon(Icons.delete_outline, color: Colors.white, size: 22),
+            SizedBox(width: 8),
+            Text(
+              'Delete',
+              style: TextStyle(
+                color: Colors.white,
+                fontWeight: FontWeight.w700,
+              ),
+            ),
+          ],
+        ),
       ),
       confirmDismiss: (_) => _confirmDelete(context),
       onDismissed: (_) => onDelete(),
