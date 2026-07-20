@@ -1,4 +1,3 @@
-// lib/presentation/pages/prescriptions/widgets/shared/access_denied_view.dart
 import 'package:flutter/material.dart';
 import '/presentation/theme/app_colors.dart';
 import '/presentation/theme/app_text_styles.dart';

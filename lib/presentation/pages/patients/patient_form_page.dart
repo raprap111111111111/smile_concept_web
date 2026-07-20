@@ -2,15 +2,20 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
+
 import '../../../core/utils/validators.dart';
 import '../../../data/repositories/patient_repository.dart';
 import '../../providers/patient/patient_list_provider.dart';
 import '../../route/route_names.dart';
 import '../../theme/app_colors.dart';
+import '../../theme/app_dimensions.dart';
+import '../../theme/app_text_styles.dart';
+import 'widgets/patient_form_field.dart';
+import 'widgets/patient_page_header.dart';
+import 'widgets/patient_section_card.dart';
 
 class PatientFormPage extends ConsumerStatefulWidget {
-  final int? patientId; // null = create, non-null = edit
-
+  final int? patientId;
   const PatientFormPage({super.key, this.patientId});
 
   bool get isEditing => patientId != null;
@@ -22,25 +27,19 @@ class PatientFormPage extends ConsumerStatefulWidget {
 class _PatientFormPageState extends ConsumerState<PatientFormPage> {
   final _formKey = GlobalKey<FormState>();
 
-  // ─── Personal ──────────────────────────────────
-  // Split first/last to match the patient-facing register form. The backend
-  // stores a single `name`, so they're joined on submit and split on load.
   final _firstNameController = TextEditingController();
   final _lastNameController = TextEditingController();
   final _emailController = TextEditingController();
   final _phoneController = TextEditingController();
-  final _passwordController = TextEditingController(); // ✅ NEW
+  final _passwordController = TextEditingController();
 
-  // ─── Medical ───────────────────────────────────
-  String? _bloodType; // ✅ Changed to dropdown
+  String? _bloodType;
   final _allergiesController = TextEditingController();
   final _medicalHistoryController = TextEditingController();
 
-  // ─── Emergency ─────────────────────────────────
   final _emergencyNameController = TextEditingController();
   final _emergencyPhoneController = TextEditingController();
 
-  // ─── Special conditions ────────────────────────
   bool _requiresEpinephrineFree = false;
   bool _hasCardiacConditions = false;
   bool _isPregnant = false;
@@ -57,44 +56,7 @@ class _PatientFormPageState extends ConsumerState<PatientFormPage> {
   @override
   void initState() {
     super.initState();
-    if (widget.isEditing) {
-      _loadPatientData();
-    }
-  }
-
-  Future<void> _loadPatientData() async {
-    setState(() => _isLoadingData = true);
-    try {
-      final repo = ref.read(patientRepositoryProvider);
-      final patient = await repo.getById(widget.patientId!);
-
-      // First token is the first name, whatever follows is the last name.
-      final parts = patient.name.trim().split(RegExp(r'\s+'));
-      _firstNameController.text = parts.isEmpty ? '' : parts.first;
-      _lastNameController.text = parts.length > 1 ? parts.sublist(1).join(' ') : '';
-      _emailController.text = patient.email;
-      _phoneController.text = patient.phone ?? '';
-
-      // ✅ patientProfile is a non-null getter
-      final profile = patient.patientProfile;
-      _bloodType = _bloodTypes.contains(profile.bloodType)
-          ? profile.bloodType
-          : null;
-      _allergiesController.text = profile.allergies ?? '';
-      _medicalHistoryController.text = profile.medicalHistory ?? '';
-      _emergencyNameController.text = profile.emergencyContactName ?? '';
-      _emergencyPhoneController.text = profile.emergencyContactPhone ?? '';
-      _requiresEpinephrineFree = profile.requiresEpinephrineFreeAnesthesia;
-      _hasCardiacConditions = profile.hasCardiacConditions;
-      _isPregnant = profile.isPregnant;
-      _hasBleedingDisorders = profile.hasBleedingDisorders;
-    } catch (e) {
-      if (mounted) {
-        _showSnackBar('Failed to load patient: $e', isError: true);
-      }
-    } finally {
-      if (mounted) setState(() => _isLoadingData = false);
-    }
+    if (widget.isEditing) _loadPatientData();
   }
 
   @override
@@ -111,28 +73,52 @@ class _PatientFormPageState extends ConsumerState<PatientFormPage> {
     super.dispose();
   }
 
+  Future<void> _loadPatientData() async {
+    setState(() => _isLoadingData = true);
+    try {
+      final repo = ref.read(patientRepositoryProvider);
+      final patient = await repo.getById(widget.patientId!);
+
+      final parts = patient.name.trim().split(RegExp(r'\s+'));
+      _firstNameController.text = parts.isEmpty ? '' : parts.first;
+      _lastNameController.text =
+          parts.length > 1 ? parts.sublist(1).join(' ') : '';
+      _emailController.text = patient.email;
+      _phoneController.text = patient.phone ?? '';
+
+      final profile = patient.patientProfile;
+      _bloodType =
+          _bloodTypes.contains(profile.bloodType) ? profile.bloodType : null;
+      _allergiesController.text = profile.allergies ?? '';
+      _medicalHistoryController.text = profile.medicalHistory ?? '';
+      _emergencyNameController.text = profile.emergencyContactName ?? '';
+      _emergencyPhoneController.text = profile.emergencyContactPhone ?? '';
+      _requiresEpinephrineFree = profile.requiresEpinephrineFreeAnesthesia;
+      _hasCardiacConditions = profile.hasCardiacConditions;
+      _isPregnant = profile.isPregnant;
+      _hasBleedingDisorders = profile.hasBleedingDisorders;
+    } catch (e) {
+      if (mounted) _showSnackBar('Failed to load patient: $e', isError: true);
+    } finally {
+      if (mounted) setState(() => _isLoadingData = false);
+    }
+  }
+
   Future<void> _handleSubmit() async {
     if (!_formKey.currentState!.validate()) return;
-
     setState(() => _isSubmitting = true);
 
     try {
       final repo = ref.read(patientRepositoryProvider);
-
-      // Backend keeps one `name` column, so recombine the two fields.
       final fullName =
           '${_firstNameController.text.trim()} ${_lastNameController.text.trim()}'
               .trim();
 
-      // ─── Build payload ─────────────────────────
       final data = <String, dynamic>{
-        // User fields (only send if non-empty)
         'name': fullName,
         'email': _emailController.text.trim(),
         if (_phoneController.text.trim().isNotEmpty)
           'phone': _phoneController.text.trim(),
-
-        // Medical fields
         if (_bloodType != null && _bloodType!.isNotEmpty)
           'blood_type': _bloodType,
         if (_allergiesController.text.trim().isNotEmpty)
@@ -143,15 +129,12 @@ class _PatientFormPageState extends ConsumerState<PatientFormPage> {
           'emergency_contact_name': _emergencyNameController.text.trim(),
         if (_emergencyPhoneController.text.trim().isNotEmpty)
           'emergency_contact_phone': _emergencyPhoneController.text.trim(),
-
-        // Flags always included
         'requires_epinephrine_free_anesthesia': _requiresEpinephrineFree,
         'has_cardiac_conditions': _hasCardiacConditions,
         'is_pregnant': _isPregnant,
         'has_bleeding_disorders': _hasBleedingDisorders,
       };
 
-      // ✅ Password only for CREATE (and only if provided)
       if (!widget.isEditing && _passwordController.text.trim().isNotEmpty) {
         data['password'] = _passwordController.text.trim();
       }
@@ -162,7 +145,6 @@ class _PatientFormPageState extends ConsumerState<PatientFormPage> {
         await repo.create(data);
       }
 
-      // Refresh the list
       ref.read(patientListProvider.notifier).refresh();
 
       if (mounted) {
@@ -174,9 +156,7 @@ class _PatientFormPageState extends ConsumerState<PatientFormPage> {
         context.goNamed(RouteNames.patients);
       }
     } catch (e) {
-      if (mounted) {
-        _showSnackBar('❌ $e', isError: true);
-      }
+      if (mounted) _showSnackBar('❌ $e', isError: true);
     } finally {
       if (mounted) setState(() => _isSubmitting = false);
     }
@@ -186,7 +166,7 @@ class _PatientFormPageState extends ConsumerState<PatientFormPage> {
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(
         content: Text(message),
-        backgroundColor: isError ? Colors.red : Colors.green,
+        backgroundColor: isError ? AppColors.error : AppColors.success,
         behavior: SnackBarBehavior.floating,
         duration: Duration(seconds: isError ? 5 : 3),
       ),
@@ -199,244 +179,192 @@ class _PatientFormPageState extends ConsumerState<PatientFormPage> {
       return const Center(child: CircularProgressIndicator());
     }
 
-    return Padding(
-      padding: const EdgeInsets.all(24),
+    return Container(
+      color: AppColors.background,
+      padding: const EdgeInsets.all(AppDimensions.paddingLarge),
       child: SingleChildScrollView(
         child: Form(
           key: _formKey,
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              // ─── Header ─────────────────────────────
-              Row(
-                children: [
-                  IconButton(
-                    icon: const Icon(Icons.arrow_back, color: Colors.white),
-                    onPressed: () => context.goNamed(RouteNames.patients),
-                  ),
-                  const SizedBox(width: 8),
-                  Text(
-                    widget.isEditing ? 'Edit Patient' : 'New Patient',
-                    style: const TextStyle(
-                      fontSize: 28,
-                      fontWeight: FontWeight.bold,
-                      color: Colors.white,
-                    ),
-                  ),
-                ],
+              PatientPageHeader(
+                title: widget.isEditing ? 'Edit Patient' : 'New Patient',
+                onBack: () => context.goNamed(RouteNames.patients),
               ),
+              const SizedBox(height: AppDimensions.paddingXL),
 
-              const SizedBox(height: 32),
-
-              // ─── Personal Info ──────────────────────
-              _sectionCard(
+              // Personal
+              PatientSectionCard(
                 title: 'Personal Information',
                 icon: Icons.person_outline,
                 children: [
-                  _textField(
+                  PatientFormField(
                     controller: _firstNameController,
                     label: 'First Name',
                     required: true,
-                    validator: (v) =>
-                        Validators.validateName(v, fieldName: 'First name'),
+                    prefixIcon: Icons.person_outline,
+                    validator: (v) => Validators.validateName(v,
+                        fieldName: 'First name'),
                   ),
-                  // Patients created before this form was split can have a
-                  // single-token name, which leaves this empty on load. Making
-                  // it required in edit mode would block unrelated saves until
-                  // someone invents a surname.
-                  _textField(
+                  PatientFormField(
                     controller: _lastNameController,
                     label: 'Last Name',
                     required: !widget.isEditing,
+                    prefixIcon: Icons.person_outline,
                     validator: widget.isEditing
                         ? null
-                        : (v) =>
-                            Validators.validateName(v, fieldName: 'Last name'),
+                        : (v) => Validators.validateName(v,
+                            fieldName: 'Last name'),
                   ),
-                  _textField(
+                  PatientFormField(
                     controller: _emailController,
                     label: 'Email',
                     required: true,
+                    prefixIcon: Icons.email_outlined,
                     keyboardType: TextInputType.emailAddress,
                     validator: Validators.validateEmail,
                   ),
-                  _textField(
+                  PatientFormField(
                     controller: _phoneController,
                     label: 'Phone Number',
+                    prefixIcon: Icons.phone_outlined,
                     keyboardType: TextInputType.phone,
                     validator: Validators.validatePhone,
                   ),
-
-                  // ✅ Password field ONLY in create mode
-                  if (!widget.isEditing) _buildPasswordField(),
+                  if (!widget.isEditing)
+                    _PasswordField(
+                      controller: _passwordController,
+                      obscure: _obscurePassword,
+                      onToggle: () => setState(
+                          () => _obscurePassword = !_obscurePassword),
+                    ),
                 ],
               ),
+              const SizedBox(height: AppDimensions.paddingLarge),
 
-              const SizedBox(height: 24),
-
-              // ─── Medical Info ───────────────────────
-              _sectionCard(
+              // Medical
+              PatientSectionCard(
                 title: 'Medical Information',
                 icon: Icons.medical_information_outlined,
                 children: [
-                  _buildBloodTypeDropdown(), // ✅ Dropdown now
-                  _textField(
+                  _BloodTypeDropdown(
+                    value: _bloodType,
+                    bloodTypes: _bloodTypes,
+                    onChanged: (v) => setState(() => _bloodType = v),
+                  ),
+                  PatientFormField(
                     controller: _allergiesController,
                     label: 'Allergies',
                     maxLines: 3,
                   ),
-                  _textField(
+                  PatientFormField(
                     controller: _medicalHistoryController,
                     label: 'Medical History',
                     maxLines: 3,
                   ),
                 ],
               ),
+              const SizedBox(height: AppDimensions.paddingLarge),
 
-              const SizedBox(height: 24),
-
-              // ─── Emergency Contact ──────────────────
-              _sectionCard(
+              // Emergency
+              PatientSectionCard(
                 title: 'Emergency Contact',
                 icon: Icons.emergency_outlined,
                 children: [
-                  _textField(
+                  PatientFormField(
                     controller: _emergencyNameController,
                     label: 'Contact Name',
+                    prefixIcon: Icons.person_outline,
                   ),
-                  _textField(
+                  PatientFormField(
                     controller: _emergencyPhoneController,
                     label: 'Contact Phone',
+                    prefixIcon: Icons.phone_outlined,
                     keyboardType: TextInputType.phone,
                   ),
                 ],
               ),
+              const SizedBox(height: AppDimensions.paddingLarge),
 
-              const SizedBox(height: 24),
-
-              // ─── Special Conditions ─────────────────
-              _sectionCard(
+              // Special Conditions
+              PatientSectionCard(
                 title: 'Special Conditions',
                 icon: Icons.warning_amber_outlined,
                 children: [
-                  _switchTile(
-                    'Requires Epinephrine-free Anesthesia',
-                    _requiresEpinephrineFree,
-                    (v) => setState(() => _requiresEpinephrineFree = v),
+                  _SwitchTile(
+                    label: 'Requires Epinephrine-free Anesthesia',
+                    value: _requiresEpinephrineFree,
+                    onChanged: (v) =>
+                        setState(() => _requiresEpinephrineFree = v),
                   ),
-                  _switchTile(
-                    'Has Cardiac Conditions',
-                    _hasCardiacConditions,
-                    (v) => setState(() => _hasCardiacConditions = v),
+                  _SwitchTile(
+                    label: 'Has Cardiac Conditions',
+                    value: _hasCardiacConditions,
+                    onChanged: (v) =>
+                        setState(() => _hasCardiacConditions = v),
                   ),
-                  _switchTile(
-                    'Is Pregnant',
-                    _isPregnant,
-                    (v) => setState(() => _isPregnant = v),
+                  _SwitchTile(
+                    label: 'Is Pregnant',
+                    value: _isPregnant,
+                    onChanged: (v) => setState(() => _isPregnant = v),
                   ),
-                  _switchTile(
-                    'Has Bleeding Disorders',
-                    _hasBleedingDisorders,
-                    (v) => setState(() => _hasBleedingDisorders = v),
-                  ),
-                ],
-              ),
-
-              const SizedBox(height: 32),
-
-              // ─── Actions ────────────────────────────
-              Row(
-                children: [
-                  Expanded(
-                    child: OutlinedButton(
-                      onPressed: _isSubmitting
-                          ? null
-                          : () => context.goNamed(RouteNames.patients),
-                      style: OutlinedButton.styleFrom(
-                        padding: const EdgeInsets.symmetric(vertical: 16),
-                        side: const BorderSide(color: Colors.white24),
-                        foregroundColor: Colors.white,
-                      ),
-                      child: const Text('CANCEL'),
-                    ),
-                  ),
-                  const SizedBox(width: 16),
-                  Expanded(
-                    flex: 2,
-                    child: ElevatedButton(
-                      onPressed: _isSubmitting ? null : _handleSubmit,
-                      style: ElevatedButton.styleFrom(
-                        backgroundColor: AppColors.primary,
-                        foregroundColor: Colors.black,
-                        padding: const EdgeInsets.symmetric(vertical: 16),
-                        disabledBackgroundColor:
-                            AppColors.primary.withValues(alpha: 0.6),
-                      ),
-                      child: _isSubmitting
-                          ? const SizedBox(
-                              width: 24,
-                              height: 24,
-                              child: CircularProgressIndicator(
-                                color: Colors.black,
-                                strokeWidth: 2,
-                              ),
-                            )
-                          : Text(
-                              widget.isEditing
-                                  ? 'UPDATE PATIENT'
-                                  : 'CREATE PATIENT',
-                              style: const TextStyle(
-                                fontWeight: FontWeight.bold,
-                                letterSpacing: 1,
-                              ),
-                            ),
-                    ),
+                  _SwitchTile(
+                    label: 'Has Bleeding Disorders',
+                    value: _hasBleedingDisorders,
+                    onChanged: (v) =>
+                        setState(() => _hasBleedingDisorders = v),
                   ),
                 ],
               ),
+              const SizedBox(height: AppDimensions.paddingXL),
 
-              const SizedBox(height: 32),
+              _FormActions(
+                isEditing: widget.isEditing,
+                isSubmitting: _isSubmitting,
+                onCancel: () => context.goNamed(RouteNames.patients),
+                onSubmit: _handleSubmit,
+              ),
+              const SizedBox(height: AppDimensions.paddingXL),
             ],
           ),
         ),
       ),
     );
   }
+}
 
-  // ─── Password Field ─────────────────────────────────
-  Widget _buildPasswordField() {
+// ── Password Field ────────────────────────────────────────────
+class _PasswordField extends StatelessWidget {
+  final TextEditingController controller;
+  final bool obscure;
+  final VoidCallback onToggle;
+
+  const _PasswordField({
+    required this.controller,
+    required this.obscure,
+    required this.onToggle,
+  });
+
+  @override
+  Widget build(BuildContext context) {
     return Padding(
-      padding: const EdgeInsets.only(bottom: 16),
+      padding: const EdgeInsets.only(bottom: AppDimensions.paddingMedium),
       child: TextFormField(
-        controller: _passwordController,
-        obscureText: _obscurePassword,
-        style: const TextStyle(color: Colors.white),
+        controller: controller,
+        obscureText: obscure,
+        style: AppTextStyles.bodyMedium.copyWith(color: AppColors.ink),
         decoration: InputDecoration(
           labelText: 'Password (optional — auto-generated if empty)',
-          labelStyle: const TextStyle(color: Colors.white70),
           helperText: 'Minimum 8 characters if set',
-          helperStyle: const TextStyle(color: Colors.white38, fontSize: 12),
-          filled: true,
-          fillColor: Colors.white.withValues(alpha: 0.05),
+          prefixIcon:
+              const Icon(Icons.lock_outline, color: AppColors.textSecondary),
           suffixIcon: IconButton(
             icon: Icon(
-              _obscurePassword ? Icons.visibility_off : Icons.visibility,
-              color: Colors.white54,
+              obscure ? Icons.visibility_off : Icons.visibility,
+              color: AppColors.textSecondary,
             ),
-            onPressed: () =>
-                setState(() => _obscurePassword = !_obscurePassword),
-          ),
-          border: OutlineInputBorder(
-            borderRadius: BorderRadius.circular(8),
-            borderSide: BorderSide.none,
-          ),
-          enabledBorder: OutlineInputBorder(
-            borderRadius: BorderRadius.circular(8),
-            borderSide: BorderSide(color: Colors.white.withValues(alpha: 0.1)),
-          ),
-          focusedBorder: OutlineInputBorder(
-            borderRadius: BorderRadius.circular(8),
-            borderSide: BorderSide(color: AppColors.primary, width: 2),
+            onPressed: onToggle,
           ),
         ),
         validator: (v) {
@@ -448,154 +376,145 @@ class _PatientFormPageState extends ConsumerState<PatientFormPage> {
       ),
     );
   }
+}
 
-  // ─── Blood Type Dropdown ────────────────────────────
-  Widget _buildBloodTypeDropdown() {
+// ── Blood Type Dropdown ───────────────────────────────────────
+class _BloodTypeDropdown extends StatelessWidget {
+  final String? value;
+  final List<String> bloodTypes;
+  final ValueChanged<String?> onChanged;
+
+  const _BloodTypeDropdown({
+    required this.value,
+    required this.bloodTypes,
+    required this.onChanged,
+  });
+
+  @override
+  Widget build(BuildContext context) {
     return Padding(
-      padding: const EdgeInsets.only(bottom: 16),
+      padding: const EdgeInsets.only(bottom: AppDimensions.paddingMedium),
       child: DropdownButtonFormField<String>(
-        initialValue: _bloodType,
-        dropdownColor: AppColors.surfaceDark,
-        style: const TextStyle(color: Colors.white),
-        decoration: InputDecoration(
+        initialValue: value,
+        dropdownColor: AppColors.background,
+        style: AppTextStyles.bodyMedium.copyWith(color: AppColors.ink),
+        decoration: const InputDecoration(
           labelText: 'Blood Type',
-          labelStyle: const TextStyle(color: Colors.white70),
-          filled: true,
-          fillColor: Colors.white.withValues(alpha: 0.05),
-          border: OutlineInputBorder(
-            borderRadius: BorderRadius.circular(8),
-            borderSide: BorderSide.none,
-          ),
-          enabledBorder: OutlineInputBorder(
-            borderRadius: BorderRadius.circular(8),
-            borderSide: BorderSide(color: Colors.white.withValues(alpha: 0.1)),
-          ),
-          focusedBorder: OutlineInputBorder(
-            borderRadius: BorderRadius.circular(8),
-            borderSide: BorderSide(color: AppColors.primary, width: 2),
-          ),
+          prefixIcon: Icon(Icons.bloodtype_outlined,
+              color: AppColors.textSecondary),
         ),
-        icon: const Icon(Icons.arrow_drop_down, color: Colors.white54),
-        hint: const Text(
+        icon: const Icon(Icons.arrow_drop_down,
+            color: AppColors.textSecondary),
+        hint: Text(
           'Select blood type',
-          style: TextStyle(color: Colors.white38),
+          style: AppTextStyles.bodyMedium
+              .copyWith(color: AppColors.textTertiary),
         ),
         items: [
           const DropdownMenuItem<String>(
             value: null,
-            child: Text(
-              '— None —',
-              style: TextStyle(color: Colors.white54),
-            ),
+            child: Text('— None —'),
           ),
-          ..._bloodTypes.map(
+          ...bloodTypes.map(
             (v) => DropdownMenuItem(value: v, child: Text(v)),
           ),
         ],
-        onChanged: (v) => setState(() => _bloodType = v),
+        onChanged: onChanged,
       ),
     );
   }
+}
 
-  // ─── Widget Helpers ─────────────────────────────────
-  Widget _sectionCard({
-    required String title,
-    required IconData icon,
-    required List<Widget> children,
-  }) {
-    return Container(
-      padding: const EdgeInsets.all(24),
-      decoration: BoxDecoration(
-        color: AppColors.surfaceDark,
-        borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: Colors.white.withValues(alpha: 0.05)),
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Row(
-            children: [
-              Icon(icon, color: AppColors.primary, size: 20),
-              const SizedBox(width: 8),
-              Text(
-                title,
-                style: const TextStyle(
-                  fontSize: 18,
-                  fontWeight: FontWeight.bold,
-                  color: Colors.white,
-                ),
-              ),
-            ],
-          ),
-          const SizedBox(height: 8),
-          const Divider(color: Colors.white12, height: 1),
-          const SizedBox(height: 16),
-          ...children,
-        ],
-      ),
-    );
-  }
+// ── Switch Tile ───────────────────────────────────────────────
+class _SwitchTile extends StatelessWidget {
+  final String label;
+  final bool value;
+  final ValueChanged<bool> onChanged;
 
-  Widget _textField({
-    required TextEditingController controller,
-    required String label,
-    bool required = false,
-    int maxLines = 1,
-    TextInputType? keyboardType,
-    String? Function(String?)? validator,
-  }) {
-    return Padding(
-      padding: const EdgeInsets.only(bottom: 16),
-      child: TextFormField(
-        controller: controller,
-        maxLines: maxLines,
-        keyboardType: keyboardType,
-        style: const TextStyle(color: Colors.white),
-        decoration: InputDecoration(
-          labelText: required ? '$label *' : label,
-          labelStyle: const TextStyle(color: Colors.white70),
-          filled: true,
-          fillColor: Colors.white.withValues(alpha: 0.05),
-          border: OutlineInputBorder(
-            borderRadius: BorderRadius.circular(8),
-            borderSide: BorderSide.none,
-          ),
-          enabledBorder: OutlineInputBorder(
-            borderRadius: BorderRadius.circular(8),
-            borderSide: BorderSide(color: Colors.white.withValues(alpha: 0.1)),
-          ),
-          focusedBorder: OutlineInputBorder(
-            borderRadius: BorderRadius.circular(8),
-            borderSide: BorderSide(color: AppColors.primary, width: 2),
-          ),
-          errorBorder: OutlineInputBorder(
-            borderRadius: BorderRadius.circular(8),
-            borderSide: const BorderSide(color: Colors.red),
-          ),
-        ),
-        validator: validator ??
-            (required
-                ? (v) => (v == null || v.trim().isEmpty)
-                    ? '$label is required'
-                    : null
-                : null),
-      ),
-    );
-  }
+  const _SwitchTile({
+    required this.label,
+    required this.value,
+    required this.onChanged,
+  });
 
-  Widget _switchTile(String label, bool value, ValueChanged<bool> onChanged) {
+  @override
+  Widget build(BuildContext context) {
     return Padding(
       padding: const EdgeInsets.symmetric(vertical: 4),
       child: SwitchListTile(
         title: Text(
           label,
-          style: const TextStyle(color: Colors.white, fontSize: 14),
+          style: AppTextStyles.bodyMedium.copyWith(color: AppColors.ink),
         ),
         value: value,
         onChanged: onChanged,
         activeThumbColor: AppColors.primary,
         contentPadding: EdgeInsets.zero,
       ),
+    );
+  }
+}
+
+// ── Form Actions ──────────────────────────────────────────────
+class _FormActions extends StatelessWidget {
+  final bool isEditing;
+  final bool isSubmitting;
+  final VoidCallback onCancel;
+  final VoidCallback onSubmit;
+
+  const _FormActions({
+    required this.isEditing,
+    required this.isSubmitting,
+    required this.onCancel,
+    required this.onSubmit,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Row(
+      children: [
+        Expanded(
+          child: OutlinedButton(
+            onPressed: isSubmitting ? null : onCancel,
+            style: OutlinedButton.styleFrom(
+              padding: const EdgeInsets.symmetric(vertical: 16),
+              side: const BorderSide(color: AppColors.border),
+              foregroundColor: AppColors.textSecondary,
+            ),
+            child: const Text('CANCEL'),
+          ),
+        ),
+        const SizedBox(width: AppDimensions.paddingMedium),
+        Expanded(
+          flex: 2,
+          child: FilledButton(
+            onPressed: isSubmitting ? null : onSubmit,
+            style: FilledButton.styleFrom(
+              backgroundColor: AppColors.primary,
+              foregroundColor: Colors.white,
+              padding: const EdgeInsets.symmetric(vertical: 16),
+              disabledBackgroundColor:
+                  AppColors.primary.withValues(alpha: 0.5),
+            ),
+            child: isSubmitting
+                ? const SizedBox(
+                    width: 24,
+                    height: 24,
+                    child: CircularProgressIndicator(
+                      color: Colors.white,
+                      strokeWidth: 2,
+                    ),
+                  )
+                : Text(
+                    isEditing ? 'UPDATE PATIENT' : 'CREATE PATIENT',
+                    style: const TextStyle(
+                      fontWeight: FontWeight.w800,
+                      letterSpacing: 1,
+                    ),
+                  ),
+          ),
+        ),
+      ],
     );
   }
 }
