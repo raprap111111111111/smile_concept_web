@@ -5,16 +5,23 @@ import 'package:go_router/go_router.dart';
 import '/presentation/pages/dashboard/dashboard_page.dart';
 import '/presentation/pages/clinical_records/clinical_records_page.dart';
 import '/presentation/route/route_names.dart';
+import '/presentation/route/page_transitions.dart';
 
 final List<GoRoute> dashboardRoutes = [
   GoRoute(
     path: '/dashboard',
     name: RouteNames.dashboard,
-    builder: (context, state) => const DashboardPage(),
+    pageBuilder: (context, state) => FadeThroughPage(
+      key: state.pageKey,
+      child: const DashboardPage(),
+    ),
   ),
   GoRoute(
     path: '/clinical-records',
     name: RouteNames.clinicalRecords,
-    builder: (context, state) => const ClinicalRecordsPage(),
+    pageBuilder: (context, state) => FadeThroughPage(
+      key: state.pageKey,
+      child: const ClinicalRecordsPage(),
+    ),
   ),
 ];

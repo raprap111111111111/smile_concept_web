@@ -1,4 +1,5 @@
 // lib/presentation/layouts/widgets/sidebar/sidebar_menu.dart
+
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
@@ -8,7 +9,6 @@ import 'sidebar_menu_item.dart';
 import 'sidebar_nav_config.dart';
 import 'sidebar_section.dart';
 
-/// Builds the sidebar menu with permission-based filtering.
 class SidebarMenu extends ConsumerWidget {
   const SidebarMenu({super.key});
 
@@ -44,11 +44,15 @@ class SidebarMenu extends ConsumerWidget {
         SidebarSection(
           title: s.section.title,
           children: s.items
-              .map((item) => SidebarMenuItem(
-                    icon: item.icon,
-                    title: item.title,
-                    routeName: item.routeName,
-                  ))
+              .map(
+                (item) => SidebarMenuItem(
+                  icon: item.icon,
+                  title: item.title,
+                  routeName: item.routeName,
+                  // ✅ Pass through so active detection works
+                  activeRouteNames: item.activeRouteNames,
+                ),
+              )
               .toList(),
         ),
       );

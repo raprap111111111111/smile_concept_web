@@ -6,13 +6,18 @@ import '/presentation/pages/patients/patient_list_page.dart';
 import '/presentation/pages/patients/patient_detail_page.dart';
 import '/presentation/pages/patients/patient_form_page.dart';
 import '/presentation/route/route_names.dart';
+import '/presentation/route/page_transitions.dart';
 
 final List<GoRoute> patientRoutes = [
   GoRoute(
     path: '/patients',
     name: RouteNames.patients,
-    builder: (context, state) => const PatientsListPage(),
+    pageBuilder: (context, state) => FadeThroughPage(
+      key: state.pageKey,
+      child: const PatientsListPage(),
+    ),
     routes: [
+      // ── Child routes: no fade, instant transition ──
       GoRoute(
         path: 'new',
         name: RouteNames.patientCreate,

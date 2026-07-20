@@ -10,12 +10,15 @@ class NavItem {
   final String title;
   final String routeName;
   final List<String> permissions;
+  // Optional: extra route prefixes that should also mark this item as active
+  final List<String> activeRouteNames;
 
   const NavItem({
     required this.icon,
     required this.title,
     required this.routeName,
     required this.permissions,
+    this.activeRouteNames = const [],
   });
 }
 
@@ -109,38 +112,33 @@ class SidebarNavConfig {
             icon: Icons.folder_shared_outlined,
             title: isPatient ? 'My Records' : 'Clinical Records',
             routeName: RouteNames.clinicalRecords,
+            // Also highlight when on dental chart or clinical note sub-routes
+            activeRouteNames: const [
+              RouteNames.clinicalRecords,
+            ],
             permissions: const [
               Perm.clinicalNoteViewAny,
               Perm.dentalChartViewAny,
               Perm.dentalChartView,
             ],
           ),
-
-          // ✅ ADD HERE
           NavItem(
-            icon: Icons.attach_file_outlined,
-            title: isPatient ? 'My Attachments' : 'Patient Attachments',
-            routeName: RouteNames.patientAttachments,
-            permissions: const [
-              Perm.patientAttachmentViewAny, // staff/admin
-              Perm.patientAttachmentView, // patient
-            ],
-          ),
-          NavItem(
-            icon: Icons.folder_shared_outlined,
-            title: isPatient ? 'My Attachments' : 'Patient Files',
+            icon: Icons.folder_copy_outlined,
+            title: isPatient ? 'My Files' : 'Patient Files',
             routeName: isPatient
                 ? RouteNames.patientAttachments
                 : RouteNames.patientFolders,
+            activeRouteNames: [
+              RouteNames.patientFolders,
+              RouteNames.patientAttachments,
+            ],
             permissions: const [
-              Perm.patientAttachmentViewAny, // staff/admin
-              Perm.patientAttachmentView, // patient
+              Perm.patientAttachmentViewAny,
+              Perm.patientAttachmentView,
             ],
           ),
         ],
       ),
-
-      // ✅ Patient Files / Attachments (role-aware)
 
       // ═══ BILLING ═════════════════════════════════════════════
       NavSection(
@@ -174,7 +172,7 @@ class SidebarNavConfig {
           NavItem(
             icon: Icons.medical_services_outlined,
             title: 'Items Catalog',
-            routeName: RouteNames.items, // ✅ NEW
+            routeName: RouteNames.items,
             permissions: [Perm.inventoryViewAny],
           ),
           NavItem(

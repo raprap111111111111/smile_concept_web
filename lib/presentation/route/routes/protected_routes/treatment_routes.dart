@@ -7,12 +7,16 @@ import '../../../pages/treatments/treatment_form_page.dart';
 import '../../../pages/treatment_plans/treatment_plans_page.dart';
 import '../../../pages/treatment_plans/treatment_plan_form_page.dart';
 import '../../route_names.dart';
+import '../../page_transitions.dart';
 
 final List<GoRoute> treatmentRoutes = [
   GoRoute(
     path: '/treatments',
     name: RouteNames.treatments,
-    builder: (context, state) => const TreatmentsPage(),
+    pageBuilder: (context, state) => FadeThroughPage(
+      key: state.pageKey,
+      child: const TreatmentsPage(),
+    ),
     routes: [
       GoRoute(
         path: 'new',
@@ -24,7 +28,10 @@ final List<GoRoute> treatmentRoutes = [
   GoRoute(
     path: '/treatment-plans',
     name: RouteNames.treatmentPlans,
-    builder: (context, state) => const TreatmentPlansPage(),
+    pageBuilder: (context, state) => FadeThroughPage(
+      key: state.pageKey,
+      child: const TreatmentPlansPage(),
+    ),
     routes: [
       GoRoute(
         path: 'new',
