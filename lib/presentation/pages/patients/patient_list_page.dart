@@ -2,10 +2,13 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
+
 import '../../../core/permissions/app_permissions.dart';
 import '../../providers/auth/permission_provider.dart';
 import '../../providers/patient/patient_list_provider.dart';
 import '../../theme/app_colors.dart';
+import '../../theme/app_dimensions.dart';
+import '../../theme/app_text_styles.dart';
 
 class PatientsListPage extends ConsumerWidget {
   const PatientsListPage({super.key});
@@ -14,179 +17,238 @@ class PatientsListPage extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final state = ref.watch(patientListProvider);
     final notifier = ref.read(patientListProvider.notifier);
-
-    // A dentist reaches this page with patient read-only. Without these
-    // checks the write actions still render and fail late — the route guard
-    // bounces Add/Edit to /unauthorized and the API 403s Delete.
     final permissions = ref.watch(permissionServiceProvider);
+
     final canCreate = permissions.can(Perm.patientCreate);
     final canUpdate = permissions.can(Perm.patientUpdate);
     final canDelete = permissions.can(Perm.patientDelete);
 
-    return Padding(
-      padding: const EdgeInsets.all(24),
+    return Container(
+      color: AppColors.background,
+      padding: const EdgeInsets.all(AppDimensions.paddingLarge),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          // ─── Header ─────────────────────────────────────
-          Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-            children: [
-              const Text(
-                'Patients',
-                style: TextStyle(
-                  fontSize: 28,
-                  fontWeight: FontWeight.bold,
-                  color: Colors.white,
-                ),
-              ),
-              if (canCreate)
-                ElevatedButton.icon(
-                  onPressed: () => context.push('/patients/new'),
-                  icon: const Icon(Icons.add, size: 18),
-                  label: const Text('Add Patient'),
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: AppColors.primary,
-                    foregroundColor: Colors.black,
-                    padding: const EdgeInsets.symmetric(
-                      horizontal: 20,
-                      vertical: 14,
-                    ),
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(10),
-                    ),
-                  ),
-                ),
-            ],
-          ),
-
-          const SizedBox(height: 24),
-
-          // ─── Search ─────────────────────────────────────
-          TextField(
-            style: const TextStyle(color: Colors.white),
-            onChanged: (v) => notifier.search(v),
-            decoration: InputDecoration(
-              hintText: 'Search patients...',
-              hintStyle: const TextStyle(color: Colors.white38),
-              prefixIcon: const Icon(Icons.search, color: Colors.white54),
-              filled: true,
-              fillColor: AppColors.surfaceDark,
-              contentPadding: const EdgeInsets.symmetric(vertical: 16),
-              border: OutlineInputBorder(
-                borderRadius: BorderRadius.circular(12),
-                borderSide: BorderSide.none,
-              ),
-            ),
-          ),
-
-          const SizedBox(height: 20),
-
-          // ─── Toolbar: Total + Per-Page ───────────────────
+          _Header(canCreate: canCreate),
+          const SizedBox(height: AppDimensions.paddingLarge),
+          _SearchBar(onChanged: notifier.search),
+          const SizedBox(height: AppDimensions.paddingMedium),
           if (!state.isLoading && state.errorMessage == null)
-            Padding(
-              padding: const EdgeInsets.only(bottom: 12),
-              child: Row(
-                mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                children: [
-                  Text(
-                    'Total: ${state.total} patient${state.total == 1 ? '' : 's'}',
-                    style: const TextStyle(
-                      color: Colors.white54,
-                      fontSize: 13,
-                    ),
-                  ),
-                  Row(
-                    children: [
-                      const Text(
-                        'Rows per page: ',
-                        style: TextStyle(
-                          color: Colors.white54,
-                          fontSize: 13,
-                        ),
-                      ),
-                      Container(
-                        padding: const EdgeInsets.symmetric(horizontal: 12),
-                        decoration: BoxDecoration(
-                          color: AppColors.surfaceDark,
-                          borderRadius: BorderRadius.circular(8),
-                          border: Border.all(color: Colors.white12),
-                        ),
-                        child: DropdownButton<int>(
-                          value: state.perPage,
-                          dropdownColor: AppColors.surfaceDark,
-                          style: const TextStyle(
-                            color: Colors.white,
-                            fontSize: 13,
-                          ),
-                          underline: const SizedBox(),
-                          icon: const Icon(
-                            Icons.arrow_drop_down,
-                            color: Colors.white54,
-                            size: 20,
-                          ),
-                          items: [5, 10, 20, 50].map((v) {
-                            return DropdownMenuItem(
-                              value: v,
-                              child: Text('$v'),
-                            );
-                          }).toList(),
-                          onChanged: (v) {
-                            if (v != null) notifier.changePerPage(v);
-                          },
-                        ),
-                      ),
-                    ],
-                  ),
-                ],
-              ),
-            ),
-
-          // ─── Table (scrollable) ──────────────────────────
+            _Toolbar(state: state, notifier: notifier),
           Expanded(
-            child: state.isLoading
-                ? const Center(child: CircularProgressIndicator())
-                : state.errorMessage != null
-                    ? _buildError(state, notifier)
-                    : state.patients.isEmpty
-                        ? _buildEmpty()
-                        : _buildTable(
-                            context,
-                            ref,
-                            state,
-                            canUpdate: canUpdate,
-                            canDelete: canDelete,
-                          ),
+            child: _Body(
+              state: state,
+              notifier: notifier,
+              canUpdate: canUpdate,
+              canDelete: canDelete,
+            ),
           ),
-
-          // ─── Pagination Controls ─────────────────────────
           if (!state.isLoading &&
               state.errorMessage == null &&
               state.patients.isNotEmpty)
-            Padding(
-              padding: const EdgeInsets.only(top: 16),
-              child: _buildPaginationControls(context, ref, state),
-            ),
+            _PaginationBar(state: state, notifier: notifier),
         ],
       ),
     );
   }
+}
 
-  // ─── Error State ──────────────────────────────────────────
-  Widget _buildError(PatientListState state, PatientListNotifier notifier) {
+// ── Header ────────────────────────────────────────────────────
+class _Header extends StatelessWidget {
+  final bool canCreate;
+  const _Header({required this.canCreate});
+
+  @override
+  Widget build(BuildContext context) {
+    return Row(
+      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+      children: [
+        Text('Patients', style: AppTextStyles.headlineMedium),
+        if (canCreate)
+          FilledButton.icon(
+            onPressed: () => context.push('/patients/new'),
+            icon: const Icon(Icons.add, size: 18),
+            label: const Text('Add Patient'),
+            style: FilledButton.styleFrom(
+              backgroundColor: AppColors.primary,
+              foregroundColor: Colors.white,
+              padding: const EdgeInsets.symmetric(
+                horizontal: 20,
+                vertical: 14,
+              ),
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(
+                  AppDimensions.borderRadius,
+                ),
+              ),
+            ),
+          ),
+      ],
+    );
+  }
+}
+
+// ── Search Bar ────────────────────────────────────────────────
+class _SearchBar extends StatelessWidget {
+  final ValueChanged<String> onChanged;
+  const _SearchBar({required this.onChanged});
+
+  @override
+  Widget build(BuildContext context) {
+    return TextField(
+      style: AppTextStyles.bodyMedium.copyWith(color: AppColors.ink),
+      onChanged: onChanged,
+      decoration: InputDecoration(
+        hintText: 'Search patients...',
+        prefixIcon: const Icon(Icons.search, color: AppColors.textSecondary),
+        filled: true,
+        fillColor: AppColors.surface,
+        contentPadding: const EdgeInsets.symmetric(vertical: 16),
+        border: OutlineInputBorder(
+          borderRadius:
+              BorderRadius.circular(AppDimensions.borderRadiusLarge),
+          borderSide: const BorderSide(color: AppColors.border),
+        ),
+        enabledBorder: OutlineInputBorder(
+          borderRadius:
+              BorderRadius.circular(AppDimensions.borderRadiusLarge),
+          borderSide: const BorderSide(color: AppColors.border),
+        ),
+        focusedBorder: OutlineInputBorder(
+          borderRadius:
+              BorderRadius.circular(AppDimensions.borderRadiusLarge),
+          borderSide: const BorderSide(color: AppColors.primary, width: 2),
+        ),
+      ),
+    );
+  }
+}
+
+// ── Toolbar ───────────────────────────────────────────────────
+class _Toolbar extends StatelessWidget {
+  final PatientListState state;
+  final PatientListNotifier notifier;
+  const _Toolbar({required this.state, required this.notifier});
+
+  @override
+  Widget build(BuildContext context) {
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 12),
+      child: Row(
+        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+        children: [
+          Text(
+            'Total: ${state.total} patient${state.total == 1 ? '' : 's'}',
+            style: AppTextStyles.bodySmall.copyWith(
+              color: AppColors.textSecondary,
+            ),
+          ),
+          _PerPageSelector(state: state, notifier: notifier),
+        ],
+      ),
+    );
+  }
+}
+
+class _PerPageSelector extends StatelessWidget {
+  final PatientListState state;
+  final PatientListNotifier notifier;
+  const _PerPageSelector({required this.state, required this.notifier});
+
+  @override
+  Widget build(BuildContext context) {
+    return Row(
+      children: [
+        Text(
+          'Rows per page: ',
+          style: AppTextStyles.bodySmall.copyWith(
+            color: AppColors.textSecondary,
+          ),
+        ),
+        Container(
+          padding: const EdgeInsets.symmetric(horizontal: 12),
+          decoration: BoxDecoration(
+            color: AppColors.surface,
+            borderRadius: BorderRadius.circular(AppDimensions.borderRadius),
+            border: Border.all(color: AppColors.border),
+          ),
+          child: DropdownButton<int>(
+            value: state.perPage,
+            dropdownColor: AppColors.background,
+            style: AppTextStyles.bodySmall.copyWith(color: AppColors.ink),
+            underline: const SizedBox(),
+            icon: const Icon(
+              Icons.arrow_drop_down,
+              color: AppColors.textSecondary,
+              size: 20,
+            ),
+            items: [5, 10, 20, 50]
+                .map((v) => DropdownMenuItem(value: v, child: Text('$v')))
+                .toList(),
+            onChanged: (v) {
+              if (v != null) notifier.changePerPage(v);
+            },
+          ),
+        ),
+      ],
+    );
+  }
+}
+
+// ── Body ──────────────────────────────────────────────────────
+class _Body extends StatelessWidget {
+  final PatientListState state;
+  final PatientListNotifier notifier;
+  final bool canUpdate;
+  final bool canDelete;
+
+  const _Body({
+    required this.state,
+    required this.notifier,
+    required this.canUpdate,
+    required this.canDelete,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    if (state.isLoading) {
+      return const Center(child: CircularProgressIndicator());
+    }
+    if (state.errorMessage != null) {
+      return _ErrorView(state: state, notifier: notifier);
+    }
+    if (state.patients.isEmpty) {
+      return const _EmptyView();
+    }
+    return _PatientTable(
+      state: state,
+      canUpdate: canUpdate,
+      canDelete: canDelete,
+    );
+  }
+}
+
+// ── Error / Empty ─────────────────────────────────────────────
+class _ErrorView extends StatelessWidget {
+  final PatientListState state;
+  final PatientListNotifier notifier;
+  const _ErrorView({required this.state, required this.notifier});
+
+  @override
+  Widget build(BuildContext context) {
     return Center(
       child: Column(
         mainAxisAlignment: MainAxisAlignment.center,
         children: [
-          const Icon(Icons.error_outline, color: Colors.red, size: 48),
+          const Icon(Icons.error_outline, color: AppColors.error, size: 48),
           const SizedBox(height: 12),
           Text(
             state.errorMessage!,
-            style: const TextStyle(color: Colors.red),
+            style: AppTextStyles.bodyMedium.copyWith(color: AppColors.error),
             textAlign: TextAlign.center,
           ),
           const SizedBox(height: 16),
-          ElevatedButton(
+          FilledButton(
             onPressed: notifier.refresh,
             child: const Text('Retry'),
           ),
@@ -194,37 +256,55 @@ class PatientsListPage extends ConsumerWidget {
       ),
     );
   }
+}
 
-  // ─── Empty State ──────────────────────────────────────────
-  Widget _buildEmpty() {
+class _EmptyView extends StatelessWidget {
+  const _EmptyView();
+
+  @override
+  Widget build(BuildContext context) {
     return Center(
       child: Column(
         mainAxisAlignment: MainAxisAlignment.center,
-        children: const [
-          Icon(Icons.people_outline, color: Colors.white24, size: 64),
-          SizedBox(height: 12),
+        children: [
+          const Icon(
+            Icons.people_outline,
+            color: AppColors.textTertiary,
+            size: 64,
+          ),
+          const SizedBox(height: 12),
           Text(
             'No patients found',
-            style: TextStyle(color: Colors.white54, fontSize: 16),
+            style: AppTextStyles.bodyMedium.copyWith(
+              color: AppColors.textSecondary,
+            ),
           ),
         ],
       ),
     );
   }
+}
 
-  // ─── Table ────────────────────────────────────────────────
-  Widget _buildTable(
-    BuildContext context,
-    WidgetRef ref,
-    PatientListState state, {
-    required bool canUpdate,
-    required bool canDelete,
-  }) {
+// ── Patient Table ─────────────────────────────────────────────
+class _PatientTable extends StatelessWidget {
+  final PatientListState state;
+  final bool canUpdate;
+  final bool canDelete;
+
+  const _PatientTable({
+    required this.state,
+    required this.canUpdate,
+    required this.canDelete,
+  });
+
+  @override
+  Widget build(BuildContext context) {
     return Container(
       decoration: BoxDecoration(
-        color: AppColors.surfaceDark,
-        borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: Colors.white.withValues(alpha: 0.05)),
+        color: AppColors.background,
+        borderRadius:
+            BorderRadius.circular(AppDimensions.borderRadiusLarge),
+        border: Border.all(color: AppColors.line),
       ),
       clipBehavior: Clip.antiAlias,
       child: SingleChildScrollView(
@@ -240,9 +320,8 @@ class PatientsListPage extends ConsumerWidget {
               headingRowHeight: 52,
               dataRowMinHeight: 56,
               dataRowMaxHeight: 64,
-              headingRowColor: WidgetStateProperty.all(
-                Colors.white.withValues(alpha: 0.04),
-              ),
+              headingRowColor:
+                  WidgetStateProperty.all(AppColors.surface),
               dividerThickness: 0.5,
               columns: const [
                 DataColumn(label: _HeaderCell('ID')),
@@ -255,76 +334,20 @@ class PatientsListPage extends ConsumerWidget {
               rows: state.patients.map((patient) {
                 return DataRow(
                   cells: [
+                    DataCell(_bodyText('${patient.id}')),
+                    DataCell(_bodyText(patient.name, bold: true)),
+                    DataCell(_bodyText(patient.email)),
+                    DataCell(_bodyText(patient.phone ?? '—')),
                     DataCell(
-                      Text(
-                        '${patient.id}',
-                        style: const TextStyle(
-                          color: Colors.white70,
-                          fontSize: 13,
-                        ),
+                      _BloodTypeChip(
+                        bloodType: patient.patientProfile.bloodType,
                       ),
                     ),
                     DataCell(
-                      Text(
-                        patient.name,
-                        style: const TextStyle(
-                          color: Colors.white,
-                          fontSize: 13,
-                          fontWeight: FontWeight.w500,
-                        ),
-                      ),
-                    ),
-                    DataCell(
-                      Text(
-                        patient.email,
-                        style: const TextStyle(
-                          color: Colors.white70,
-                          fontSize: 13,
-                        ),
-                      ),
-                    ),
-                    DataCell(
-                      Text(
-                        patient.phone ?? '—',
-                        style: const TextStyle(
-                          color: Colors.white70,
-                          fontSize: 13,
-                        ),
-                      ),
-                    ),
-                    DataCell(_bloodTypeChip(patient.patientProfile.bloodType)),
-                    DataCell(
-                      Row(
-                        mainAxisSize: MainAxisSize.min,
-                        children: [
-                          _actionButton(
-                            icon: Icons.visibility_outlined,
-                            color: Colors.blueAccent,
-                            tooltip: 'View',
-                            onPressed: () =>
-                                context.push('/patients/${patient.id}'),
-                          ),
-                          if (canUpdate) ...[
-                            const SizedBox(width: 4),
-                            _actionButton(
-                              icon: Icons.edit_outlined,
-                              color: Colors.orangeAccent,
-                              tooltip: 'Edit',
-                              onPressed: () =>
-                                  context.push('/patients/${patient.id}/edit'),
-                            ),
-                          ],
-                          if (canDelete) ...[
-                            const SizedBox(width: 4),
-                            _actionButton(
-                              icon: Icons.delete_outline,
-                              color: Colors.redAccent,
-                              tooltip: 'Delete',
-                              onPressed: () =>
-                                  _confirmDelete(context, ref, patient.id),
-                            ),
-                          ],
-                        ],
+                      _ActionButtons(
+                        patientId: patient.id,
+                        canUpdate: canUpdate,
+                        canDelete: canDelete,
                       ),
                     ),
                   ],
@@ -337,39 +360,147 @@ class PatientsListPage extends ConsumerWidget {
     );
   }
 
-  // ─── Blood Type Chip ──────────────────────────────────────
-  Widget _bloodTypeChip(String? bloodType) {
-    if (bloodType == null || bloodType.isEmpty) {
-      return const Text(
+  Widget _bodyText(String text, {bool bold = false}) {
+    return Text(
+      text,
+      style: TextStyle(
+        color: bold ? AppColors.ink : AppColors.textSecondary,
+        fontSize: 13,
+        fontWeight: bold ? FontWeight.w600 : FontWeight.w400,
+      ),
+    );
+  }
+}
+
+// ── Blood Type Chip ───────────────────────────────────────────
+class _BloodTypeChip extends StatelessWidget {
+  final String? bloodType;
+  const _BloodTypeChip({this.bloodType});
+
+  @override
+  Widget build(BuildContext context) {
+    if (bloodType == null || bloodType!.isEmpty) {
+      return Text(
         '—',
-        style: TextStyle(color: Colors.white38, fontSize: 13),
+        style: TextStyle(color: AppColors.textTertiary, fontSize: 13),
       );
     }
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
       decoration: BoxDecoration(
-        color: Colors.redAccent.withValues(alpha: 0.15),
+        color: AppColors.error.withValues(alpha: 0.1),
         borderRadius: BorderRadius.circular(6),
-        border: Border.all(color: Colors.redAccent.withValues(alpha: 0.3)),
+        border: Border.all(color: AppColors.error.withValues(alpha: 0.3)),
       ),
       child: Text(
-        bloodType,
+        bloodType!,
         style: const TextStyle(
-          color: Colors.redAccent,
+          color: AppColors.error,
           fontSize: 12,
-          fontWeight: FontWeight.bold,
+          fontWeight: FontWeight.w800,
         ),
       ),
     );
   }
+}
 
-  // ─── Action Icon Button ───────────────────────────────────
-  Widget _actionButton({
-    required IconData icon,
-    required Color color,
-    required String tooltip,
-    required VoidCallback onPressed,
-  }) {
+// ── Action Buttons ────────────────────────────────────────────
+class _ActionButtons extends ConsumerWidget {
+  final int patientId;
+  final bool canUpdate;
+  final bool canDelete;
+
+  const _ActionButtons({
+    required this.patientId,
+    required this.canUpdate,
+    required this.canDelete,
+  });
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    return Row(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        _ActionButton(
+          icon: Icons.visibility_outlined,
+          color: AppColors.info,
+          tooltip: 'View',
+          onPressed: () => context.push('/patients/$patientId'),
+        ),
+        if (canUpdate) ...[
+          const SizedBox(width: 4),
+          _ActionButton(
+            icon: Icons.edit_outlined,
+            color: AppColors.warning,
+            tooltip: 'Edit',
+            onPressed: () => context.push('/patients/$patientId/edit'),
+          ),
+        ],
+        if (canDelete) ...[
+          const SizedBox(width: 4),
+          _ActionButton(
+            icon: Icons.delete_outline,
+            color: AppColors.error,
+            tooltip: 'Delete',
+            onPressed: () => _confirmDelete(context, ref),
+          ),
+        ],
+      ],
+    );
+  }
+
+  Future<void> _confirmDelete(BuildContext context, WidgetRef ref) async {
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        backgroundColor: AppColors.background,
+        shape: RoundedRectangleBorder(
+          borderRadius:
+              BorderRadius.circular(AppDimensions.borderRadiusLarge),
+        ),
+        title: Text('Delete Patient?', style: AppTextStyles.titleMedium),
+        content: Text(
+          'This action cannot be undone.',
+          style: AppTextStyles.bodyMedium,
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx, false),
+            child: const Text('Cancel'),
+          ),
+          FilledButton(
+            onPressed: () => Navigator.pop(ctx, true),
+            style: FilledButton.styleFrom(
+              backgroundColor: AppColors.error,
+              foregroundColor: Colors.white,
+            ),
+            child: const Text('Delete'),
+          ),
+        ],
+      ),
+    );
+
+    if (confirmed == true) {
+      await ref.read(patientListProvider.notifier).delete(patientId);
+    }
+  }
+}
+
+class _ActionButton extends StatelessWidget {
+  final IconData icon;
+  final Color color;
+  final String tooltip;
+  final VoidCallback onPressed;
+
+  const _ActionButton({
+    required this.icon,
+    required this.color,
+    required this.tooltip,
+    required this.onPressed,
+  });
+
+  @override
+  Widget build(BuildContext context) {
     return Tooltip(
       message: tooltip,
       child: InkWell(
@@ -386,236 +517,197 @@ class PatientsListPage extends ConsumerWidget {
       ),
     );
   }
+}
 
-  // ─── Pagination Controls ──────────────────────────────────
-  Widget _buildPaginationControls(
-    BuildContext context,
-    WidgetRef ref,
-    PatientListState state,
-  ) {
-    final notifier = ref.read(patientListProvider.notifier);
+// ── Pagination ────────────────────────────────────────────────
+class _PaginationBar extends StatelessWidget {
+  final PatientListState state;
+  final PatientListNotifier notifier;
+
+  const _PaginationBar({required this.state, required this.notifier});
+
+  @override
+  Widget build(BuildContext context) {
     final current = state.currentPage;
     final last = state.lastPage;
 
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
-      decoration: BoxDecoration(
-        color: AppColors.surfaceDark,
-        borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: Colors.white.withValues(alpha: 0.05)),
-      ),
-      child: Row(
-        mainAxisAlignment: MainAxisAlignment.spaceBetween,
-        children: [
-          // ── Left: page info ──
-          Text(
-            'Page $current of $last',
-            style: const TextStyle(color: Colors.white54, fontSize: 13),
-          ),
-
-          // ── Center: pagination controls ──
-          Row(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              _navButton(
-                icon: Icons.first_page,
-                tooltip: 'First page',
-                enabled: current > 1,
-                onPressed: () => notifier.goToPage(1),
-              ),
-              const SizedBox(width: 4),
-              _navButton(
-                icon: Icons.chevron_left,
-                tooltip: 'Previous page',
-                enabled: current > 1,
-                onPressed: notifier.previousPage,
-              ),
-              const SizedBox(width: 8),
-              ..._buildPagePills(current, last, notifier),
-              const SizedBox(width: 8),
-              _navButton(
-                icon: Icons.chevron_right,
-                tooltip: 'Next page',
-                enabled: state.hasMore,
-                onPressed: notifier.nextPage,
-              ),
-              const SizedBox(width: 4),
-              _navButton(
-                icon: Icons.last_page,
-                tooltip: 'Last page',
-                enabled: current < last,
-                onPressed: () => notifier.goToPage(last),
-              ),
-            ],
-          ),
-
-          // ── Right: showing X-Y of Z ──
-          Text(
-            _rangeText(state),
-            style: const TextStyle(color: Colors.white54, fontSize: 13),
-          ),
-        ],
-      ),
-    );
-  }
-
-  String _rangeText(PatientListState state) {
-    if (state.total == 0) return 'Showing 0';
-    final start = (state.currentPage - 1) * state.perPage + 1;
-    final end = start + state.patients.length - 1;
-    return 'Showing $start–$end of ${state.total}';
-  }
-
-  Widget _navButton({
-    required IconData icon,
-    required String tooltip,
-    required bool enabled,
-    required VoidCallback onPressed,
-  }) {
-    return Tooltip(
-      message: tooltip,
-      child: Material(
-        color: Colors.transparent,
-        child: InkWell(
-          onTap: enabled ? onPressed : null,
-          borderRadius: BorderRadius.circular(8),
-          child: Container(
-            width: 36,
-            height: 36,
-            decoration: BoxDecoration(
-              color: enabled
-                  ? Colors.white.withValues(alpha: 0.05)
-                  : Colors.transparent,
-              borderRadius: BorderRadius.circular(8),
+    return Padding(
+      padding: const EdgeInsets.only(top: AppDimensions.paddingMedium),
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+        decoration: BoxDecoration(
+          color: AppColors.surface,
+          borderRadius:
+              BorderRadius.circular(AppDimensions.borderRadiusLarge),
+          border: Border.all(color: AppColors.line),
+        ),
+        child: Row(
+          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+          children: [
+            Text(
+              'Page $current of $last',
+              style: AppTextStyles.bodySmall,
             ),
-            child: Icon(
-              icon,
-              size: 20,
-              color: enabled ? Colors.white70 : Colors.white24,
-            ),
-          ),
+            _PageControls(state: state, notifier: notifier),
+            Text(_rangeText(), style: AppTextStyles.bodySmall),
+          ],
         ),
       ),
     );
   }
 
-  List<Widget> _buildPagePills(
-    int current,
-    int last,
-    PatientListNotifier notifier,
-  ) {
-    final Set<int> pagesToShow = {1, last};
-    for (int i = current - 1; i <= current + 1; i++) {
-      if (i >= 1 && i <= last) pagesToShow.add(i);
-    }
-    final sorted = pagesToShow.toList()..sort();
+  String _rangeText() {
+    if (state.total == 0) return 'Showing 0';
+    final start = (state.currentPage - 1) * state.perPage + 1;
+    final end = start + state.patients.length - 1;
+    return 'Showing $start–$end of ${state.total}';
+  }
+}
 
-    final List<Widget> pills = [];
+class _PageControls extends StatelessWidget {
+  final PatientListState state;
+  final PatientListNotifier notifier;
+  const _PageControls({required this.state, required this.notifier});
+
+  @override
+  Widget build(BuildContext context) {
+    final current = state.currentPage;
+    final last = state.lastPage;
+
+    return Row(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        _NavButton(
+          icon: Icons.first_page,
+          tooltip: 'First',
+          enabled: current > 1,
+          onPressed: () => notifier.goToPage(1),
+        ),
+        const SizedBox(width: 4),
+        _NavButton(
+          icon: Icons.chevron_left,
+          tooltip: 'Previous',
+          enabled: current > 1,
+          onPressed: notifier.previousPage,
+        ),
+        const SizedBox(width: 8),
+        ..._buildPagePills(current, last),
+        const SizedBox(width: 8),
+        _NavButton(
+          icon: Icons.chevron_right,
+          tooltip: 'Next',
+          enabled: state.hasMore,
+          onPressed: notifier.nextPage,
+        ),
+        const SizedBox(width: 4),
+        _NavButton(
+          icon: Icons.last_page,
+          tooltip: 'Last',
+          enabled: current < last,
+          onPressed: () => notifier.goToPage(last),
+        ),
+      ],
+    );
+  }
+
+  List<Widget> _buildPagePills(int current, int last) {
+    final pages = <int>{1, last};
+    for (int i = current - 1; i <= current + 1; i++) {
+      if (i >= 1 && i <= last) pages.add(i);
+    }
+    final sorted = pages.toList()..sort();
+
+    final widgets = <Widget>[];
     int? prev;
 
     for (final page in sorted) {
       if (prev != null && page - prev > 1) {
-        pills.add(
-          const Padding(
-            padding: EdgeInsets.symmetric(horizontal: 6),
-            child: Text(
-              '…',
-              style: TextStyle(color: Colors.white38, fontSize: 14),
-            ),
-          ),
-        );
+        widgets.add(const Padding(
+          padding: EdgeInsets.symmetric(horizontal: 6),
+          child: Text('…', style: TextStyle(color: AppColors.textTertiary)),
+        ));
       }
 
       final isActive = page == current;
-
-      pills.add(
+      widgets.add(
         Padding(
           padding: const EdgeInsets.symmetric(horizontal: 2),
-          child: Material(
-            color: Colors.transparent,
-            child: InkWell(
-              onTap: isActive ? null : () => notifier.goToPage(page),
-              borderRadius: BorderRadius.circular(8),
-              child: AnimatedContainer(
-                duration: const Duration(milliseconds: 200),
-                width: 36,
-                height: 36,
-                decoration: BoxDecoration(
-                  color: isActive
-                      ? AppColors.primary
-                      : Colors.white.withValues(alpha: 0.05),
-                  borderRadius: BorderRadius.circular(8),
+          child: InkWell(
+            onTap: isActive ? null : () => notifier.goToPage(page),
+            borderRadius: BorderRadius.circular(8),
+            child: AnimatedContainer(
+              duration: const Duration(milliseconds: 200),
+              width: 36,
+              height: 36,
+              decoration: BoxDecoration(
+                color: isActive ? AppColors.primary : AppColors.background,
+                borderRadius: BorderRadius.circular(8),
+                border: Border.all(
+                  color: isActive ? AppColors.primary : AppColors.border,
                 ),
-                alignment: Alignment.center,
-                child: Text(
-                  '$page',
-                  style: TextStyle(
-                    color: isActive ? Colors.black : Colors.white70,
-                    fontWeight:
-                        isActive ? FontWeight.bold : FontWeight.w500,
-                    fontSize: 13,
-                  ),
+              ),
+              alignment: Alignment.center,
+              child: Text(
+                '$page',
+                style: TextStyle(
+                  color: isActive ? Colors.white : AppColors.textSecondary,
+                  fontWeight:
+                      isActive ? FontWeight.w800 : FontWeight.w500,
+                  fontSize: 13,
                 ),
               ),
             ),
           ),
         ),
       );
-
       prev = page;
     }
-
-    return pills;
-  }
-
-  // ─── Delete Confirmation ──────────────────────────────────
-  Future<void> _confirmDelete(
-    BuildContext context,
-    WidgetRef ref,
-    int id,
-  ) async {
-    final confirmed = await showDialog<bool>(
-      context: context,
-      builder: (ctx) => AlertDialog(
-        backgroundColor: AppColors.surfaceDark,
-        shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(12),
-        ),
-        title: const Text(
-          'Delete Patient?',
-          style: TextStyle(color: Colors.white),
-        ),
-        content: const Text(
-          'This action cannot be undone.',
-          style: TextStyle(color: Colors.white70),
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(ctx, false),
-            child: const Text(
-              'Cancel',
-              style: TextStyle(color: Colors.white54),
-            ),
-          ),
-          ElevatedButton(
-            onPressed: () => Navigator.pop(ctx, true),
-            style: ElevatedButton.styleFrom(
-              backgroundColor: Colors.red,
-              foregroundColor: Colors.white,
-            ),
-            child: const Text('Delete'),
-          ),
-        ],
-      ),
-    );
-
-    if (confirmed == true) {
-      await ref.read(patientListProvider.notifier).delete(id);
-    }
+    return widgets;
   }
 }
 
-// ─── Reusable Header Cell ───────────────────────────────────
+class _NavButton extends StatelessWidget {
+  final IconData icon;
+  final String tooltip;
+  final bool enabled;
+  final VoidCallback onPressed;
+
+  const _NavButton({
+    required this.icon,
+    required this.tooltip,
+    required this.enabled,
+    required this.onPressed,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Tooltip(
+      message: tooltip,
+      child: InkWell(
+        onTap: enabled ? onPressed : null,
+        borderRadius: BorderRadius.circular(8),
+        child: Container(
+          width: 36,
+          height: 36,
+          decoration: BoxDecoration(
+            color: enabled ? AppColors.background : Colors.transparent,
+            borderRadius: BorderRadius.circular(8),
+            border: Border.all(
+              color: enabled ? AppColors.border : Colors.transparent,
+            ),
+          ),
+          child: Icon(
+            icon,
+            size: 20,
+            color: enabled ? AppColors.textSecondary : AppColors.textTertiary,
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+// ── Header Cell ───────────────────────────────────────────────
 class _HeaderCell extends StatelessWidget {
   final String text;
   const _HeaderCell(this.text);
@@ -625,8 +717,8 @@ class _HeaderCell extends StatelessWidget {
     return Text(
       text,
       style: const TextStyle(
-        color: Colors.white,
-        fontWeight: FontWeight.w600,
+        color: AppColors.ink,
+        fontWeight: FontWeight.w800,
         fontSize: 13,
       ),
     );
