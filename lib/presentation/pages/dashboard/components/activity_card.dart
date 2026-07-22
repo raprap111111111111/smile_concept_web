@@ -1,17 +1,23 @@
 // lib/presentation/pages/dashboard/components/activity_card.dart
 import 'package:flutter/material.dart';
 
+import '../../../../data/models/dashboard/recent_activity.dart';
 import '../../../theme/app_colors.dart';
 import '../../../theme/app_dimensions.dart';
 import '../../../theme/app_text_styles.dart';
+import 'charts/activity_trend_chart.dart';
 
+/// Recent audit-log entries, headed by a two-week volume strip so a quiet or
+/// unusually busy stretch is visible before reading any single row.
 class ActivityCard extends StatelessWidget {
-  final List<dynamic> activities;
+  const ActivityCard(this.feed, {super.key});
 
-  const ActivityCard(this.activities, {super.key});
+  final RecentActivityFeed feed;
 
   @override
   Widget build(BuildContext context) {
+    final activities = feed.activities;
+
     return Container(
       padding: const EdgeInsets.all(AppDimensions.paddingLarge),
       decoration: BoxDecoration(
@@ -23,12 +29,24 @@ class ActivityCard extends StatelessWidget {
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Text(
-            'Recent Patient Activity',
+            'Recent Activity',
             style: AppTextStyles.titleMedium.copyWith(
               color: AppColors.ink,
               fontWeight: FontWeight.w800,
             ),
           ),
+          const SizedBox(height: 2),
+          const Text(
+            'Recorded events, last 14 days',
+            style: TextStyle(color: AppColors.textSecondary, fontSize: 13),
+          ),
+          if (feed.byDay.length >= 2) ...[
+            const SizedBox(height: 16),
+            SizedBox(
+              height: 90,
+              child: ActivityTrendChart(points: feed.byDay),
+            ),
+          ],
           const SizedBox(height: 20),
           if (activities.isEmpty)
             const _EmptyState(
@@ -44,14 +62,7 @@ class ActivityCard extends StatelessWidget {
                 color: AppColors.line,
                 height: 20,
               ),
-              itemBuilder: (context, index) {
-                final activity = activities[index];
-                return _ActivityTile(
-                  patientName: activity['patientName'] ?? 'Unknown',
-                  action: activity['action'] ?? '',
-                  timeAgo: activity['timeAgo'] ?? '',
-                );
-              },
+              itemBuilder: (context, index) => _ActivityTile(activities[index]),
             ),
         ],
       ),
@@ -60,15 +71,9 @@ class ActivityCard extends StatelessWidget {
 }
 
 class _ActivityTile extends StatelessWidget {
-  const _ActivityTile({
-    required this.patientName,
-    required this.action,
-    required this.timeAgo,
-  });
+  const _ActivityTile(this.activity);
 
-  final String patientName;
-  final String action;
-  final String timeAgo;
+  final ActivityEntry activity;
 
   @override
   Widget build(BuildContext context) {
@@ -78,8 +83,8 @@ class _ActivityTile extends StatelessWidget {
         CircleAvatar(
           backgroundColor: AppColors.accentWithOpacity(0.35),
           radius: 18,
-          child: const Icon(
-            Icons.person,
+          child: Icon(
+            _iconForAction(activity.action),
             color: AppColors.primaryDark,
             size: 18,
           ),
@@ -90,7 +95,7 @@ class _ActivityTile extends StatelessWidget {
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               Text(
-                patientName,
+                activity.patientName,
                 style: const TextStyle(
                   color: AppColors.ink,
                   fontWeight: FontWeight.w800,
@@ -99,7 +104,9 @@ class _ActivityTile extends StatelessWidget {
               ),
               const SizedBox(height: 2),
               Text(
-                action,
+                activity.description,
+                maxLines: 2,
+                overflow: TextOverflow.ellipsis,
                 style: const TextStyle(
                   color: AppColors.textSecondary,
                   fontSize: 13,
@@ -110,7 +117,7 @@ class _ActivityTile extends StatelessWidget {
         ),
         const SizedBox(width: 8),
         Text(
-          timeAgo,
+          activity.timeAgo,
           style: const TextStyle(
             color: AppColors.textTertiary,
             fontSize: 12,
@@ -119,6 +126,19 @@ class _ActivityTile extends StatelessWidget {
         ),
       ],
     );
+  }
+
+  IconData _iconForAction(String action) {
+    switch (action.toLowerCase()) {
+      case 'created':
+        return Icons.add;
+      case 'updated':
+        return Icons.edit_outlined;
+      case 'deleted':
+        return Icons.delete_outline;
+      default:
+        return Icons.person;
+    }
   }
 }
 
@@ -139,8 +159,7 @@ class _EmptyState extends StatelessWidget {
               padding: const EdgeInsets.all(14),
               decoration: BoxDecoration(
                 color: AppColors.surface,
-                borderRadius:
-                    BorderRadius.circular(AppDimensions.borderRadius),
+                borderRadius: BorderRadius.circular(AppDimensions.borderRadius),
               ),
               child: Icon(icon, color: AppColors.textTertiary, size: 28),
             ),
