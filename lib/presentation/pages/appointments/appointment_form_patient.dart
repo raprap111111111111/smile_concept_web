@@ -337,6 +337,46 @@ class _AppointmentFormPatientState
     }
   }
 
+  /// Leaving the form ends the session — this page is the only reason a patient
+  /// signs in, so going back signs them out rather than dropping them into the
+  /// app still authenticated. Confirmed first: it costs them both the details
+  /// they typed and their session.
+  Future<void> _confirmLeave() async {
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        backgroundColor: AppColors.background,
+        title: Text('Leave booking?', style: AppTextStyles.titleMedium),
+        content: Text(
+          'You will be signed out and anything you entered here will be lost.',
+          style: AppTextStyles.bodyMedium,
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx, false),
+            child: const Text('Stay'),
+          ),
+          FilledButton(
+            style: FilledButton.styleFrom(
+              backgroundColor: AppColors.error,
+              foregroundColor: AppColors.textOnPrimary,
+            ),
+            onPressed: () => Navigator.pop(ctx, true),
+            child: const Text('Leave & sign out'),
+          ),
+        ],
+      ),
+    );
+
+    if (confirmed != true || !mounted) return;
+
+    await ref.read(authStateProvider.notifier).logout();
+
+    if (!mounted) return;
+
+    context.goNamed(RouteNames.landing);
+  }
+
   /// Surfaces the API's reason instead of a raw exception dump. The common case
   /// is a 422 for a slot that was taken between loading the form and submitting.
   String _readableError(Object e) {
@@ -369,6 +409,11 @@ class _AppointmentFormPatientState
       backgroundColor: AppColors.surface,
       appBar: AppBar(
         title: const Text('Book an Appointment'),
+        leading: IconButton(
+          icon: const Icon(Icons.arrow_back),
+          tooltip: 'Back',
+          onPressed: _isSubmitting ? null : _confirmLeave,
+        ),
       ),
       body: SafeArea(
         child: LayoutBuilder(

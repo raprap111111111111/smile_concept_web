@@ -1,12 +1,22 @@
 // lib/presentation/pages/dashboard/dashboard_page.dart
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:go_router/go_router.dart';
 
+import '../../../data/models/dashboard/dashboard_stats.dart';
+import '../../../data/models/dashboard/recent_activity.dart';
+import '../../../data/models/dashboard/today_schedule.dart';
 import '../../providers/auth/auth_provider.dart';
+import '../../route/route_names.dart';
 import '../../theme/app_colors.dart';
 import '../../theme/app_dimensions.dart';
 import '../../theme/app_text_styles.dart';
+import '../../theme/chart_palette.dart';
 import 'components/activity_card.dart';
+import 'components/charts/appointments_trend_chart.dart';
+import 'components/charts/chart_card.dart';
+import 'components/charts/hourly_appointments_chart.dart';
+import 'components/charts/new_patients_chart.dart';
 import 'components/schedule_card.dart';
 import 'components/stat_card.dart';
 import 'dashboard_providers.dart';
@@ -17,167 +27,209 @@ class DashboardPage extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final statsAsync = ref.watch(dashboardStatsProvider);
-    final appointmentsAsync = ref.watch(todayAppointmentsProvider);
-    final activitiesAsync = ref.watch(recentActivitiesProvider);
+    final scheduleAsync = ref.watch(todayScheduleProvider);
+    final activityAsync = ref.watch(recentActivityProvider);
 
     final user = ref.watch(authStateProvider).user;
 
-    return SingleChildScrollView(
-      padding: const EdgeInsets.all(AppDimensions.paddingLarge),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          // ─── Welcome Header ─────────────────────────────
-          _WelcomeHeader(userName: user?.name ?? 'User'),
+    final stats = statsAsync.valueOrNull ?? DashboardStats.empty;
+    final schedule = scheduleAsync.valueOrNull ?? TodaySchedule.empty;
+    final activity = activityAsync.valueOrNull ?? RecentActivityFeed.empty;
 
-          const SizedBox(height: AppDimensions.paddingXL),
+    final hasError = statsAsync.hasError ||
+        scheduleAsync.hasError ||
+        activityAsync.hasError;
 
-          // ─── Stats Cards ────────────────────────────────
-          statsAsync.when(
-            data: (stats) => _StatsGrid(
+    return RefreshIndicator(
+      onRefresh: () async => refreshDashboard(ref),
+      child: SingleChildScrollView(
+        physics: const AlwaysScrollableScrollPhysics(),
+        padding: const EdgeInsets.all(AppDimensions.paddingLarge),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            _WelcomeHeader(
+              userName: user?.name ?? 'User',
+              appointmentsToday: stats.appointmentsToday,
+              isLoading: statsAsync.isLoading,
+              onViewCalendar: () =>
+                  context.goNamed(RouteNames.appointments),
+              onRefresh: () => refreshDashboard(ref),
+            ),
+
+            if (hasError) ...[
+              const SizedBox(height: AppDimensions.paddingMedium),
+              _ErrorBanner(onRetry: () => refreshDashboard(ref)),
+            ],
+
+            const SizedBox(height: AppDimensions.paddingXL),
+
+            // ─── Stat tiles ─────────────────────────────────
+            _StatsGrid(
               cards: [
                 StatCard(
                   title: 'Appointments Today',
-                  value: stats.appointmentsToday.toString(),
-                  trend: '↑',
-                  accentColor: AppColors.success,
+                  value: statsAsync.isLoading
+                      ? '—'
+                      : stats.appointmentsToday.toString(),
+                  delta: statsAsync.hasValue
+                      ? stats.appointmentsTodayDelta
+                      : null,
+                  deltaPeriod: 'vs yesterday',
+                  accentColor: ChartPalette.primarySeries,
                   icon: Icons.calendar_month_outlined,
+                  trend: stats.appointmentsTrend
+                      .map((point) => point.total)
+                      .toList(),
                 ),
                 StatCard(
                   title: 'New Patients',
-                  value: stats.newPatients.toString(),
-                  trend: '',
-                  accentColor: AppColors.info,
+                  value:
+                      statsAsync.isLoading ? '—' : stats.newPatients.toString(),
+                  delta:
+                      statsAsync.hasValue ? stats.newPatientsDelta : null,
+                  deltaPeriod: 'vs last month',
+                  accentColor: ChartPalette.statusConfirmed,
                   icon: Icons.person_add_alt_outlined,
+                  trend:
+                      stats.newPatientsTrend.map((p) => p.count).toList(),
                 ),
                 StatCard(
                   title: 'Pending Reviews',
-                  value: stats.pendingReviews.toString(),
-                  trend: '',
-                  accentColor: AppColors.warning,
+                  value: statsAsync.isLoading
+                      ? '—'
+                      : stats.pendingReviews.toString(),
+                  accentColor: ChartPalette.statusPending,
                   icon: Icons.pending_actions_outlined,
+                  // Fewer unreviewed appointments is the good direction.
+                  upIsGood: false,
                 ),
                 StatCard(
                   title: 'Revenue This Month',
-                  value: '\$${stats.monthlyRevenue.toStringAsFixed(0)}',
-                  trend: '↑12%',
-                  accentColor: AppColors.primary,
+                  value: statsAsync.isLoading
+                      ? '—'
+                      : '\$${stats.monthlyRevenue.toStringAsFixed(0)}',
+                  delta: statsAsync.hasValue
+                      ? stats.monthlyRevenueDelta
+                      : null,
+                  deltaPeriod: 'vs last month',
+                  accentColor: ChartPalette.statusCompleted,
                   icon: Icons.trending_up_outlined,
                 ),
               ],
             ),
-            loading: () => _buildStatsPlaceholder(),
-            error: (e, _) => _buildStatsPlaceholder(),
-          ),
 
-          const SizedBox(height: AppDimensions.paddingXL),
+            const SizedBox(height: AppDimensions.paddingXL),
 
-          // ─── Schedule + Activity ────────────────────────
-          LayoutBuilder(
-            builder: (context, constraints) {
-              final isCompact = constraints.maxWidth < 900;
+            // ─── Charts ─────────────────────────────────────
+            LayoutBuilder(
+              builder: (context, constraints) {
+                final isCompact = constraints.maxWidth < 900;
 
-              final schedule = appointmentsAsync.when(
-                data: (appointments) => ScheduleCard(appointments),
-                loading: () => _buildCardPlaceholder("Today's Schedule"),
-                error: (e, _) => _buildCardPlaceholder("Today's Schedule"),
-              );
+                final hourly = ChartCard(
+                  title: 'Appointments Today',
+                  subtitle: 'Bookings by start hour',
+                  height: 200,
+                  isEmpty: stats.appointmentsTodayByHour.isEmpty,
+                  emptyMessage: statsAsync.isLoading
+                      ? 'Loading…'
+                      : 'Nothing booked today',
+                  trailing: statsAsync.hasValue
+                      ? DeltaBadge(
+                          delta: stats.appointmentsTodayDelta,
+                          period: 'vs yesterday',
+                        )
+                      : null,
+                  child: HourlyAppointmentsChart(
+                    points: stats.appointmentsTodayByHour,
+                  ),
+                );
 
-              final activity = activitiesAsync.when(
-                data: (activities) => ActivityCard(activities),
-                loading: () => _buildCardPlaceholder('Recent Activity'),
-                error: (e, _) => _buildCardPlaceholder('Recent Activity'),
-              );
+                final newPatients = ChartCard(
+                  title: 'New Patients',
+                  subtitle: 'Registrations per month, last 6 months',
+                  height: 200,
+                  isEmpty: stats.newPatientsByMonth.isEmpty,
+                  emptyMessage:
+                      statsAsync.isLoading ? 'Loading…' : 'No registrations yet',
+                  trailing: statsAsync.hasValue
+                      ? DeltaBadge(
+                          delta: stats.newPatientsDelta,
+                          period: 'vs last month',
+                        )
+                      : null,
+                  child: NewPatientsChart(points: stats.newPatientsByMonth),
+                );
 
-              if (isCompact) {
-                return Column(
+                if (isCompact) {
+                  return Column(
+                    children: [
+                      hourly,
+                      const SizedBox(height: AppDimensions.paddingLarge),
+                      newPatients,
+                    ],
+                  );
+                }
+
+                return Row(
+                  crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    schedule,
-                    const SizedBox(height: AppDimensions.paddingLarge),
-                    activity,
+                    Expanded(child: hourly),
+                    const SizedBox(width: AppDimensions.paddingLarge),
+                    Expanded(child: newPatients),
                   ],
                 );
-              }
-
-              return Row(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Expanded(flex: 2, child: schedule),
-                  const SizedBox(width: AppDimensions.paddingLarge),
-                  Expanded(child: activity),
-                ],
-              );
-            },
-          ),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildStatsPlaceholder() {
-    return _StatsGrid(
-      cards: [
-        StatCard(
-          title: 'Appointments Today',
-          value: '—',
-          trend: '',
-          accentColor: AppColors.success,
-          icon: Icons.calendar_month_outlined,
-        ),
-        StatCard(
-          title: 'New Patients',
-          value: '—',
-          trend: '',
-          accentColor: AppColors.info,
-          icon: Icons.person_add_alt_outlined,
-        ),
-        StatCard(
-          title: 'Pending Reviews',
-          value: '—',
-          trend: '',
-          accentColor: AppColors.warning,
-          icon: Icons.pending_actions_outlined,
-        ),
-        StatCard(
-          title: 'Revenue This Month',
-          value: '—',
-          trend: '',
-          accentColor: AppColors.primary,
-          icon: Icons.trending_up_outlined,
-        ),
-      ],
-    );
-  }
-
-  Widget _buildCardPlaceholder(String label) {
-    return Container(
-      padding: const EdgeInsets.all(AppDimensions.paddingLarge),
-      decoration: BoxDecoration(
-        color: AppColors.background,
-        borderRadius: BorderRadius.circular(AppDimensions.borderRadiusLarge),
-        border: Border.all(color: AppColors.line),
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Text(
-            label,
-            style: AppTextStyles.titleMedium.copyWith(color: AppColors.ink),
-          ),
-          const SizedBox(height: 16),
-          const Center(
-            child: Padding(
-              padding: EdgeInsets.symmetric(vertical: 40),
-              child: Text(
-                'No data available',
-                style: TextStyle(
-                  color: AppColors.textTertiary,
-                  fontWeight: FontWeight.w600,
-                ),
-              ),
+              },
             ),
-          ),
-        ],
+
+            const SizedBox(height: AppDimensions.paddingLarge),
+
+            ChartCard(
+              title: 'Appointment Volume',
+              subtitle: 'Total bookings per day, last 14 days',
+              height: 200,
+              isEmpty: stats.appointmentsTrend.isEmpty,
+              emptyMessage:
+                  statsAsync.isLoading ? 'Loading…' : 'No bookings on record',
+              footer: TrendCaption(points: stats.appointmentsTrend),
+              child: AppointmentsTrendChart(points: stats.appointmentsTrend),
+            ),
+
+            const SizedBox(height: AppDimensions.paddingXL),
+
+            // ─── Schedule + Activity ────────────────────────
+            LayoutBuilder(
+              builder: (context, constraints) {
+                final isCompact = constraints.maxWidth < 900;
+
+                final scheduleCard = ScheduleCard(
+                  schedule,
+                  onBookNew: () => context.goNamed(RouteNames.bookAppointment),
+                );
+                final activityCard = ActivityCard(activity);
+
+                if (isCompact) {
+                  return Column(
+                    children: [
+                      scheduleCard,
+                      const SizedBox(height: AppDimensions.paddingLarge),
+                      activityCard,
+                    ],
+                  );
+                }
+
+                return Row(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Expanded(flex: 2, child: scheduleCard),
+                    const SizedBox(width: AppDimensions.paddingLarge),
+                    Expanded(child: activityCard),
+                  ],
+                );
+              },
+            ),
+          ],
+        ),
       ),
     );
   }
@@ -185,9 +237,19 @@ class DashboardPage extends ConsumerWidget {
 
 // ─── Welcome Header ────────────────────────────────────────
 class _WelcomeHeader extends StatelessWidget {
-  const _WelcomeHeader({required this.userName});
+  const _WelcomeHeader({
+    required this.userName,
+    required this.appointmentsToday,
+    required this.isLoading,
+    required this.onViewCalendar,
+    required this.onRefresh,
+  });
 
   final String userName;
+  final int appointmentsToday;
+  final bool isLoading;
+  final VoidCallback onViewCalendar;
+  final VoidCallback onRefresh;
 
   @override
   Widget build(BuildContext context) {
@@ -209,7 +271,14 @@ class _WelcomeHeader extends StatelessWidget {
             ),
             const SizedBox(height: 6),
             Text(
-              "Your schedule for today is looking busy but productive.",
+              // Say what today actually looks like rather than guessing at it.
+              isLoading
+                  ? 'Loading your day…'
+                  : appointmentsToday == 0
+                      ? 'Nothing on the books for today.'
+                      : appointmentsToday == 1
+                          ? 'You have 1 appointment today.'
+                          : 'You have $appointmentsToday appointments today.',
               style: AppTextStyles.bodyMedium.copyWith(
                 color: AppColors.textSecondary,
               ),
@@ -217,27 +286,38 @@ class _WelcomeHeader extends StatelessWidget {
           ],
         );
 
-        final button = ElevatedButton.icon(
-          onPressed: () {},
-          icon: const Icon(Icons.calendar_today_outlined, size: 18),
-          label: const Text('View Calendar'),
-          style: ElevatedButton.styleFrom(
-            backgroundColor: AppColors.primary,
-            foregroundColor: Colors.white,
-            elevation: 0,
-            padding: const EdgeInsets.symmetric(
-              horizontal: 20,
-              vertical: 16,
+        final actions = Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            IconButton(
+              onPressed: onRefresh,
+              tooltip: 'Refresh',
+              icon: const Icon(Icons.refresh, color: AppColors.textSecondary),
             ),
-            shape: RoundedRectangleBorder(
-              borderRadius:
-                  BorderRadius.circular(AppDimensions.borderRadius),
+            const SizedBox(width: 4),
+            ElevatedButton.icon(
+              onPressed: onViewCalendar,
+              icon: const Icon(Icons.calendar_today_outlined, size: 18),
+              label: const Text('View Calendar'),
+              style: ElevatedButton.styleFrom(
+                backgroundColor: AppColors.primary,
+                foregroundColor: Colors.white,
+                elevation: 0,
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 20,
+                  vertical: 16,
+                ),
+                shape: RoundedRectangleBorder(
+                  borderRadius:
+                      BorderRadius.circular(AppDimensions.borderRadius),
+                ),
+                textStyle: const TextStyle(
+                  fontWeight: FontWeight.w800,
+                  fontSize: 14,
+                ),
+              ),
             ),
-            textStyle: const TextStyle(
-              fontWeight: FontWeight.w800,
-              fontSize: 14,
-            ),
-          ),
+          ],
         );
 
         if (isCompact) {
@@ -246,7 +326,7 @@ class _WelcomeHeader extends StatelessWidget {
             children: [
               copy,
               const SizedBox(height: 16),
-              button,
+              actions,
             ],
           );
         }
@@ -256,10 +336,58 @@ class _WelcomeHeader extends StatelessWidget {
           crossAxisAlignment: CrossAxisAlignment.center,
           children: [
             Expanded(child: copy),
-            button,
+            actions,
           ],
         );
       },
+    );
+  }
+}
+
+/// Shown when any of the three dashboard calls failed — the cards below still
+/// render with whatever loaded, so the banner explains the gap.
+class _ErrorBanner extends StatelessWidget {
+  const _ErrorBanner({required this.onRetry});
+
+  final VoidCallback onRetry;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+      decoration: BoxDecoration(
+        color: const Color(0xFFD03B3B).withValues(alpha: 0.08),
+        borderRadius: BorderRadius.circular(AppDimensions.borderRadius),
+        border: Border.all(
+          color: const Color(0xFFD03B3B).withValues(alpha: 0.30),
+        ),
+      ),
+      child: Row(
+        children: [
+          const Icon(Icons.error_outline, size: 18, color: Color(0xFFD03B3B)),
+          const SizedBox(width: 10),
+          const Expanded(
+            child: Text(
+              'Some dashboard data could not be loaded.',
+              style: TextStyle(
+                color: AppColors.ink,
+                fontWeight: FontWeight.w600,
+                fontSize: 13,
+              ),
+            ),
+          ),
+          TextButton(
+            onPressed: onRetry,
+            child: const Text(
+              'Retry',
+              style: TextStyle(
+                color: Color(0xFFD03B3B),
+                fontWeight: FontWeight.w800,
+              ),
+            ),
+          ),
+        ],
+      ),
     );
   }
 }
@@ -289,7 +417,8 @@ class _StatsGrid extends StatelessWidget {
           physics: const NeverScrollableScrollPhysics(),
           crossAxisSpacing: 16,
           mainAxisSpacing: 16,
-          childAspectRatio: columns == 1 ? 3.5 : 1.9,
+          // Taller than before: the tiles now carry a sparkline.
+          childAspectRatio: columns == 1 ? 3.0 : 1.55,
           children: cards,
         );
       },

@@ -1,9 +1,10 @@
 // lib/presentation/pages/dashboard/dashboard_providers.dart
-import 'package:dio/dio.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import '../../../data/repositories/dashboard_repository.dart';
-import '../../../data/models/dashboard/dashboard_stats.dart';
 import '../../../core/network/dio_client.dart';
+import '../../../data/models/dashboard/dashboard_stats.dart';
+import '../../../data/models/dashboard/recent_activity.dart';
+import '../../../data/models/dashboard/today_schedule.dart';
+import '../../../data/repositories/dashboard_repository.dart';
 
 final dashboardRepositoryProvider = Provider<DashboardRepository>((ref) {
   return DashboardRepository(ref.watch(dioProvider));
@@ -11,41 +12,22 @@ final dashboardRepositoryProvider = Provider<DashboardRepository>((ref) {
 
 final dashboardStatsProvider =
     FutureProvider.autoDispose<DashboardStats>((ref) async {
-  final repo = ref.watch(dashboardRepositoryProvider);
-  try {
-    return await repo.getStats();
-  } on DioException catch (e) {
-    // Endpoint doesn't exist yet — return empty stats
-    if (e.response?.statusCode == 404) {
-      return DashboardStats(
-        appointmentsToday: 0,
-        newPatients: 0,
-        pendingReviews: 0,
-        monthlyRevenue: 0,
-      );
-    }
-    rethrow;
-  }
+  return ref.watch(dashboardRepositoryProvider).getStats();
 });
 
-final todayAppointmentsProvider =
-    FutureProvider.autoDispose<List<dynamic>>((ref) async {
-  final repo = ref.watch(dashboardRepositoryProvider);
-  try {
-    return await repo.getTodayAppointments();
-  } on DioException catch (e) {
-    if (e.response?.statusCode == 404) return [];
-    rethrow;
-  }
+final todayScheduleProvider =
+    FutureProvider.autoDispose<TodaySchedule>((ref) async {
+  return ref.watch(dashboardRepositoryProvider).getTodaySchedule();
 });
 
-final recentActivitiesProvider =
-    FutureProvider.autoDispose<List<dynamic>>((ref) async {
-  final repo = ref.watch(dashboardRepositoryProvider);
-  try {
-    return await repo.getRecentActivities();
-  } on DioException catch (e) {
-    if (e.response?.statusCode == 404) return [];
-    rethrow;
-  }
+final recentActivityProvider =
+    FutureProvider.autoDispose<RecentActivityFeed>((ref) async {
+  return ref.watch(dashboardRepositoryProvider).getRecentActivity(limit: 10);
 });
+
+/// Pull-to-refresh / manual refresh for the whole dashboard.
+void refreshDashboard(WidgetRef ref) {
+  ref.invalidate(dashboardStatsProvider);
+  ref.invalidate(todayScheduleProvider);
+  ref.invalidate(recentActivityProvider);
+}

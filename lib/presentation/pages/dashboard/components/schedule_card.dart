@@ -1,17 +1,25 @@
 // lib/presentation/pages/dashboard/components/schedule_card.dart
 import 'package:flutter/material.dart';
 
+import '../../../../data/models/dashboard/today_schedule.dart';
 import '../../../theme/app_colors.dart';
 import '../../../theme/app_dimensions.dart';
 import '../../../theme/app_text_styles.dart';
+import '../../../theme/chart_palette.dart';
+import 'charts/status_breakdown_bar.dart';
 
+/// Today's appointments as a list, headed by the status split so the shape of
+/// the day is readable before any row is.
 class ScheduleCard extends StatelessWidget {
-  final List<dynamic> appointments;
+  const ScheduleCard(this.schedule, {super.key, this.onBookNew});
 
-  const ScheduleCard(this.appointments, {super.key});
+  final TodaySchedule schedule;
+  final VoidCallback? onBookNew;
 
   @override
   Widget build(BuildContext context) {
+    final appointments = schedule.appointments;
+
     return Container(
       padding: const EdgeInsets.all(AppDimensions.paddingLarge),
       decoration: BoxDecoration(
@@ -24,16 +32,35 @@ class ScheduleCard extends StatelessWidget {
         children: [
           Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Text(
-                "Today's Schedule",
-                style: AppTextStyles.titleMedium.copyWith(
-                  color: AppColors.ink,
-                  fontWeight: FontWeight.w800,
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      "Today's Schedule",
+                      style: AppTextStyles.titleMedium.copyWith(
+                        color: AppColors.ink,
+                        fontWeight: FontWeight.w800,
+                      ),
+                    ),
+                    const SizedBox(height: 2),
+                    Text(
+                      schedule.total == 1
+                          ? '1 appointment booked'
+                          : '${schedule.total} appointments booked',
+                      style: const TextStyle(
+                        color: AppColors.textSecondary,
+                        fontSize: 13,
+                      ),
+                    ),
+                  ],
                 ),
               ),
+              const SizedBox(width: 12),
               ElevatedButton.icon(
-                onPressed: () {},
+                onPressed: onBookNew,
                 icon: const Icon(Icons.add, size: 16),
                 label: const Text('Book New'),
                 style: ElevatedButton.styleFrom(
@@ -56,6 +83,10 @@ class ScheduleCard extends StatelessWidget {
               ),
             ],
           ),
+          if (schedule.byStatus.isNotEmpty) ...[
+            const SizedBox(height: 20),
+            StatusBreakdownBar(statuses: schedule.byStatus),
+          ],
           const SizedBox(height: 20),
           if (appointments.isEmpty)
             const _EmptyState(
@@ -71,14 +102,8 @@ class ScheduleCard extends StatelessWidget {
                 color: AppColors.line,
                 height: 20,
               ),
-              itemBuilder: (context, index) {
-                final appt = appointments[index];
-                return _AppointmentTile(
-                  time: appt['time'] ?? 'N/A',
-                  patientName: appt['patientName'] ?? 'Unknown Patient',
-                  type: appt['type'] ?? '',
-                );
-              },
+              itemBuilder: (context, index) =>
+                  _AppointmentTile(appointments[index]),
             ),
         ],
       ),
@@ -87,30 +112,26 @@ class ScheduleCard extends StatelessWidget {
 }
 
 class _AppointmentTile extends StatelessWidget {
-  const _AppointmentTile({
-    required this.time,
-    required this.patientName,
-    required this.type,
-  });
+  const _AppointmentTile(this.appointment);
 
-  final String time;
-  final String patientName;
-  final String type;
+  final ScheduleEntry appointment;
 
   @override
   Widget build(BuildContext context) {
+    final statusColor = ChartPalette.forStatus(appointment.status);
+
     return Row(
       crossAxisAlignment: CrossAxisAlignment.center,
       children: [
         Container(
-          width: 68,
+          width: 72,
           padding: const EdgeInsets.symmetric(vertical: 8, horizontal: 8),
           decoration: BoxDecoration(
             color: AppColors.accentWithOpacity(0.22),
             borderRadius: BorderRadius.circular(AppDimensions.borderRadius),
           ),
           child: Text(
-            time,
+            appointment.time,
             textAlign: TextAlign.center,
             style: const TextStyle(
               color: AppColors.primaryDark,
@@ -125,7 +146,7 @@ class _AppointmentTile extends StatelessWidget {
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               Text(
-                patientName,
+                appointment.patientName,
                 style: const TextStyle(
                   color: AppColors.ink,
                   fontWeight: FontWeight.w700,
@@ -134,7 +155,12 @@ class _AppointmentTile extends StatelessWidget {
               ),
               const SizedBox(height: 2),
               Text(
-                type,
+                [
+                  if (appointment.type.isNotEmpty) appointment.type,
+                  if (appointment.doctorName != null) appointment.doctorName!,
+                ].join(' · '),
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
                 style: const TextStyle(
                   color: AppColors.textSecondary,
                   fontSize: 13,
@@ -143,9 +169,29 @@ class _AppointmentTile extends StatelessWidget {
             ],
           ),
         ),
-        const Icon(
-          Icons.chevron_right,
-          color: AppColors.textTertiary,
+        const SizedBox(width: 8),
+        // Status carries an icon and a word, never colour alone.
+        Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Icon(
+              ChartPalette.iconForStatus(appointment.status),
+              size: 14,
+              color: statusColor,
+            ),
+            const SizedBox(width: 4),
+            Text(
+              appointment.status.isEmpty
+                  ? '—'
+                  : appointment.status[0].toUpperCase() +
+                      appointment.status.substring(1),
+              style: const TextStyle(
+                color: AppColors.textSecondary,
+                fontSize: 12,
+                fontWeight: FontWeight.w700,
+              ),
+            ),
+          ],
         ),
       ],
     );
@@ -169,8 +215,7 @@ class _EmptyState extends StatelessWidget {
               padding: const EdgeInsets.all(14),
               decoration: BoxDecoration(
                 color: AppColors.surface,
-                borderRadius:
-                    BorderRadius.circular(AppDimensions.borderRadius),
+                borderRadius: BorderRadius.circular(AppDimensions.borderRadius),
               ),
               child: Icon(icon, color: AppColors.textTertiary, size: 28),
             ),
