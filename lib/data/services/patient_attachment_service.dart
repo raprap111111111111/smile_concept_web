@@ -2,6 +2,7 @@
 
 import 'package:dio/dio.dart';
 import 'package:file_picker/file_picker.dart';
+import 'package:flutter/foundation.dart';
 import '../models/patient_attachment/patient_attachment_model.dart';
 
 class PatientAttachmentService {
@@ -15,7 +16,7 @@ class PatientAttachmentService {
   // ATTACHMENTS CRUD
   // ═══════════════════════════════════════════════════════
 
-  /// List all attachments with filters
+  /// List ALL attachments (global list, filters by user's permission)
   Future<Map<String, dynamic>> getAll({
     int page = 1,
     int perPage = 15,
@@ -25,6 +26,7 @@ class PatientAttachmentService {
     int? userId,
     bool? isXray,
   }) async {
+    debugPrint('🌐 GET $_basePath');
     final response = await _dio.get(_basePath, queryParameters: {
       'page': page,
       'per_page': perPage,
@@ -37,13 +39,37 @@ class PatientAttachmentService {
     return response.data as Map<String, dynamic>;
   }
 
+  /// ✅ Get files for a SPECIFIC patient (folder view)
+  /// Endpoint: GET /api/v1/patient-attachments/patients/{userId}
+  Future<Map<String, dynamic>> getByPatientId({
+    required int userId,
+    int page = 1,
+    int perPage = 15,
+    String? category,
+    String? scanStatus,
+    String? search,
+  }) async {
+    debugPrint('🌐 GET $_basePath/patients/$userId');
+    final response = await _dio.get(
+      '$_basePath/patients/$userId',
+      queryParameters: {
+        'page': page,
+        'per_page': perPage,
+        if (search != null && search.isNotEmpty) 'search': search,
+        if (category != null) 'category': category,
+        if (scanStatus != null) 'scan_status': scanStatus,
+      },
+    );
+    return response.data as Map<String, dynamic>;
+  }
+
   /// Get single attachment by ID
   Future<PatientAttachment> getById(int id) async {
     final response = await _dio.get('$_basePath/$id');
     return PatientAttachment.fromJson(response.data['data']);
   }
 
-  /// Upload attachment with real file
+  /// Upload attachment
   Future<PatientAttachment> create({
     required int userId,
     int? appointmentId,
@@ -53,12 +79,11 @@ class PatientAttachmentService {
     bool isXray = false,
     String? notes,
   }) async {
-    // ✅ ADD THIS DEBUG
-    print('📤 UPLOAD DEBUG:');
-    print('   user_id: $userId');
-    print('   file_name: $fileName');
-    print('   category: $category');
-    print('   file: ${file.name}');
+    debugPrint('📤 UPLOAD DEBUG:');
+    debugPrint('   user_id (patient): $userId');
+    debugPrint('   file_name: $fileName');
+    debugPrint('   category: $category');
+    debugPrint('   file: ${file.name}');
 
     final formData = FormData.fromMap({
       'user_id': userId,
@@ -89,11 +114,10 @@ class PatientAttachmentService {
   }
 
   // ═══════════════════════════════════════════════════════
-  // PATIENT QUERIES
+  // PATIENT QUERIES (folder list)
   // ═══════════════════════════════════════════════════════
 
   /// Get patients who have attachments (for folder view)
-  /// Endpoint: GET /api/v1/patient-attachments/patients
   Future<Map<String, dynamic>> getPatientsWithAttachments({
     int page = 1,
     int perPage = 20,
@@ -110,35 +134,10 @@ class PatientAttachmentService {
     return response.data as Map<String, dynamic>;
   }
 
-  /// Get attachments for a specific patient
-  /// Endpoint: GET /api/v1/patient-attachments/patients/{userId}
-  Future<Map<String, dynamic>> getByPatientId({
-    required int userId,
-    int page = 1,
-    int perPage = 15,
-    String? category,
-    String? scanStatus,
-    String? search,
-  }) async {
-    final response = await _dio.get(
-      '$_basePath/patients/$userId',
-      queryParameters: {
-        'page': page,
-        'per_page': perPage,
-        if (search != null && search.isNotEmpty) 'search': search,
-        if (category != null) 'category': category,
-        if (scanStatus != null) 'scan_status': scanStatus,
-      },
-    );
-    return response.data as Map<String, dynamic>;
-  }
-
   // ═══════════════════════════════════════════════════════
-  // ✅ ALL USERS (for patient selector in upload form)
+  // USERS (for patient selector dropdown)
   // ═══════════════════════════════════════════════════════
 
-  /// Get all users/patients for the selector dropdown
-  /// Endpoint: GET /api/v1/users
   Future<Map<String, dynamic>> getAllUsers({
     int page = 1,
     int perPage = 100,

@@ -2,10 +2,11 @@
 
 import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:file_picker/file_picker.dart';
+
 import '/data/models/patient_attachment/patient_attachment_model.dart';
 import '/data/services/patient_attachment_service.dart';
 import '/core/network/dio_client.dart';
-import 'package:file_picker/file_picker.dart';
 
 // ═══════════════════════════════════════════════════════════
 // STATE
@@ -84,37 +85,63 @@ class PatientAttachmentNotifier
   PatientAttachmentNotifier(this._service)
       : super(const PatientAttachmentState());
 
+  /// ✅ FIX 4: Fully refresh with cleared state
   Future<void> fetchAll({bool refresh = false}) async {
     if (state.isLoading) return;
 
     if (refresh) {
-      state = state.copyWith(currentPage: 1, clearError: true);
+      // ✅ CLEAR attachments on refresh
+      state = state.copyWith(
+        currentPage: 1,
+        attachments: [], // ← CLEAR
+        clearError: true,
+      );
     }
 
     state = state.copyWith(isLoading: true);
 
+    debugPrint('════════════════════════════════════════');
+    debugPrint('📥 fetchAll called (refresh: $refresh)');
+    debugPrint('   userIdFilter: ${state.userIdFilter}');
+    debugPrint('   category: ${state.categoryFilter}');
+    debugPrint('   scanStatus: ${state.scanStatusFilter}');
+    debugPrint('   search: ${state.searchQuery}');
+    debugPrint('════════════════════════════════════════');
+
     try {
-      final result = await _service.getAll(
-        page: state.currentPage,
-        search: state.searchQuery,
-        category: state.categoryFilter,
-        scanStatus: state.scanStatusFilter,
-        userId: state.userIdFilter,
-      );
+      final Map<String, dynamic> result;
+
+      // ✅ Use different endpoint based on filter
+      if (state.userIdFilter != null) {
+        debugPrint('📂 Using getByPatientId for user ${state.userIdFilter}');
+        result = await _service.getByPatientId(
+          userId: state.userIdFilter!,
+          page: state.currentPage,
+          search: state.searchQuery,
+          category: state.categoryFilter,
+          scanStatus: state.scanStatusFilter,
+        );
+      } else {
+        debugPrint('📋 Using getAll (global list)');
+        result = await _service.getAll(
+          page: state.currentPage,
+          search: state.searchQuery,
+          category: state.categoryFilter,
+          scanStatus: state.scanStatusFilter,
+        );
+      }
 
       final dataMap = result['data'] as Map<String, dynamic>;
       final records = (dataMap['records'] as List?) ?? [];
 
-      debugPrint(
-          '✅ Loaded ${records.length} attachments (page ${state.currentPage})');
+      debugPrint('✅ Received ${records.length} records');
 
       final incoming = records
-          .map((e) =>
-              PatientAttachment.fromJson(e as Map<String, dynamic>))
+          .map((e) => PatientAttachment.fromJson(e as Map<String, dynamic>))
           .toList();
 
-      final merged =
-          refresh ? incoming : [...state.attachments, ...incoming];
+      // ✅ On refresh, REPLACE. Otherwise, append.
+      final merged = refresh ? incoming : [...state.attachments, ...incoming];
 
       state = state.copyWith(
         attachments: merged,
@@ -122,6 +149,9 @@ class PatientAttachmentNotifier
         isLoading: false,
         clearError: true,
       );
+
+      debugPrint('📊 Total in state: ${state.attachments.length}');
+      debugPrint('════════════════════════════════════════');
     } catch (e, stack) {
       debugPrint('❌ fetchAll error: $e');
       debugPrint('📍 $stack');
@@ -177,8 +207,7 @@ class PatientAttachmentNotifier
     try {
       await _service.delete(id);
       state = state.copyWith(
-        attachments:
-            state.attachments.where((a) => a.id != id).toList(),
+        attachments: state.attachments.where((a) => a.id != id).toList(),
       );
       return true;
     } catch (e) {
@@ -211,22 +240,35 @@ class PatientAttachmentNotifier
     await fetchAll(refresh: true);
   }
 
+  /// ✅ FIX 3: Clear attachments AND reset pagination on filter change
   Future<void> setUserFilter(int? userId) async {
+    debugPrint('🎯 setUserFilter called with: $userId');
+
     state = state.copyWith(
       userIdFilter: userId,
       clearUserId: userId == null,
+      attachments: [], // ✅ CLEAR previous attachments
+      currentPage: 1, // ✅ RESET pagination
+      lastPage: 1, // ✅ RESET pagination
+      clearError: true,
     );
+
     await fetchAll(refresh: true);
   }
 
   Future<void> clearFilters() async {
+    debugPrint('🧹 clearFilters called');
     state = state.copyWith(
+      attachments: [], // ✅ CLEAR
+      currentPage: 1, // ✅ RESET
+      lastPage: 1, // ✅ RESET
       clearSearch: true,
       clearCategory: true,
       clearScanStatus: true,
       clearUserId: true,
+      clearError: true,
     );
-    await fetchAll(refresh: true);
+    // Don't fetch — let the caller decide
   }
 }
 

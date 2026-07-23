@@ -38,9 +38,8 @@ class RouteNames {
   static const String prescriptions = 'prescriptions';
   static const String prescriptionDetail = 'prescriptionDetail';
   static const String prescriptionCreate = 'prescriptionCreate';
-  // Add these to your existing RouteNames class:
 
-// ── Clinical Records ──────────────────────────────────────
+  // ── Clinical Records ──────────────────────────────────────
   static const String clinicalRecords = 'clinicalRecords';
   static const String clinicalNotes = 'clinicalNotes';
   static const String clinicalNoteDetail = 'clinicalNoteDetail';
@@ -54,25 +53,28 @@ class RouteNames {
   static const String labCaseDetail = 'labCaseDetail';
   static const String labCaseCreate = 'labCaseCreate';
 
+  // ── Patient Attachments (global list) ─────────────────────
   static const String patientAttachments = 'patientAttachments';
   static const String patientAttachmentDetail = 'patientAttachmentDetail';
   static const String attachmentUpload = 'attachmentUpload';
 
+  // ── Patient Folders (NEW dedicated system) ────────────────
   static const String patientFolders = 'patient-folders';
+  static const String patientFolderDetail = 'patient-folder-detail'; // ✅ NEW
+
+  // ⚠️ DEPRECATED — keep for backwards compat only
   static const String patientAttachmentsByPatient = 'patient-attachments-by-patient';
 
   static const String consents = 'consents';
   static const String consentSign = 'consentSign';
 
   // ── Treatments ────────────────────────────────────────────
-  // ✅ These are ROUTE names (for navigation)
   static const String treatments = 'treatments';
   static const String treatmentDetail = 'treatment-detail';
   static const String treatmentCreate = 'treatment-create';
   static const String treatmentEdit = 'treatment-edit';
 
   // ── Treatment Plans ───────────────────────────────────────
-  // ✅ These are ROUTE names (for navigation)
   static const String treatmentPlans = 'treatment-plans';
   static const String treatmentPlanDetail = 'treatment-plan-detail';
   static const String treatmentPlanCreate = 'treatment-plan-create';
@@ -89,7 +91,6 @@ class RouteNames {
   static const String inventory = 'inventory';
   static const String inventoryCreate = 'inventory-create';
   static const String itemEdit = 'item-edit';
-
   static const String inventoryEdit = 'inventory-edit';
   static const String inventoryDetail = 'inventory-detail';
   static const String items = 'items';
