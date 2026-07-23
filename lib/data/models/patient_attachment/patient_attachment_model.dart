@@ -1,5 +1,8 @@
 // lib/data/models/patient_attachment/patient_attachment_model.dart
 
+// ═══════════════════════════════════════════════════════
+// DETECTED CONDITION (AI Scan Result)
+// ═══════════════════════════════════════════════════════
 class DetectedCondition {
   final int? toothNumber;
   final String condition;
@@ -19,33 +22,19 @@ class DetectedCondition {
 
   factory DetectedCondition.fromJson(Map<String, dynamic> json) {
     return DetectedCondition(
-      toothNumber: _parseInt(json['tooth_number']),
+      toothNumber: PatientAttachment._parseInt(json['tooth_number']),
       condition: json['condition']?.toString() ?? '',
       severity: json['severity']?.toString() ?? '',
-      confidence: _parseDouble(json['confidence']) ?? 0.0,
+      confidence: PatientAttachment._parseDouble(json['confidence']) ?? 0.0,
       location: json['location']?.toString(),
       description: json['description']?.toString(),
     );
   }
-
-  // ✅ Safe parsers
-  static int? _parseInt(dynamic value) {
-    if (value == null) return null;
-    if (value is int) return value;
-    if (value is double) return value.toInt();
-    if (value is String) return int.tryParse(value);
-    return null;
-  }
-
-  static double? _parseDouble(dynamic value) {
-    if (value == null) return null;
-    if (value is double) return value;
-    if (value is int) return value.toDouble();
-    if (value is String) return double.tryParse(value);
-    return null;
-  }
 }
 
+// ═══════════════════════════════════════════════════════
+// PATIENT ATTACHMENT
+// ═══════════════════════════════════════════════════════
 class PatientAttachment {
   final int id;
   final int userId;
@@ -55,6 +44,17 @@ class PatientAttachment {
   final String fileType;
   final String category;
   final String? notes;
+
+  // Uploader info
+  final int? uploadedBy;
+  final String? uploaderName;
+  final String? uploaderRole;
+
+  // Storage disk + URLs
+  final String disk;
+  final String? fileUrl;
+  final String? streamUrl;
+  final String? downloadUrl;
 
   // AI Scan
   final bool isXray;
@@ -80,14 +80,26 @@ class PatientAttachment {
     required this.fileType,
     required this.category,
     this.notes,
+
+    this.uploadedBy,
+    this.uploaderName,
+    this.uploaderRole,
+
+    this.disk = 'public',
+    this.fileUrl,
+    this.streamUrl,
+    this.downloadUrl,
+
     this.isXray = false,
     this.scanStatus = 'not_applicable',
     this.detectedConditions = const [],
     this.scanConfidence,
     this.scannedAt,
     this.scanProvider,
+
     this.patientId,
     this.patientName,
+
     required this.createdAt,
     this.updatedAt,
   });
@@ -96,7 +108,7 @@ class PatientAttachment {
     final conditions = (json['detected_conditions'] as List?)
             ?.map((e) => DetectedCondition.fromJson(e as Map<String, dynamic>))
             .toList() ??
-        [];
+        const <DetectedCondition>[];
 
     return PatientAttachment(
       id: _parseInt(json['id']) ?? 0,
@@ -107,24 +119,37 @@ class PatientAttachment {
       fileType: json['file_type']?.toString() ?? '',
       category: json['category']?.toString() ?? 'other',
       notes: json['notes']?.toString(),
+
+      uploadedBy: _parseInt(json['uploaded_by']),
+      uploaderName: json['uploader']?['name']?.toString(),
+      uploaderRole: json['uploader']?['role']?.toString(),
+
+      disk: json['disk']?.toString() ?? 'public',
+      fileUrl: json['file_url']?.toString(),
+      streamUrl: json['stream_url']?.toString(),
+      downloadUrl: json['download_url']?.toString(),
+
       isXray: _parseBool(json['is_xray']),
       scanStatus: json['scan_status']?.toString() ?? 'not_applicable',
       detectedConditions: conditions,
-      scanConfidence: _parseDouble(json['scan_confidence']), // ✅ FIXED
+      scanConfidence: _parseDouble(json['scan_confidence']),
       scannedAt: _parseDate(json['scanned_at']),
       scanProvider: json['scan_provider']?.toString(),
+
       patientId: _parseInt(json['patient']?['id']),
       patientName: json['patient']?['name']?.toString(),
+
       createdAt: _parseDate(json['created_at']) ?? DateTime.now(),
       updatedAt: _parseDate(json['updated_at']),
     );
   }
 
-  // ✅ Safe parsers (handle any type from Laravel)
+  // ===== Safe parsers =====
   static int? _parseInt(dynamic value) {
     if (value == null) return null;
     if (value is int) return value;
     if (value is double) return value.toInt();
+    if (value is num) return value.toInt();
     if (value is String) return int.tryParse(value);
     return null;
   }
@@ -133,6 +158,7 @@ class PatientAttachment {
     if (value == null) return null;
     if (value is double) return value;
     if (value is int) return value.toDouble();
+    if (value is num) return value.toDouble();
     if (value is String) return double.tryParse(value);
     return null;
   }
@@ -141,6 +167,7 @@ class PatientAttachment {
     if (value == null) return false;
     if (value is bool) return value;
     if (value is int) return value == 1;
+    if (value is num) return value.toInt() == 1;
     if (value is String) {
       return value == '1' || value.toLowerCase() == 'true';
     }
@@ -154,10 +181,15 @@ class PatientAttachment {
     return null;
   }
 
-  // ─── Convenience Getters ───────────────────────────────
+  // ===== Getters =====
   bool get isScanCompleted => scanStatus == 'completed';
   bool get isScanProcessing => scanStatus == 'processing';
   bool get isScanPending => scanStatus == 'pending';
   bool get isScanFailed => scanStatus == 'failed';
   bool get hasConditions => detectedConditions.isNotEmpty;
+
+  bool isOwnedBy(int? currentUserId) {
+    if (currentUserId == null || uploadedBy == null) return false;
+    return uploadedBy == currentUserId;
+  }
 }

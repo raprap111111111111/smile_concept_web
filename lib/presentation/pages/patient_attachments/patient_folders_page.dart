@@ -1,8 +1,12 @@
 // lib/presentation/pages/patient_attachments/patient_folders_page.dart
 
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
+
+import '/core/permissions/app_permissions.dart';
+import '/presentation/providers/auth/auth_provider.dart';
 import '/presentation/providers/patient_attachment/patients_with_attachments_provider.dart';
 import '/presentation/route/route_names.dart';
 import '/presentation/theme/app_colors.dart';
@@ -49,15 +53,17 @@ class _PatientFoldersPageState extends ConsumerState<PatientFoldersPage> {
   @override
   Widget build(BuildContext context) {
     final state = ref.watch(patientsWithAttachmentsProvider);
+    final auth = ref.watch(authStateProvider);
+    final canViewAny = auth.hasPermission(Perm.attachmentViewAny);
 
     return Scaffold(
       backgroundColor: AppColors.surface,
       body: Column(
         children: [
-          _buildHeader(state),
-          // ✅ NEW: Quick action buttons
+          _buildHeader(state, canViewAny),
+          _buildScopeIndicator(canViewAny, state),
           _buildQuickActions(context, state),
-          Expanded(child: _buildContent(state)),
+          Expanded(child: _buildContent(state, canViewAny)),
         ],
       ),
       floatingActionButton: FloatingActionButton.extended(
@@ -70,7 +76,56 @@ class _PatientFoldersPageState extends ConsumerState<PatientFoldersPage> {
     );
   }
 
-  Widget _buildHeader(PatientsWithAttachmentsState state) {
+  Widget _buildScopeIndicator(
+      bool canViewAny, PatientsWithAttachmentsState state) {
+    final label = canViewAny
+        ? 'Showing all patients'
+        : 'Showing only patients you uploaded to';
+    final icon = canViewAny ? Icons.groups_outlined : Icons.person_outline;
+    final color = canViewAny ? AppColors.info : AppColors.primary;
+
+    return Container(
+      color: color.withValues(alpha: 0.05),
+      padding: const EdgeInsets.symmetric(
+        horizontal: AppDimensions.paddingLarge,
+        vertical: 8,
+      ),
+      child: Row(
+        children: [
+          Icon(icon, size: 16, color: color),
+          const SizedBox(width: 8),
+          Expanded(
+            child: Text(
+              label,
+              style: AppTextStyles.labelSmall.copyWith(
+                color: color,
+                fontWeight: FontWeight.w600,
+              ),
+            ),
+          ),
+          Container(
+            padding: const EdgeInsets.symmetric(
+              horizontal: 8,
+              vertical: 2,
+            ),
+            decoration: BoxDecoration(
+              color: color.withValues(alpha: 0.15),
+              borderRadius: BorderRadius.circular(10),
+            ),
+            child: Text(
+              '${state.patients.length} patient(s)',
+              style: AppTextStyles.labelSmall.copyWith(
+                color: color,
+                fontWeight: FontWeight.w700,
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildHeader(PatientsWithAttachmentsState state, bool canViewAny) {
     final totalPatients = state.patients.length;
     final totalPending = state.patients
         .fold<int>(0, (sum, p) => sum + p.pendingScans);
@@ -106,11 +161,10 @@ class _PatientFoldersPageState extends ConsumerState<PatientFoldersPage> {
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    Text('Patient Files',
-                        style: AppTextStyles.titleLarge),
+                    Text('Patient Files', style: AppTextStyles.titleLarge),
                     const SizedBox(height: 2),
                     Text(
-                      '$totalPatients patients${totalPending > 0 ? " • $totalPending pending AI scans" : ""}',
+                      '$totalPatients patient${totalPatients == 1 ? "" : "s"}${totalPending > 0 ? " • $totalPending pending AI scans" : ""}',
                       style: AppTextStyles.bodySmall,
                     ),
                   ],
@@ -162,9 +216,6 @@ class _PatientFoldersPageState extends ConsumerState<PatientFoldersPage> {
     );
   }
 
-  // ═══════════════════════════════════════════════════════
-  // ✅ NEW: Quick Action Buttons Row
-  // ═══════════════════════════════════════════════════════
   Widget _buildQuickActions(
       BuildContext context, PatientsWithAttachmentsState state) {
     return Container(
@@ -191,9 +242,7 @@ class _PatientFoldersPageState extends ConsumerState<PatientFoldersPage> {
               label: 'All X-rays',
               color: AppColors.info,
               onTap: () {
-                // Navigate to all attachments with X-ray filter
                 context.pushNamed(RouteNames.patientAttachments);
-                // Note: You may want to auto-apply X-ray filter here
               },
             ),
           ),
@@ -213,7 +262,7 @@ class _PatientFoldersPageState extends ConsumerState<PatientFoldersPage> {
     );
   }
 
-  Widget _buildContent(PatientsWithAttachmentsState state) {
+  Widget _buildContent(PatientsWithAttachmentsState state, bool canViewAny) {
     if (state.isLoading && state.patients.isEmpty) {
       return const Center(
         child: CircularProgressIndicator(color: AppColors.primary),
@@ -225,7 +274,7 @@ class _PatientFoldersPageState extends ConsumerState<PatientFoldersPage> {
     }
 
     if (state.patients.isEmpty) {
-      return _buildEmptyState();
+      return _buildEmptyState(canViewAny);
     }
 
     return RefreshIndicator(
@@ -255,18 +304,26 @@ class _PatientFoldersPageState extends ConsumerState<PatientFoldersPage> {
           final patient = state.patients[index];
           return PatientFolderCard(
             patient: patient,
-            onTap: () => context.pushNamed(
-              RouteNames.patientAttachmentsByPatient,
-              pathParameters: {'userId': patient.id.toString()},
-              extra: patient,
-            ),
+            onTap: () {
+              // ✅ DEBUG click
+              debugPrint('════════════════════════════════════');
+              debugPrint('👆 CLICKED: ${patient.name} (ID: ${patient.id})');
+              debugPrint('════════════════════════════════════');
+
+              // ✅ Use NEW dedicated folder route
+              context.pushNamed(
+                RouteNames.patientFolderDetail,
+                pathParameters: {'userId': patient.id.toString()},
+                extra: patient,
+              );
+            },
           );
         },
       ),
     );
   }
 
-  Widget _buildEmptyState() {
+  Widget _buildEmptyState(bool canViewAny) {
     return Center(
       child: Column(
         mainAxisAlignment: MainAxisAlignment.center,
@@ -281,11 +338,19 @@ class _PatientFoldersPageState extends ConsumerState<PatientFoldersPage> {
                 size: 48, color: AppColors.primary),
           ),
           const SizedBox(height: AppDimensions.paddingMedium),
-          Text('No patient files yet',
-              style: AppTextStyles.titleMedium),
+          Text(
+            canViewAny
+                ? 'No patient files yet'
+                : 'You haven\'t uploaded any files yet',
+            style: AppTextStyles.titleMedium,
+          ),
           const SizedBox(height: 4),
-          Text('Upload attachments to see them here',
-              style: AppTextStyles.bodySmall),
+          Text(
+            canViewAny
+                ? 'Upload attachments to see them here'
+                : 'Files you upload will appear here',
+            style: AppTextStyles.bodySmall,
+          ),
           const SizedBox(height: AppDimensions.paddingMedium),
           ElevatedButton.icon(
             onPressed: () =>

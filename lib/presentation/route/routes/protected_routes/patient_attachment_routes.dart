@@ -11,12 +11,13 @@ import '../../../pages/patient_attachments/patient_attachment_list_page.dart';
 import '../../../pages/patient_attachments/patient_attachment_create_page.dart';
 import '../../../pages/patient_attachments/patient_attachment_detail_page.dart';
 import '../../../pages/patient_attachments/patient_folders_page.dart';
+import '../../../pages/patient_attachments/patient_folder_detail_page.dart'; // ✅ NEW
 import '../../route_names.dart';
 import '../../page_transitions.dart';
 
 final List<RouteBase> patientAttachmentRoutes = [
   // ═══════════════════════════════════════════════════════
-  // Patient Folders (main entry point) — fade-through
+  // 📁 Patient Folders (main entry point)
   // ═══════════════════════════════════════════════════════
   GoRoute(
     path: '/patient-folders',
@@ -26,18 +27,21 @@ final List<RouteBase> patientAttachmentRoutes = [
       child: const PatientFoldersPage(),
     ),
     routes: [
-      // ── Folder detail: no transition ──────────────────
+      // ═══════════════════════════════════════════════════
+      // ✅ NEW: Dedicated Folder Detail (uses PatientFolderDetailPage)
+      // Path: /patient-folders/:userId
+      // ═══════════════════════════════════════════════════
       GoRoute(
         path: ':userId',
-        name: RouteNames.patientAttachmentsByPatient,
+        name: RouteNames.patientFolderDetail,
         pageBuilder: (context, state) {
           final userId =
               int.tryParse(state.pathParameters['userId'] ?? '') ?? 0;
           final patient = state.extra as PatientWithAttachments?;
 
           return NoTransitionPage(
-            child: PatientAttachmentListPage(
-              filterUserId: userId,
+            child: PatientFolderDetailPage(
+              patientId: userId,
               patientName: patient?.name,
             ),
           );
@@ -47,7 +51,7 @@ final List<RouteBase> patientAttachmentRoutes = [
   ),
 
   // ═══════════════════════════════════════════════════════
-  // All Attachments — fade-through
+  // 📋 All Attachments (global list — for admins/all-view)
   // ═══════════════════════════════════════════════════════
   GoRoute(
     path: '/patient-attachments',
@@ -101,8 +105,7 @@ class _AttachmentFallbackPage extends StatelessWidget {
     return Scaffold(
       backgroundColor: AppColors.surface,
       appBar: AppBar(
-        title:
-            Text('Attachment #$id', style: AppTextStyles.titleLarge),
+        title: Text('Attachment #$id', style: AppTextStyles.titleLarge),
         backgroundColor: AppColors.background,
         surfaceTintColor: Colors.transparent,
         elevation: 0,

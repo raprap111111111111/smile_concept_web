@@ -1,15 +1,18 @@
 // lib/presentation/pages/patient_attachments/widgets/attachment_card.dart
 
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '/core/permissions/app_permissions.dart';
+import '/data/models/patient_attachment/patient_attachment_model.dart';
+import '/presentation/providers/auth/auth_provider.dart';
 import '/presentation/theme/app_colors.dart';
 import '/presentation/theme/app_dimensions.dart';
 import '/presentation/theme/app_text_styles.dart';
-import '/data/models/patient_attachment/patient_attachment_model.dart';
 import 'category_badge.dart';
 import 'scan_status_badge.dart';
 
-class AttachmentCard extends StatelessWidget {
+class AttachmentCard extends ConsumerWidget {
   final PatientAttachment attachment;
   final VoidCallback onTap;
   final VoidCallback onDelete;
@@ -22,15 +25,33 @@ class AttachmentCard extends StatelessWidget {
   });
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
+    final auth = ref.watch(authStateProvider);
+    final currentUserId = auth.user?.id;
+
+    // ✅ Permission checks
+    final canViewAny = auth.hasPermission(Perm.attachmentViewAny);
+    final canDelete = auth.hasPermission(Perm.attachmentDelete);
+
+    final isMyUpload = attachment.isOwnedBy(currentUserId);
+
+    // Can delete IF: viewAny (admin) OR (has delete + owns it)
+    final canShowDelete = canViewAny || (canDelete && isMyUpload);
+
     return GestureDetector(
       onTap: onTap,
       child: Container(
         padding: const EdgeInsets.all(AppDimensions.paddingMedium),
         decoration: BoxDecoration(
           color: AppColors.background,
-          borderRadius: BorderRadius.circular(AppDimensions.borderRadiusLarge),
-          border: Border.all(color: AppColors.border),
+          borderRadius:
+              BorderRadius.circular(AppDimensions.borderRadiusLarge),
+          border: Border.all(
+            color: isMyUpload
+                ? AppColors.primary.withValues(alpha: 0.3)
+                : AppColors.border,
+            width: isMyUpload ? 1.5 : 1,
+          ),
           boxShadow: const [
             BoxShadow(
               color: AppColors.cardShadow,
@@ -42,7 +63,7 @@ class AttachmentCard extends StatelessWidget {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            // ═══ TOP ROW: Icon + Info + Menu ═══
+            // ═══ TOP ROW ═══
             Row(
               children: [
                 _buildFileIcon(),
@@ -51,46 +72,90 @@ class AttachmentCard extends StatelessWidget {
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      Text(
-                        attachment.fileName,
-                        style: AppTextStyles.titleSmall,
-                        maxLines: 1,
-                        overflow: TextOverflow.ellipsis,
+                      // File name + "You" badge
+                      Row(
+                        children: [
+                          Flexible(
+                            child: Text(
+                              attachment.fileName,
+                              style: AppTextStyles.titleSmall,
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
+                            ),
+                          ),
+                          if (isMyUpload) ...[
+                            const SizedBox(width: 6),
+                            _buildYouBadge(),
+                          ],
+                        ],
                       ),
                       const SizedBox(height: 2),
+
+                      // Patient name
                       Text(
                         attachment.patientName ?? 'Unknown Patient',
                         style: AppTextStyles.bodySmall.copyWith(
                           color: AppColors.textMuted,
                         ),
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
                       ),
+
+                      // ✅ Always show uploader when viewAny
+                      // (helps distinguish between uploaders in shared folder)
+                      if (canViewAny && attachment.uploaderName != null) ...[
+                        const SizedBox(height: 2),
+                        Row(
+                          children: [
+                            const Icon(
+                              Icons.person_outline,
+                              size: 12,
+                              color: AppColors.textTertiary,
+                            ),
+                            const SizedBox(width: 4),
+                            Flexible(
+                              child: Text(
+                                'Uploaded by ${attachment.uploaderName}',
+                                style: AppTextStyles.labelSmall.copyWith(
+                                  color: AppColors.textTertiary,
+                                ),
+                                maxLines: 1,
+                                overflow: TextOverflow.ellipsis,
+                              ),
+                            ),
+                          ],
+                        ),
+                      ],
                     ],
                   ),
                 ),
-                PopupMenuButton<String>(
-                  onSelected: (val) {
-                    if (val == 'delete') onDelete();
-                  },
-                  icon: const Icon(
-                    Icons.more_vert,
-                    color: AppColors.textMuted,
-                    size: 20,
-                  ),
-                  itemBuilder: (_) => [
-                    const PopupMenuItem(
-                      value: 'delete',
-                      child: Row(
-                        children: [
-                          Icon(Icons.delete_outline,
-                              color: AppColors.error, size: 18),
-                          SizedBox(width: 8),
-                          Text('Delete',
-                              style: TextStyle(color: AppColors.error)),
-                        ],
-                      ),
+
+                if (canShowDelete)
+                  PopupMenuButton<String>(
+                    onSelected: (val) {
+                      if (val == 'delete') onDelete();
+                    },
+                    icon: const Icon(
+                      Icons.more_vert,
+                      color: AppColors.textMuted,
+                      size: 20,
                     ),
-                  ],
-                ),
+                    itemBuilder: (_) => [
+                      const PopupMenuItem(
+                        value: 'delete',
+                        child: Row(
+                          children: [
+                            Icon(Icons.delete_outline,
+                                color: AppColors.error, size: 18),
+                            SizedBox(width: 8),
+                            Text('Delete',
+                                style:
+                                    TextStyle(color: AppColors.error)),
+                          ],
+                        ),
+                      ),
+                    ],
+                  ),
               ],
             ),
 
@@ -106,7 +171,7 @@ class AttachmentCard extends StatelessWidget {
               ],
             ),
 
-            // ═══ DETECTED CONDITIONS PREVIEW ═══
+            // ═══ CONDITIONS PREVIEW ═══
             if (attachment.isScanCompleted && attachment.hasConditions) ...[
               const SizedBox(height: AppDimensions.paddingSmall),
               Container(
@@ -145,8 +210,7 @@ class AttachmentCard extends StatelessWidget {
             ],
 
             // ═══ NOTES ═══
-            if (attachment.notes != null &&
-                attachment.notes!.isNotEmpty) ...[
+            if (attachment.notes != null && attachment.notes!.isNotEmpty) ...[
               const SizedBox(height: AppDimensions.paddingXS),
               Text(
                 attachment.notes!,
@@ -168,6 +232,28 @@ class AttachmentCard extends StatelessWidget {
               ),
             ),
           ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildYouBadge() {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+      decoration: BoxDecoration(
+        color: AppColors.primary.withValues(alpha: 0.1),
+        borderRadius: BorderRadius.circular(4),
+        border: Border.all(
+          color: AppColors.primary.withValues(alpha: 0.3),
+        ),
+      ),
+      child: const Text(
+        'You',
+        style: TextStyle(
+          fontSize: 9,
+          color: AppColors.primary,
+          fontWeight: FontWeight.bold,
+          letterSpacing: 0.3,
         ),
       ),
     );
@@ -215,7 +301,7 @@ class AttachmentCard extends StatelessWidget {
   }
 
   String _formatDate(DateTime date) {
-    final months = [
+    const months = [
       'Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun',
       'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'
     ];

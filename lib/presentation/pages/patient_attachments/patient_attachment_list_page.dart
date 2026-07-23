@@ -1,9 +1,13 @@
 // lib/presentation/pages/patient_attachments/patient_attachment_list_page.dart
 
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
+
+import '/core/permissions/app_permissions.dart';
 import '/data/models/patient_attachment/patient_attachment_model.dart';
+import '/presentation/providers/auth/auth_provider.dart';
 import '/presentation/providers/patient_attachment/patient_attachment_provider.dart';
 import '/presentation/route/route_names.dart';
 import '/presentation/theme/app_colors.dart';
@@ -38,12 +42,19 @@ class _PatientAttachmentListPageState
     WidgetsBinding.instance.addPostFrameCallback((_) async {
       final notifier = ref.read(patientAttachmentProvider.notifier);
 
-      // ✅ Apply filter if navigated from folder
+      // ✅ FIX 2: DEBUG
+      debugPrint('════════════════════════════════════');
+      debugPrint('🚀 PatientAttachmentListPage initState');
+      debugPrint('   widget.filterUserId: ${widget.filterUserId}');
+      debugPrint('   widget.patientName: ${widget.patientName}');
+      debugPrint('════════════════════════════════════');
+
+      // ✅ FIX 2: CLEAR old state first, then set new filter
+      await notifier.clearFilters();
+
       if (widget.filterUserId != null) {
+        debugPrint('✅ Setting filter to user ${widget.filterUserId}');
         await notifier.setUserFilter(widget.filterUserId);
-      } else {
-        // Clear filter and reload
-        await notifier.setUserFilter(null);
       }
     });
     _scrollController.addListener(_onScroll);
@@ -73,29 +84,100 @@ class _PatientAttachmentListPageState
   @override
   Widget build(BuildContext context) {
     final state = ref.watch(patientAttachmentProvider);
+    final auth = ref.watch(authStateProvider);
     final isFiltered = widget.filterUserId != null;
+
+    final canViewAny = auth.hasPermission(Perm.attachmentViewAny);
+    final canUpload = auth.hasPermission(Perm.attachmentUpload);
 
     return Scaffold(
       backgroundColor: AppColors.surface,
       body: Column(
         children: [
           _buildHeader(context, isFiltered),
+          _buildScopeIndicator(canViewAny, isFiltered, state),
           const AttachmentFilterBar(),
-          Expanded(child: _buildList(state)),
+          Expanded(child: _buildList(state, canViewAny)),
         ],
       ),
-      floatingActionButton: FloatingActionButton.extended(
-        onPressed: () =>
-            context.pushNamed(RouteNames.attachmentUpload),
-        backgroundColor: AppColors.primary,
-        foregroundColor: Colors.white,
-        icon: const Icon(Icons.upload_file),
-        label: const Text('Upload'),
+      floatingActionButton: canUpload
+          ? FloatingActionButton.extended(
+              onPressed: () =>
+                  context.pushNamed(RouteNames.attachmentUpload),
+              backgroundColor: AppColors.primary,
+              foregroundColor: Colors.white,
+              icon: const Icon(Icons.upload_file),
+              label: const Text('Upload'),
+            )
+          : null,
+    );
+  }
+
+  Widget _buildScopeIndicator(
+    bool canViewAny,
+    bool isFiltered,
+    PatientAttachmentState state,
+  ) {
+    final String label;
+    final IconData icon;
+    final Color color;
+
+    if (canViewAny) {
+      label = isFiltered
+          ? 'All uploads for this patient'
+          : 'All uploads (any user)';
+      icon = Icons.groups_outlined;
+      color = AppColors.info;
+    } else {
+      label = isFiltered
+          ? 'Your uploads for this patient'
+          : 'Your uploads only';
+      icon = Icons.person_outline;
+      color = AppColors.primary;
+    }
+
+    return Container(
+      color: color.withValues(alpha: 0.05),
+      padding: const EdgeInsets.symmetric(
+        horizontal: AppDimensions.paddingLarge,
+        vertical: 8,
+      ),
+      child: Row(
+        children: [
+          Icon(icon, size: 16, color: color),
+          const SizedBox(width: 8),
+          Expanded(
+            child: Text(
+              label,
+              style: AppTextStyles.labelSmall.copyWith(
+                color: color,
+                fontWeight: FontWeight.w600,
+              ),
+            ),
+          ),
+          Container(
+            padding: const EdgeInsets.symmetric(
+              horizontal: 8,
+              vertical: 2,
+            ),
+            decoration: BoxDecoration(
+              color: color.withValues(alpha: 0.15),
+              borderRadius: BorderRadius.circular(10),
+            ),
+            child: Text(
+              '${state.attachments.length} file(s)',
+              style: AppTextStyles.labelSmall.copyWith(
+                color: color,
+                fontWeight: FontWeight.w700,
+              ),
+            ),
+          ),
+        ],
       ),
     );
   }
 
-  Widget _buildList(PatientAttachmentState state) {
+  Widget _buildList(PatientAttachmentState state, bool canViewAny) {
     if (state.isLoading && state.attachments.isEmpty) {
       return const Center(
         child: CircularProgressIndicator(color: AppColors.primary),
@@ -107,7 +189,7 @@ class _PatientAttachmentListPageState
     }
 
     if (state.attachments.isEmpty) {
-      return _buildEmptyState();
+      return _buildEmptyState(canViewAny);
     }
 
     return RefreshIndicator(
@@ -118,8 +200,7 @@ class _PatientAttachmentListPageState
       child: ListView.separated(
         controller: _scrollController,
         padding: const EdgeInsets.all(AppDimensions.paddingMedium),
-        itemCount:
-            state.attachments.length + (state.hasMore ? 1 : 0),
+        itemCount: state.attachments.length + (state.hasMore ? 1 : 0),
         separatorBuilder: (_, __) =>
             const SizedBox(height: AppDimensions.paddingSmall),
         itemBuilder: (context, index) {
@@ -163,7 +244,6 @@ class _PatientAttachmentListPageState
         children: [
           Row(
             children: [
-              // ✅ Back button if filtered
               if (isFiltered) ...[
                 IconButton(
                   onPressed: () =>
@@ -183,9 +263,7 @@ class _PatientAttachmentListPageState
                       AppDimensions.borderRadius),
                 ),
                 child: Icon(
-                  isFiltered
-                      ? Icons.folder_shared
-                      : Icons.attach_file,
+                  isFiltered ? Icons.folder_shared : Icons.attach_file,
                   color: AppColors.primary,
                   size: 24,
                 ),
@@ -257,7 +335,7 @@ class _PatientAttachmentListPageState
     );
   }
 
-  Widget _buildEmptyState() {
+  Widget _buildEmptyState(bool canViewAny) {
     return Center(
       child: Column(
         mainAxisAlignment: MainAxisAlignment.center,
@@ -272,11 +350,19 @@ class _PatientAttachmentListPageState
                 size: 48, color: AppColors.primary),
           ),
           const SizedBox(height: AppDimensions.paddingMedium),
-          Text('No attachments found',
-              style: AppTextStyles.titleMedium),
+          Text(
+            canViewAny
+                ? 'No attachments found'
+                : 'You haven\'t uploaded any files',
+            style: AppTextStyles.titleMedium,
+          ),
           const SizedBox(height: 4),
-          Text('Upload X-rays, photos, or documents',
-              style: AppTextStyles.bodySmall),
+          Text(
+            canViewAny
+                ? 'Upload X-rays, photos, or documents'
+                : 'Files you upload will appear here',
+            style: AppTextStyles.bodySmall,
+          ),
         ],
       ),
     );
