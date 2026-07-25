@@ -47,10 +47,12 @@ class StatCard extends StatelessWidget {
         borderRadius: BorderRadius.circular(AppDimensions.borderRadiusLarge),
         border: Border.all(color: AppColors.line),
       ),
+      //    to gracefully handle any leftover overflow
       child: Column(
+        mainAxisSize: MainAxisSize.min,            
         crossAxisAlignment: CrossAxisAlignment.start,
-        mainAxisAlignment: MainAxisAlignment.spaceBetween,
         children: [
+          // ── Title Row ─────────────────────────────
           Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             crossAxisAlignment: CrossAxisAlignment.start,
@@ -68,17 +70,20 @@ class StatCard extends StatelessWidget {
               ),
               if (icon != null)
                 Container(
-                  padding: const EdgeInsets.all(8),
+                  padding: const EdgeInsets.all(6), 
                   decoration: BoxDecoration(
                     color: accentColor.withValues(alpha: 0.12),
                     borderRadius:
                         BorderRadius.circular(AppDimensions.borderRadius),
                   ),
-                  child: Icon(icon, size: 18, color: accentColor),
+                  child: Icon(icon, size: 16, color: accentColor), 
                 ),
             ],
           ),
-          const SizedBox(height: 10),
+
+          const SizedBox(height: 8),                
+
+          // ── Value Row ────────────────────────────
           Row(
             crossAxisAlignment: CrossAxisAlignment.end,
             children: [
@@ -89,7 +94,7 @@ class StatCard extends StatelessWidget {
                   child: Text(
                     value,
                     style: const TextStyle(
-                      fontSize: 28,
+                      fontSize: 24,                  
                       fontWeight: FontWeight.w800,
                       color: AppColors.ink,
                       height: 1.1,
@@ -98,9 +103,9 @@ class StatCard extends StatelessWidget {
                 ),
               ),
               if (delta != null) ...[
-                const SizedBox(width: 8),
+                const SizedBox(width: 6),             
                 Padding(
-                  padding: const EdgeInsets.only(bottom: 4),
+                  padding: const EdgeInsets.only(bottom: 2),
                   child: _Delta(
                     delta: delta!,
                     period: deltaPeriod,
@@ -110,9 +115,14 @@ class StatCard extends StatelessWidget {
               ],
             ],
           ),
+
+          // ── Sparkline (only if space) ────────────
           if (trend.length >= 2) ...[
-            const SizedBox(height: 10),
-            Sparkline(values: trend, color: accentColor),
+            const SizedBox(height: 8),               
+            SizedBox(
+              height: 24,                             
+              child: Sparkline(values: trend, color: accentColor),
+            ),
           ],
         ],
       ),
@@ -154,7 +164,7 @@ class _Delta extends StatelessWidget {
     return Tooltip(
       message: period == null ? text : '$text $period',
       child: Container(
-        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+        padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2), 
         decoration: BoxDecoration(
           color: color.withValues(alpha: 0.10),
           borderRadius: BorderRadius.circular(6),
@@ -162,14 +172,14 @@ class _Delta extends StatelessWidget {
         child: Row(
           mainAxisSize: MainAxisSize.min,
           children: [
-            Icon(icon, size: 12, color: color),
+            Icon(icon, size: 11, color: color),       
             const SizedBox(width: 3),
             Text(
               text,
               style: TextStyle(
                 color: color,
                 fontWeight: FontWeight.w800,
-                fontSize: 12,
+                fontSize: 11,                         
               ),
             ),
           ],

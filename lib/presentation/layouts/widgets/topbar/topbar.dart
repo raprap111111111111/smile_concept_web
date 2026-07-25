@@ -32,20 +32,27 @@ class Topbar extends StatelessWidget {
       child: Row(
         mainAxisAlignment: MainAxisAlignment.spaceBetween,
         children: [
-          // ── Page Title ────────────────────────────────────
-          Text(
-            PageTitleResolver.resolve(context),
-            style: AppTextStyles.titleLarge.copyWith(
-              color: AppColors.ink,
-              fontWeight: FontWeight.w800,
+          // ── Page Title (flexible, ellipsis if too long) ───
+          Expanded(
+            child: Text(
+              PageTitleResolver.resolve(context),
+              style: AppTextStyles.titleLarge.copyWith(
+                color: AppColors.ink,
+                fontWeight: FontWeight.w800,
+              ),
+              overflow: TextOverflow.ellipsis,
+              maxLines: 1,
             ),
           ),
 
-          // ── Right Actions ─────────────────────────────────
+          const SizedBox(width: 12),
+
+          // ── Right Actions (fixed width, doesn't shrink) ───
           Row(
+            mainAxisSize: MainAxisSize.min,
             children: [
               const NotificationBell(),
-              const SizedBox(width: 16),
+              const SizedBox(width: 12),
 
               // Vertical divider
               Container(
@@ -53,9 +60,11 @@ class Topbar extends StatelessWidget {
                 height: 28,
                 color: AppColors.line,
               ),
-              const SizedBox(width: 16),
+              const SizedBox(width: 12),
 
-              const TopbarUserInfo(),
+              const Flexible(
+                child: TopbarUserInfo(),
+              ),
             ],
           ),
         ],

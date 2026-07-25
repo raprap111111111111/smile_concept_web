@@ -9,6 +9,7 @@ import '../../providers/doctor_schedule/doctor_schedule_provider.dart';
 import 'doctor_schedule_form_page.dart';
 import 'widgets/day_filter_row.dart';
 import 'widgets/schedule_card.dart';
+import '../../widgets/shared/hold_to_delete_dialog.dart'; // ✅ ADD THIS
 
 class DoctorSchedulePage extends ConsumerStatefulWidget {
   final int? doctorId;
@@ -21,8 +22,7 @@ class DoctorSchedulePage extends ConsumerStatefulWidget {
   });
 
   @override
-  ConsumerState<DoctorSchedulePage> createState() =>
-      _DoctorSchedulePageState();
+  ConsumerState<DoctorSchedulePage> createState() => _DoctorSchedulePageState();
 }
 
 class _DoctorSchedulePageState extends ConsumerState<DoctorSchedulePage> {
@@ -202,8 +202,7 @@ class _DoctorSchedulePageState extends ConsumerState<DoctorSchedulePage> {
       final index = _schedules.indexWhere((s) => s.id == updated.id);
 
       // If updated schedule no longer matches selected day, remove it.
-      if (_filterDayOfWeek != null &&
-          updated.dayOfWeek != _filterDayOfWeek) {
+      if (_filterDayOfWeek != null && updated.dayOfWeek != _filterDayOfWeek) {
         _schedules.removeWhere((s) => s.id == updated.id);
       } else if (index != -1) {
         _schedules[index] = updated;
@@ -217,38 +216,24 @@ class _DoctorSchedulePageState extends ConsumerState<DoctorSchedulePage> {
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(
         content: Text(message),
-        backgroundColor:
-            isError ? Colors.red.shade700 : Colors.green.shade700,
+        backgroundColor: isError ? Colors.red.shade700 : Colors.green.shade700,
         behavior: SnackBarBehavior.floating,
       ),
     );
   }
 
   Future<bool> _showDeleteDialog(DoctorScheduleModel schedule) async {
-    return await showDialog<bool>(
-          context: context,
-          builder: (ctx) => AlertDialog(
-            title: const Text('Delete Schedule'),
-            content: Text(
-              'Delete ${schedule.dayLabel} schedule for '
-              '${schedule.doctor?.profile.name ?? "this doctor"}?',
-            ),
-            actions: [
-              TextButton(
-                onPressed: () => Navigator.of(ctx).pop(false),
-                child: const Text('Cancel'),
-              ),
-              FilledButton(
-                style: FilledButton.styleFrom(
-                  backgroundColor: Colors.red.shade700,
-                ),
-                onPressed: () => Navigator.of(ctx).pop(true),
-                child: const Text('Delete'),
-              ),
-            ],
-          ),
-        ) ??
-        false;
+    final doctorName = schedule.doctor?.profile.name ?? 'this doctor';
+
+    return await HoldToDeleteDialog.show(
+      context: context,
+      title: 'Delete Schedule',
+      itemName: '${schedule.dayLabel} schedule',
+      description: 'You are about to delete the ${schedule.dayLabel} '
+          'schedule for Dr. $doctorName. '
+          'This will affect future appointment availability. '
+          'This action cannot be undone.',
+    );
   }
 
   void _onDayFilterChanged(int? dayOfWeek) {

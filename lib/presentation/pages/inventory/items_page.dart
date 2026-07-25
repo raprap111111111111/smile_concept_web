@@ -11,6 +11,7 @@ import '../../route/route_names.dart';
 import '../../theme/app_colors.dart';
 import '../../theme/app_dimensions.dart';
 import '../../theme/app_text_styles.dart';
+import '../../widgets/shared/hold_to_delete_dialog.dart';
 
 class ItemsPage extends ConsumerStatefulWidget {
   const ItemsPage({super.key});
@@ -29,47 +30,30 @@ class _ItemsPageState extends ConsumerState<ItemsPage> {
   }
 
   Future<void> _delete(int id, String name) async {
-    final confirmed = await showDialog<bool>(
-      context: context,
-      builder: (ctx) => AlertDialog(
-        shape: RoundedRectangleBorder(
-          borderRadius:
-              BorderRadius.circular(AppDimensions.borderRadiusLarge),
-        ),
-        title: const Text('Delete Item?', style: AppTextStyles.titleMedium),
-        content: Text('Delete "$name"? This cannot be undone.',
-            style: AppTextStyles.bodyMedium),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(ctx, false),
-            child: const Text('Cancel'),
-          ),
-          TextButton(
-            onPressed: () => Navigator.pop(ctx, true),
-            style: TextButton.styleFrom(foregroundColor: AppColors.error),
-            child: const Text('Delete'),
-          ),
-        ],
+  final confirmed = await HoldToDeleteDialog.show(
+    context: context,
+    title: 'Delete Item',
+    itemName: name,
+    description: 'You are about to delete "$name" from the item catalog. '
+        'This will affect all inventory records and cannot be undone.',
+  );
+
+  if (!confirmed || !mounted) return;
+
+  final success = await ref.read(itemProvider.notifier).deleteItem(id);
+
+  if (!mounted) return;
+  ScaffoldMessenger.of(context).showSnackBar(
+    SnackBar(
+      content: Text(
+        success ? '"$name" deleted from catalog' : 'Failed to delete',
+        style: const TextStyle(color: Colors.white),
       ),
-    );
-
-    if (confirmed != true || !mounted) return;
-
-    final success =
-        await ref.read(itemProvider.notifier).deleteItem(id);
-
-    if (!mounted) return;
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: Text(
-          success ? 'Item deleted' : 'Failed to delete',
-          style: const TextStyle(color: Colors.white),
-        ),
-        backgroundColor: success ? AppColors.success : AppColors.error,
-        behavior: SnackBarBehavior.floating,
-      ),
-    );
-  }
+      backgroundColor: success ? AppColors.success : AppColors.error,
+      behavior: SnackBarBehavior.floating,
+    ),
+  );
+}
 
   @override
   Widget build(BuildContext context) {

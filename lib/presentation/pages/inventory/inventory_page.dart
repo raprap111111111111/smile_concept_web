@@ -14,6 +14,7 @@ import '../../theme/app_text_styles.dart';
 import 'widgets/inventory_card.dart';
 import 'widgets/inventory_empty_state.dart';
 import 'widgets/inventory_stats_bar.dart';
+import '../../widgets/shared/hold_to_delete_dialog.dart';
 
 class InventoryPage extends ConsumerStatefulWidget {
   const InventoryPage({super.key});
@@ -60,43 +61,26 @@ class _InventoryPageState extends ConsumerState<InventoryPage> {
       return;
     }
 
-    final confirmed = await showDialog<bool>(
+    final name = itemName ?? 'this item';
+
+    final confirmed = await HoldToDeleteDialog.show(
       context: context,
-      builder: (ctx) => AlertDialog(
-        shape: RoundedRectangleBorder(
-          borderRadius:
-              BorderRadius.circular(AppDimensions.borderRadiusLarge),
-        ),
-        title: const Text('Delete Inventory Item?',
-            style: AppTextStyles.titleMedium),
-        content: Text(
-          'Delete "${itemName ?? 'this item'}"? This cannot be undone.',
-          style: AppTextStyles.bodyMedium,
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(ctx, false),
-            child: const Text('Cancel'),
-          ),
-          TextButton(
-            onPressed: () => Navigator.pop(ctx, true),
-            style: TextButton.styleFrom(foregroundColor: AppColors.error),
-            child: const Text('Delete'),
-          ),
-        ],
-      ),
+      title: 'Delete Inventory Item',
+      itemName: name,
+      description: 'You are about to delete "$name" from inventory. '
+          'All stock records and history for this item will be permanently '
+          'removed. This action cannot be undone.',
     );
 
-    if (confirmed != true || !mounted) return;
+    if (!confirmed || !mounted) return;
 
-    final success = await ref
-        .read(inventoryProvider.notifier)
-        .deleteInventory(id);
+    final success =
+        await ref.read(inventoryProvider.notifier).deleteInventory(id);
 
     if (!mounted) return;
     _showSnack(
       success
-          ? 'Inventory item deleted'
+          ? '"$name" deleted from inventory'
           : ref.read(inventoryProvider).listError ?? 'Failed to delete',
       success ? AppColors.success : AppColors.error,
     );
@@ -153,16 +137,15 @@ class _InventoryPageState extends ConsumerState<InventoryPage> {
       ),
       floatingActionButton: canCreate
           ? FloatingActionButton.extended(
-              onPressed: () =>
-                  context.pushNamed(RouteNames.inventoryCreate),
+              onPressed: () => context.pushNamed(RouteNames.inventoryCreate),
               icon: const Icon(Icons.add, size: AppDimensions.iconSizeSmall),
               label: const Text('Add Stock',
                   style: TextStyle(fontWeight: FontWeight.w700)),
               backgroundColor: AppColors.primary,
               foregroundColor: AppColors.textOnPrimary,
               shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(
-                    AppDimensions.borderRadiusLarge),
+                borderRadius:
+                    BorderRadius.circular(AppDimensions.borderRadiusLarge),
               ),
             )
           : null,
@@ -185,8 +168,7 @@ class _InventoryPageState extends ConsumerState<InventoryPage> {
             height: AppDimensions.iconBadgeSize,
             decoration: BoxDecoration(
               color: AppColors.accentWithOpacity(0.18),
-              borderRadius:
-                  BorderRadius.circular(AppDimensions.borderRadius),
+              borderRadius: BorderRadius.circular(AppDimensions.borderRadius),
             ),
             child: const Icon(
               Icons.inventory_2_outlined,
@@ -224,26 +206,22 @@ class _InventoryPageState extends ConsumerState<InventoryPage> {
     return Container(
       decoration: BoxDecoration(
         color: state.lowStockOnly
-            ? AppColors.warning.withValues(alpha:0.12)
+            ? AppColors.warning.withValues(alpha: 0.12)
             : AppColors.surface,
         borderRadius: BorderRadius.circular(AppDimensions.borderRadius),
         border: Border.all(
           color: state.lowStockOnly
-              ? AppColors.warning.withValues(alpha:0.4)
+              ? AppColors.warning.withValues(alpha: 0.4)
               : AppColors.border,
         ),
       ),
       child: IconButton(
-        onPressed: () => ref
-            .read(inventoryProvider.notifier)
-            .toggleLowStockFilter(),
+        onPressed: () =>
+            ref.read(inventoryProvider.notifier).toggleLowStockFilter(),
         icon: Icon(
-          state.lowStockOnly
-              ? Icons.filter_alt
-              : Icons.filter_alt_outlined,
-          color: state.lowStockOnly
-              ? AppColors.warning
-              : AppColors.textSecondary,
+          state.lowStockOnly ? Icons.filter_alt : Icons.filter_alt_outlined,
+          color:
+              state.lowStockOnly ? AppColors.warning : AppColors.textSecondary,
           size: AppDimensions.iconSizeMedium,
         ),
         tooltip: state.lowStockOnly ? 'Show all' : 'Low stock only',
@@ -311,18 +289,15 @@ class _InventoryPageState extends ConsumerState<InventoryPage> {
           filled: true,
           fillColor: AppColors.background,
           border: OutlineInputBorder(
-            borderRadius:
-                BorderRadius.circular(AppDimensions.borderRadius),
+            borderRadius: BorderRadius.circular(AppDimensions.borderRadius),
             borderSide: const BorderSide(color: AppColors.border),
           ),
           enabledBorder: OutlineInputBorder(
-            borderRadius:
-                BorderRadius.circular(AppDimensions.borderRadius),
+            borderRadius: BorderRadius.circular(AppDimensions.borderRadius),
             borderSide: const BorderSide(color: AppColors.border),
           ),
           focusedBorder: OutlineInputBorder(
-            borderRadius:
-                BorderRadius.circular(AppDimensions.borderRadius),
+            borderRadius: BorderRadius.circular(AppDimensions.borderRadius),
             borderSide: const BorderSide(
               color: AppColors.primary,
               width: 2,
@@ -355,8 +330,7 @@ class _InventoryPageState extends ConsumerState<InventoryPage> {
           child: Column(
             mainAxisAlignment: MainAxisAlignment.center,
             children: [
-              const Icon(Icons.error_outline,
-                  size: 48, color: AppColors.error),
+              const Icon(Icons.error_outline, size: 48, color: AppColors.error),
               const SizedBox(height: AppDimensions.paddingSmall),
               Text(
                 state.listError ?? 'Error',
@@ -384,23 +358,20 @@ class _InventoryPageState extends ConsumerState<InventoryPage> {
 
     return RefreshIndicator(
       color: AppColors.primary,
-      onRefresh: () =>
-          ref.read(inventoryProvider.notifier).refresh(),
+      onRefresh: () => ref.read(inventoryProvider.notifier).refresh(),
       child: ListView.builder(
         controller: _scrollController,
         padding: const EdgeInsets.symmetric(
           horizontal: AppDimensions.paddingLarge,
           vertical: AppDimensions.paddingXS,
         ),
-        itemCount:
-            state.inventories.length + (state.isLoadingMore ? 1 : 0),
+        itemCount: state.inventories.length + (state.isLoadingMore ? 1 : 0),
         itemBuilder: (context, index) {
           if (index == state.inventories.length) {
             return const Padding(
               padding: EdgeInsets.all(AppDimensions.paddingMedium),
               child: Center(
-                child: CircularProgressIndicator(
-                    color: AppColors.primary),
+                child: CircularProgressIndicator(color: AppColors.primary),
               ),
             );
           }
