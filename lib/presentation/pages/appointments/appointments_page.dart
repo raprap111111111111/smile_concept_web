@@ -19,6 +19,7 @@ import 'appointment_form_page.dart';
 import 'book_appointment_page.dart';
 import 'widgets/appointment_calendar_card.dart';
 import 'widgets/appointment_filter_bar.dart';
+import '../../widgets/shared/hold_to_delete_dialog.dart';
 
 class AppointmentsPage extends ConsumerStatefulWidget {
   const AppointmentsPage({super.key});
@@ -54,8 +55,7 @@ class _AppointmentsPageState extends ConsumerState<AppointmentsPage> {
     super.dispose();
   }
 
-  DateTime _dateKey(DateTime date) =>
-      DateTime(date.year, date.month, date.day);
+  DateTime _dateKey(DateTime date) => DateTime(date.year, date.month, date.day);
 
   bool _isSameDay(DateTime a, DateTime b) =>
       a.year == b.year && a.month == b.month && a.day == b.day;
@@ -188,38 +188,14 @@ class _AppointmentsPageState extends ConsumerState<AppointmentsPage> {
   }
 
   Future<bool> _confirmDelete(AppointmentModel appointment) async {
-    return await showDialog<bool>(
-          context: context,
-          builder: (context) => AlertDialog(
-            backgroundColor: AppColors.background,
-            shape: RoundedRectangleBorder(
-              borderRadius:
-                  BorderRadius.circular(AppDimensions.borderRadiusLarge),
-            ),
-            title: Text(
-              'Delete Appointment',
-              style: AppTextStyles.titleMedium,
-            ),
-            content: Text(
-              'Delete appointment for ${appointment.user?.name ?? "this patient"}?',
-              style: AppTextStyles.bodyMedium,
-            ),
-            actions: [
-              TextButton(
-                onPressed: () => Navigator.pop(context, false),
-                child: const Text('Cancel'),
-              ),
-              FilledButton(
-                style: FilledButton.styleFrom(
-                  backgroundColor: AppColors.error,
-                ),
-                onPressed: () => Navigator.pop(context, true),
-                child: const Text('Delete'),
-              ),
-            ],
-          ),
-        ) ??
-        false;
+    return await HoldToDeleteDialog.show(
+      context: context,
+      title: 'Delete Appointment',
+      itemName: appointment.user?.name ?? 'this patient',
+      description: 'You are about to delete the appointment for '
+          '${appointment.user?.name ?? "this patient"}. '
+          'This action cannot be undone.',
+    );
   }
 
   Future<void> _updateStatus(
@@ -263,8 +239,7 @@ class _AppointmentsPageState extends ConsumerState<AppointmentsPage> {
       builder: (context) => AlertDialog(
         backgroundColor: AppColors.background,
         shape: RoundedRectangleBorder(
-          borderRadius:
-              BorderRadius.circular(AppDimensions.borderRadiusLarge),
+          borderRadius: BorderRadius.circular(AppDimensions.borderRadiusLarge),
         ),
         title: Row(
           children: [
@@ -281,8 +256,7 @@ class _AppointmentsPageState extends ConsumerState<AppointmentsPage> {
               ),
             ),
             const SizedBox(width: AppDimensions.paddingSmall),
-            Text('Cancel Appointment',
-                style: AppTextStyles.titleMedium),
+            Text('Cancel Appointment', style: AppTextStyles.titleMedium),
           ],
         ),
         content: Form(
@@ -412,8 +386,7 @@ class _AppointmentsPageState extends ConsumerState<AppointmentsPage> {
       padding: const EdgeInsets.all(AppDimensions.paddingLarge),
       decoration: BoxDecoration(
         color: AppColors.background,
-        borderRadius:
-            BorderRadius.circular(AppDimensions.borderRadiusLarge),
+        borderRadius: BorderRadius.circular(AppDimensions.borderRadiusLarge),
         border: Border.all(color: AppColors.border),
         boxShadow: const [
           BoxShadow(
@@ -426,50 +399,66 @@ class _AppointmentsPageState extends ConsumerState<AppointmentsPage> {
       child: Row(
         mainAxisAlignment: MainAxisAlignment.spaceBetween,
         children: [
-          Row(
-            children: [
-              Container(
-                width: 52,
-                height: 52,
-                decoration: BoxDecoration(
-                  gradient: AppColors.primaryGradient,
-                  borderRadius: BorderRadius.circular(14),
-                  boxShadow: [
-                    BoxShadow(
-                      color: AppColors.primary.withValues(alpha: 0.25),
-                      blurRadius: 14,
-                      offset: const Offset(0, 6),
-                    ),
-                  ],
-                ),
-                child: const Icon(
-                  Icons.calendar_month_rounded,
-                  color: AppColors.textOnPrimary,
-                  size: 26,
-                ),
-              ),
-              const SizedBox(width: AppDimensions.paddingMedium),
-              Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    canViewAll ? 'All Appointments' : 'My Appointments',
-                    style: AppTextStyles.headlineSmall,
+          // ── Left side (icon + title) ─── wrapped in Expanded ──
+          Expanded(
+            child: Row(
+              children: [
+                Container(
+                  width: 52,
+                  height: 52,
+                  decoration: BoxDecoration(
+                    gradient: AppColors.primaryGradient,
+                    borderRadius: BorderRadius.circular(14),
+                    boxShadow: [
+                      BoxShadow(
+                        color: AppColors.primary.withValues(alpha: 0.25),
+                        blurRadius: 14,
+                        offset: const Offset(0, 6),
+                      ),
+                    ],
                   ),
-                  const SizedBox(height: 2),
-                  Text(
-                    'Manage patient bookings by date',
-                    style: AppTextStyles.bodySmall,
+                  child: const Icon(
+                    Icons.calendar_month_rounded,
+                    color: AppColors.textOnPrimary,
+                    size: 26,
                   ),
-                ],
-              ),
-            ],
+                ),
+                const SizedBox(width: AppDimensions.paddingMedium),
+                // ✅ Wrap Column in Expanded so text can shrink/wrap
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Text(
+                        canViewAll ? 'All Appointments' : 'My Appointments',
+                        style: AppTextStyles.headlineSmall,
+                        overflow: TextOverflow.ellipsis, // ✅ prevent overflow
+                        maxLines: 1,
+                      ),
+                      const SizedBox(height: 2),
+                      Text(
+                        'Manage patient bookings by date',
+                        style: AppTextStyles.bodySmall,
+                        overflow: TextOverflow.ellipsis, // ✅ prevent overflow
+                        maxLines: 1,
+                      ),
+                    ],
+                  ),
+                ),
+              ],
+            ),
           ),
+
+          const SizedBox(width: 8),
+
+          // ── Right side (action buttons) ────────────────────────
           Row(
+            mainAxisSize: MainAxisSize.min,
             children: [
               if (_isLoadingCounts)
                 const Padding(
-                  padding: EdgeInsets.only(right: 12),
+                  padding: EdgeInsets.only(right: 8),
                   child: SizedBox(
                     width: 18,
                     height: 18,
@@ -492,7 +481,7 @@ class _AppointmentsPageState extends ConsumerState<AppointmentsPage> {
                   });
                 },
               ),
-              const SizedBox(width: 8),
+              const SizedBox(width: 6),
               _IconTile(
                 tooltip: 'Today',
                 icon: Icons.today_outlined,
@@ -500,7 +489,7 @@ class _AppointmentsPageState extends ConsumerState<AppointmentsPage> {
                   await _loadAppointmentsForDay(DateTime.now());
                 },
               ),
-              const SizedBox(width: 8),
+              const SizedBox(width: 6),
               _IconTile(
                 tooltip: 'Refresh',
                 icon: Icons.refresh_rounded,
@@ -629,8 +618,8 @@ class _AppointmentsPageState extends ConsumerState<AppointmentsPage> {
                         appointment.status == AppointmentStatus.confirmed;
                 final canEditThis =
                     canUpdate || (canReschedule && isOwn && isActive);
-                final canCancelThis = canUpdateStatus ||
-                    (canCancelPerm && isOwn && isActive);
+                final canCancelThis =
+                    canUpdateStatus || (canCancelPerm && isOwn && isActive);
 
                 return Padding(
                   padding: const EdgeInsets.only(
@@ -642,8 +631,7 @@ class _AppointmentsPageState extends ConsumerState<AppointmentsPage> {
                     canViewAll: canViewAll,
                     canUpdateStatus: canUpdateStatus,
                     canCancel: canCancelThis,
-                    onEdit:
-                        canEditThis ? () => _openEdit(appointment) : null,
+                    onEdit: canEditThis ? () => _openEdit(appointment) : null,
                     onDelete: canDelete ? () => _delete(appointment) : null,
                     onStatusChanged: canUpdateStatus
                         ? (newStatus) => _updateStatus(appointment, newStatus)
@@ -666,8 +654,7 @@ class _AppointmentsPageState extends ConsumerState<AppointmentsPage> {
     return Container(
       decoration: BoxDecoration(
         color: AppColors.background,
-        borderRadius:
-            BorderRadius.circular(AppDimensions.borderRadiusLarge),
+        borderRadius: BorderRadius.circular(AppDimensions.borderRadiusLarge),
         border: Border.all(color: AppColors.border),
         boxShadow: const [
           BoxShadow(
@@ -799,8 +786,7 @@ class _AppointmentsPageState extends ConsumerState<AppointmentsPage> {
         : DateFormat('EEEE, MMM dd, yyyy').format(day);
 
     return Padding(
-      padding:
-          const EdgeInsets.symmetric(vertical: AppDimensions.paddingSmall),
+      padding: const EdgeInsets.symmetric(vertical: AppDimensions.paddingSmall),
       child: Row(
         children: [
           Container(
@@ -817,9 +803,8 @@ class _AppointmentsPageState extends ConsumerState<AppointmentsPage> {
               style: TextStyle(
                 fontWeight: FontWeight.w800,
                 fontSize: 13,
-                color: isToday
-                    ? AppColors.textOnPrimary
-                    : AppColors.primaryDark,
+                color:
+                    isToday ? AppColors.textOnPrimary : AppColors.primaryDark,
               ),
             ),
           ),
@@ -842,8 +827,7 @@ class _AppointmentsPageState extends ConsumerState<AppointmentsPage> {
       padding: const EdgeInsets.all(AppDimensions.paddingXL),
       decoration: BoxDecoration(
         color: AppColors.background,
-        borderRadius:
-            BorderRadius.circular(AppDimensions.borderRadiusLarge),
+        borderRadius: BorderRadius.circular(AppDimensions.borderRadiusLarge),
         border: Border.all(color: AppColors.border),
       ),
       child: Column(
@@ -863,8 +847,7 @@ class _AppointmentsPageState extends ConsumerState<AppointmentsPage> {
             ),
           ),
           const SizedBox(height: AppDimensions.paddingMedium),
-          Text('No appointments on this day',
-              style: AppTextStyles.titleSmall),
+          Text('No appointments on this day', style: AppTextStyles.titleSmall),
           const SizedBox(height: 6),
           Text(
             'Book a new appointment for this date',
@@ -936,8 +919,7 @@ class _EmptyStateCard extends StatelessWidget {
       padding: const EdgeInsets.all(AppDimensions.paddingXL),
       decoration: BoxDecoration(
         color: AppColors.background,
-        borderRadius:
-            BorderRadius.circular(AppDimensions.borderRadiusLarge),
+        borderRadius: BorderRadius.circular(AppDimensions.borderRadiusLarge),
         border: Border.all(color: AppColors.border),
       ),
       child: Column(
@@ -974,8 +956,7 @@ class _ErrorCard extends StatelessWidget {
       padding: const EdgeInsets.all(AppDimensions.paddingLarge),
       decoration: BoxDecoration(
         color: AppColors.background,
-        borderRadius:
-            BorderRadius.circular(AppDimensions.borderRadiusLarge),
+        borderRadius: BorderRadius.circular(AppDimensions.borderRadiusLarge),
         border: Border.all(color: AppColors.error.withValues(alpha: 0.25)),
       ),
       child: Column(

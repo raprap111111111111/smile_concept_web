@@ -1,3 +1,5 @@
+// lib/presentation/pages/branches/branches_page.dart
+
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
@@ -7,6 +9,7 @@ import '../../providers/branch/branch_provider.dart';
 import '../../theme/app_colors.dart';
 import '../../theme/app_dimensions.dart';
 import '../../theme/app_text_styles.dart';
+import '../../widgets/shared/hold_to_delete_dialog.dart';  // ✅ NEW
 import 'widgets/branch_card.dart';
 import 'widgets/branch_filters.dart';
 import 'widgets/branch_form_dialog.dart';
@@ -151,62 +154,19 @@ class BranchesPage extends ConsumerWidget {
     }
   }
 
+  // ✅ Hold-to-delete replaces old confirmation dialog
   static Future<void> _confirmDelete(
     BuildContext context,
     WidgetRef ref,
     BranchModel branch,
   ) async {
-    final confirmed = await showDialog<bool>(
+    final confirmed = await HoldToDeleteDialog.show(
       context: context,
-      builder: (dialogContext) => AlertDialog(
-        backgroundColor: AppColors.background,
-        shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(AppDimensions.borderRadiusLarge),
-          side: const BorderSide(color: AppColors.border),
-        ),
-        title: Text(
-          'Delete Branch',
-          style: AppTextStyles.titleMedium,
-        ),
-        content: Text(
-          "Are you sure you want to delete '${branch.name}'?",
-          style: AppTextStyles.bodyMedium,
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(dialogContext, false),
-            child: Text(
-              'Cancel',
-              style: AppTextStyles.labelLarge.copyWith(
-                color: AppColors.textSecondary,
-              ),
-            ),
-          ),
-          ElevatedButton(
-            style: ElevatedButton.styleFrom(
-              backgroundColor: AppColors.error,
-              foregroundColor: Colors.white,
-              elevation: 0,
-              padding: const EdgeInsets.symmetric(
-                horizontal: AppDimensions.paddingMedium,
-                vertical: AppDimensions.paddingSmall,
-              ),
-              shape: RoundedRectangleBorder(
-                borderRadius:
-                    BorderRadius.circular(AppDimensions.borderRadius),
-              ),
-            ),
-            onPressed: () => Navigator.pop(dialogContext, true),
-            child: Text(
-              'Delete',
-              style: AppTextStyles.labelLarge.copyWith(color: Colors.white),
-            ),
-          ),
-        ],
-      ),
+      title: 'Delete Branch',
+      itemName: branch.name,
     );
 
-    if (confirmed != true || !context.mounted) return;
+    if (!confirmed || !context.mounted) return;
 
     try {
       await ref.read(branchRepositoryProvider).deleteBranch(branch.id);
@@ -239,6 +199,8 @@ class BranchesPage extends ConsumerWidget {
     }
   }
 }
+
+// (Keep your BranchesHeader and BranchesEmptyState classes unchanged)
 
 class BranchesHeader extends StatelessWidget {
   final VoidCallback onAdd;

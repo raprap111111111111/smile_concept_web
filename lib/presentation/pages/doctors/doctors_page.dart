@@ -8,6 +8,7 @@ import '../../theme/app_dimensions.dart';
 import '../../theme/app_text_styles.dart';
 import 'widgets/doctor_card.dart';
 import 'widgets/doctor_form_dialog.dart';
+import '../../widgets/shared/hold_to_delete_dialog.dart';   
 
 class DoctorsPage extends ConsumerStatefulWidget {
   const DoctorsPage({super.key});
@@ -42,8 +43,7 @@ class _DoctorsPageState extends ConsumerState<DoctorsPage> {
                 onEdit: (doc) => _openDialog(doctor: doc),
                 onDelete: _confirmDelete,
               ),
-              loading: () =>
-                  const Center(child: CircularProgressIndicator()),
+              loading: () => const Center(child: CircularProgressIndicator()),
               error: (e, _) => _ErrorView(message: e.toString()),
             ),
           ),
@@ -72,55 +72,50 @@ class _DoctorsPageState extends ConsumerState<DoctorsPage> {
   }
 
   // ── Delete confirmation ──
-  void _confirmDelete(Map<String, dynamic> doctor) {
+  Future<void> _confirmDelete(Map<String, dynamic> doctor) async {
     final user = doctor['user'] as Map? ?? {};
     final name = user['name']?.toString() ?? 'this doctor';
 
-    showDialog(
+    final confirmed = await HoldToDeleteDialog.show(
       context: context,
-      builder: (dialogContext) => AlertDialog(
-        backgroundColor: AppColors.background,
-        shape: RoundedRectangleBorder(
-          borderRadius:
-              BorderRadius.circular(AppDimensions.borderRadiusLarge),
-        ),
-        title: Text('Delete Doctor', style: AppTextStyles.titleMedium),
-        content: Text(
-          "Are you sure you want to delete '$name'? This won't delete their user account.",
-          style: AppTextStyles.bodyMedium,
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(dialogContext),
-            child: const Text('Cancel'),
-          ),
-          FilledButton(
-            style: FilledButton.styleFrom(
-              backgroundColor: AppColors.error,
-              foregroundColor: Colors.white,
-            ),
-            onPressed: () async {
-              try {
-                final repo = ref.read(doctorRepositoryProvider);
-                await repo.deleteDoctor(doctor['id'] as int);
-                ref.invalidate(doctorsProvider);
-                if (!mounted) return;
-                Navigator.pop(dialogContext);
-              } catch (e) {
-                if (!mounted) return;
-                ScaffoldMessenger.of(context).showSnackBar(
-                  SnackBar(
-                    backgroundColor: AppColors.error,
-                    content: Text('Error: $e'),
-                  ),
-                );
-              }
-            },
-            child: const Text('Delete'),
-          ),
-        ],
-      ),
+      title: 'Delete Doctor',
+      itemName: name,
+      description: "You are about to delete Dr. $name from the system. "
+          "This won't delete their user account, but the doctor profile "
+          "and all associated schedules will be removed. "
+          "This action cannot be undone.",
     );
+
+    if (!confirmed || !mounted) return;
+
+    try {
+      final repo = ref.read(doctorRepositoryProvider);
+      await repo.deleteDoctor(doctor['id'] as int);
+      ref.invalidate(doctorsProvider);
+
+      if (!mounted) return;
+
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          backgroundColor: AppColors.success,
+          content: Text(
+            "Dr. $name deleted successfully",
+            style: AppTextStyles.bodySmall.copyWith(color: Colors.white),
+          ),
+        ),
+      );
+    } catch (e) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          backgroundColor: AppColors.error,
+          content: Text(
+            'Error: $e',
+            style: AppTextStyles.bodySmall.copyWith(color: Colors.white),
+          ),
+        ),
+      );
+    }
   }
 }
 
@@ -171,11 +166,9 @@ class _Header extends StatelessWidget {
           style: FilledButton.styleFrom(
             backgroundColor: AppColors.primary,
             foregroundColor: Colors.white,
-            padding: const EdgeInsets.symmetric(
-                horizontal: 20, vertical: 14),
+            padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 14),
             shape: RoundedRectangleBorder(
-              borderRadius:
-                  BorderRadius.circular(AppDimensions.borderRadius),
+              borderRadius: BorderRadius.circular(AppDimensions.borderRadius),
             ),
           ),
         ),
@@ -194,8 +187,7 @@ class _SearchBar extends StatelessWidget {
     return Container(
       decoration: BoxDecoration(
         color: AppColors.surface,
-        borderRadius:
-            BorderRadius.circular(AppDimensions.borderRadiusLarge),
+        borderRadius: BorderRadius.circular(AppDimensions.borderRadiusLarge),
         border: Border.all(color: AppColors.border),
       ),
       child: TextField(
@@ -206,8 +198,7 @@ class _SearchBar extends StatelessWidget {
           hintStyle: AppTextStyles.bodyMedium.copyWith(
             color: AppColors.textTertiary,
           ),
-          prefixIcon:
-              const Icon(Icons.search, color: AppColors.textSecondary),
+          prefixIcon: const Icon(Icons.search, color: AppColors.textSecondary),
           border: InputBorder.none,
           enabledBorder: InputBorder.none,
           focusedBorder: InputBorder.none,
@@ -293,8 +284,7 @@ class _ErrorView extends StatelessWidget {
       child: Column(
         mainAxisAlignment: MainAxisAlignment.center,
         children: [
-          const Icon(Icons.error_outline,
-              size: 48, color: AppColors.error),
+          const Icon(Icons.error_outline, size: 48, color: AppColors.error),
           const SizedBox(height: 12),
           Text(
             'Error: $message',
