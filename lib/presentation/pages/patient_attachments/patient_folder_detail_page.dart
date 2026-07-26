@@ -14,6 +14,8 @@ import '/presentation/theme/app_colors.dart';
 import '/presentation/theme/app_dimensions.dart';
 import '/presentation/theme/app_text_styles.dart';
 import 'widgets/attachment_card.dart';
+import '../../widgets/shared/hold_to_delete_dialog.dart';
+
 
 class PatientFolderDetailPage extends ConsumerStatefulWidget {
   final int patientId;
@@ -85,8 +87,7 @@ class _PatientFolderDetailPageState
       ),
       floatingActionButton: canUpload
           ? FloatingActionButton.extended(
-              onPressed: () =>
-                  context.pushNamed(RouteNames.attachmentUpload),
+              onPressed: () => context.pushNamed(RouteNames.attachmentUpload),
               backgroundColor: AppColors.primary,
               foregroundColor: Colors.white,
               icon: const Icon(Icons.upload_file),
@@ -115,8 +116,7 @@ class _PatientFolderDetailPageState
             children: [
               IconButton(
                 onPressed: () => context.goNamed(RouteNames.patientFolders),
-                icon: const Icon(Icons.arrow_back,
-                    color: AppColors.textMuted),
+                icon: const Icon(Icons.arrow_back, color: AppColors.textMuted),
                 padding: EdgeInsets.zero,
                 constraints: const BoxConstraints(),
               ),
@@ -160,8 +160,7 @@ class _PatientFolderDetailPageState
                 .setSearch(v.isEmpty ? null : v),
             decoration: InputDecoration(
               hintText: 'Search in this folder...',
-              prefixIcon: const Icon(Icons.search,
-                  color: AppColors.textMuted),
+              prefixIcon: const Icon(Icons.search, color: AppColors.textMuted),
               suffixIcon: _searchController.text.isNotEmpty
                   ? IconButton(
                       icon: const Icon(Icons.clear, size: 18),
@@ -180,13 +179,11 @@ class _PatientFolderDetailPageState
                 vertical: AppDimensions.paddingSmall,
               ),
               border: OutlineInputBorder(
-                borderRadius:
-                    BorderRadius.circular(AppDimensions.borderRadius),
+                borderRadius: BorderRadius.circular(AppDimensions.borderRadius),
                 borderSide: const BorderSide(color: AppColors.border),
               ),
               enabledBorder: OutlineInputBorder(
-                borderRadius:
-                    BorderRadius.circular(AppDimensions.borderRadius),
+                borderRadius: BorderRadius.circular(AppDimensions.borderRadius),
                 borderSide: const BorderSide(color: AppColors.border),
               ),
             ),
@@ -367,22 +364,20 @@ class _PatientFolderDetailPageState
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            const Icon(Icons.error_outline,
-                size: 48, color: AppColors.error),
+            const Icon(Icons.error_outline, size: 48, color: AppColors.error),
             const SizedBox(height: AppDimensions.paddingSmall),
             Text('Something went wrong', style: AppTextStyles.titleMedium),
             const SizedBox(height: AppDimensions.paddingXS),
             Text(
               error,
-              style: AppTextStyles.bodySmall
-                  .copyWith(color: AppColors.textMuted),
+              style:
+                  AppTextStyles.bodySmall.copyWith(color: AppColors.textMuted),
               textAlign: TextAlign.center,
             ),
             const SizedBox(height: AppDimensions.paddingSmall),
             TextButton(
-              onPressed: () => ref
-                  .read(patientFolderProvider.notifier)
-                  .fetch(refresh: true),
+              onPressed: () =>
+                  ref.read(patientFolderProvider.notifier).fetch(refresh: true),
               child: const Text('Retry'),
             ),
           ],
@@ -399,40 +394,49 @@ class _PatientFolderDetailPageState
     );
   }
 
-  void _confirmDelete(PatientAttachment attachment) {
-    showDialog(
+  Future<void> _confirmDelete(PatientAttachment attachment) async {
+    final confirmed = await HoldToDeleteDialog.show(
       context: context,
-      builder: (ctx) => AlertDialog(
-        shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(
-              AppDimensions.borderRadiusLarge),
-        ),
-        title: Text('Delete Attachment', style: AppTextStyles.titleMedium),
-        content: Text(
-          'Are you sure you want to delete "${attachment.fileName}"?',
-          style: AppTextStyles.bodyMedium,
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(ctx),
-            child: const Text('Cancel'),
-          ),
-          ElevatedButton(
-            onPressed: () async {
-              Navigator.pop(ctx);
-              await ref
-                  .read(patientAttachmentProvider.notifier)
-                  .delete(attachment.id);
-              // Reload the folder
-              await ref
-                  .read(patientFolderProvider.notifier)
-                  .fetch(refresh: true);
-            },
-            style: ElevatedButton.styleFrom(backgroundColor: AppColors.error),
-            child: const Text('Delete'),
-          ),
-        ],
-      ),
+      title: 'Delete Attachment',
+      itemName: attachment.fileName,
+      description: 'You are about to delete "${attachment.fileName}". '
+          'The file will be permanently removed from patient records '
+          'and cannot be recovered. This action cannot be undone.',
     );
+
+    if (!confirmed || !mounted) return;
+
+    try {
+      await ref.read(patientAttachmentProvider.notifier).delete(attachment.id);
+
+      // Reload the folder
+      await ref.read(patientFolderProvider.notifier).fetch(refresh: true);
+
+      if (!mounted) return;
+
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          backgroundColor: AppColors.success,
+          content: Text(
+            '"${attachment.fileName}" deleted',
+            style: const TextStyle(color: Colors.white),
+          ),
+          behavior: SnackBarBehavior.floating,
+        ),
+      );
+    } catch (e) {
+      if (!mounted) return;
+
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          backgroundColor: AppColors.error,
+          content: Text(
+            'Failed to delete: $e',
+            style: const TextStyle(color: Colors.white),
+          ),
+          behavior: SnackBarBehavior.floating,
+        ),
+      );
+    }
   }
 }
