@@ -10,13 +10,13 @@ import '../../providers/treatment/treatment_provider.dart';
 import '../../route/route_names.dart';
 import 'widgets/treatment_card.dart';
 import 'widgets/treatment_empty_state.dart';
+import '../../widgets/shared/hold_to_delete_dialog.dart';
 
 class TreatmentsPage extends ConsumerStatefulWidget {
   const TreatmentsPage({super.key});
 
   @override
-  ConsumerState<TreatmentsPage> createState() =>
-      _TreatmentsPageState();
+  ConsumerState<TreatmentsPage> createState() => _TreatmentsPageState();
 }
 
 class _TreatmentsPageState extends ConsumerState<TreatmentsPage> {
@@ -26,8 +26,7 @@ class _TreatmentsPageState extends ConsumerState<TreatmentsPage> {
   void initState() {
     super.initState();
     _scrollController.addListener(_onScroll);
-    WidgetsBinding.instance
-        .addPostFrameCallback((_) => _load());
+    WidgetsBinding.instance.addPostFrameCallback((_) => _load());
   }
 
   @override
@@ -56,39 +55,26 @@ class _TreatmentsPageState extends ConsumerState<TreatmentsPage> {
       return;
     }
 
-    final confirmed = await showDialog<bool>(
+    final confirmed = await HoldToDeleteDialog.show(
       context: context,
-      builder: (ctx) => AlertDialog(
-        title: const Text('Delete Treatment?'),
-        content:
-            Text('Delete "$name"? This cannot be undone.'),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(ctx, false),
-            child: const Text('Cancel'),
-          ),
-          TextButton(
-            onPressed: () => Navigator.pop(ctx, true),
-            style: TextButton.styleFrom(
-                foregroundColor: Colors.red),
-            child: const Text('Delete'),
-          ),
-        ],
-      ),
+      title: 'Delete Treatment',
+      itemName: name,
+      description: 'You are about to delete "$name" from the treatments '
+          'catalog. Existing patient records referencing this treatment '
+          'will remain, but it will no longer be available for new '
+          'procedures. This action cannot be undone.',
     );
 
-    if (confirmed != true || !mounted) return;
+    if (!confirmed || !mounted) return;
 
-    final success = await ref
-        .read(treatmentProvider.notifier)
-        .deleteTreatment(id);
+    final success =
+        await ref.read(treatmentProvider.notifier).deleteTreatment(id);
 
     if (!mounted) return;
     _showSnack(
       success
-          ? 'Treatment deleted'
-          : ref.read(treatmentProvider).listError ??
-              'Failed to delete',
+          ? '"$name" deleted from catalog'
+          : ref.read(treatmentProvider).listError ?? 'Failed to delete',
       success ? Colors.green : Colors.red,
     );
   }
@@ -121,8 +107,7 @@ class _TreatmentsPageState extends ConsumerState<TreatmentsPage> {
       body: _buildBody(state, canDelete),
       floatingActionButton: canCreate
           ? FloatingActionButton.extended(
-              onPressed: () =>
-                  context.pushNamed(RouteNames.treatmentCreate),
+              onPressed: () => context.pushNamed(RouteNames.treatmentCreate),
               icon: const Icon(Icons.add),
               label: const Text('New Treatment'),
             )
@@ -142,8 +127,7 @@ class _TreatmentsPageState extends ConsumerState<TreatmentsPage> {
           child: Column(
             mainAxisAlignment: MainAxisAlignment.center,
             children: [
-              const Icon(Icons.error_outline,
-                  size: 48, color: Colors.red),
+              const Icon(Icons.error_outline, size: 48, color: Colors.red),
               const SizedBox(height: 12),
               Text(
                 state.listError ?? 'Error',
@@ -168,19 +152,16 @@ class _TreatmentsPageState extends ConsumerState<TreatmentsPage> {
     }
 
     return RefreshIndicator(
-      onRefresh: () =>
-          ref.read(treatmentProvider.notifier).refresh(),
+      onRefresh: () => ref.read(treatmentProvider.notifier).refresh(),
       child: ListView.builder(
         controller: _scrollController,
         padding: const EdgeInsets.all(16),
-        itemCount: state.treatments.length +
-            (state.isLoadingMore ? 1 : 0),
+        itemCount: state.treatments.length + (state.isLoadingMore ? 1 : 0),
         itemBuilder: (context, index) {
           if (index == state.treatments.length) {
             return const Padding(
               padding: EdgeInsets.all(16),
-              child:
-                  Center(child: CircularProgressIndicator()),
+              child: Center(child: CircularProgressIndicator()),
             );
           }
           final t = state.treatments[index];

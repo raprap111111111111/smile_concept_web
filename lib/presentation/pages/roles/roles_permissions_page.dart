@@ -10,6 +10,7 @@ import 'widgets/role_card.dart';
 import 'widgets/role_delete_dialog.dart';
 import 'widgets/role_form_dialog.dart';
 import 'widgets/role_search_bar.dart';
+import '../../widgets/shared/hold_to_delete_dialog.dart';
 
 class RolesPermissionsPage extends ConsumerStatefulWidget {
   const RolesPermissionsPage({super.key});
@@ -48,10 +49,9 @@ class _RolesPermissionsPageState extends ConsumerState<RolesPermissionsPage> {
                         final filtered = roles.where((role) {
                           final name =
                               role['name']?.toString().toLowerCase() ?? '';
-                          final desc = role['description']
-                                  ?.toString()
-                                  .toLowerCase() ??
-                              '';
+                          final desc =
+                              role['description']?.toString().toLowerCase() ??
+                                  '';
                           final q = _search.toLowerCase().trim();
                           return q.isEmpty ||
                               name.contains(q) ||
@@ -73,8 +73,7 @@ class _RolesPermissionsPageState extends ConsumerState<RolesPermissionsPage> {
                             final role = filtered[index];
                             return RoleCard(
                               role: role,
-                              onPermissions: () =>
-                                  _openPermissionsDialog(role),
+                              onPermissions: () => _openPermissionsDialog(role),
                               onEdit: () => _openRoleDialog(role: role),
                               onDelete: () => _confirmDelete(role),
                             );
@@ -83,8 +82,7 @@ class _RolesPermissionsPageState extends ConsumerState<RolesPermissionsPage> {
                       },
                       loading: () => const Center(
                         child: CircularProgressIndicator(
-                          valueColor:
-                              AlwaysStoppedAnimation(AppColors.primary),
+                          valueColor: AlwaysStoppedAnimation(AppColors.primary),
                         ),
                       ),
                       error: (error, _) => Center(
@@ -108,8 +106,7 @@ class _RolesPermissionsPageState extends ConsumerState<RolesPermissionsPage> {
   Future<void> _openPermissionsDialog(Map<String, dynamic> role) async {
     try {
       final roleId = role['id'] as int;
-      final freshRole =
-          await ref.read(roleRepositoryProvider).getRole(roleId);
+      final freshRole = await ref.read(roleRepositoryProvider).getRole(roleId);
 
       if (!mounted) return;
 
@@ -155,18 +152,39 @@ class _RolesPermissionsPageState extends ConsumerState<RolesPermissionsPage> {
   }
 
   Future<void> _confirmDelete(Map<String, dynamic> role) async {
-    final confirmed = await showDialog<bool>(
+    final name = role['name']?.toString() ?? 'this role';
+    final displayName = role['display_name']?.toString() ?? name;
+    final usersCount = role['users_count'] as int? ?? 0;
+    final permissionsCount = role['permissions_count'] as int? ?? 0;
+
+    // Build context info
+    final contextInfo = <String>[];
+    if (usersCount > 0) {
+      contextInfo.add('$usersCount user${usersCount == 1 ? '' : 's'} assigned');
+    }
+    if (permissionsCount > 0) {
+      contextInfo.add(
+          '$permissionsCount permission${permissionsCount == 1 ? '' : 's'}');
+    }
+
+    final confirmed = await HoldToDeleteDialog.show(
       context: context,
-      builder: (_) => RoleDeleteDialog(role: role),
+      title: 'Delete Role',
+      itemName: displayName,
+      description: 'You are about to delete the "$displayName" role.'
+          '${contextInfo.isNotEmpty ? '\n\n${contextInfo.join(' • ')}' : ''}'
+          '${usersCount > 0 ? '\n\n⚠️ Users with this role will lose their assigned permissions and may lose access to parts of the system.' : ''}'
+          '\n\nThis action cannot be undone.',
     );
-    if (confirmed != true || !mounted) return;
+
+    if (!confirmed || !mounted) return;
 
     try {
       final repo = ref.read(roleRepositoryProvider);
       await repo.deleteRole(role['id'] as int);
       ref.invalidate(rolesProvider);
       if (!mounted) return;
-      _showSnack('Role deleted', isError: false);
+      _showSnack('"$displayName" role deleted', isError: false);
     } catch (error) {
       if (!mounted) return;
       _showSnack('Error: $error', isError: true);
@@ -273,8 +291,7 @@ class RolesHeader extends StatelessWidget {
                 vertical: 16,
               ),
               shape: RoundedRectangleBorder(
-                borderRadius:
-                    BorderRadius.circular(AppDimensions.borderRadius),
+                borderRadius: BorderRadius.circular(AppDimensions.borderRadius),
               ),
               textStyle: const TextStyle(
                 fontWeight: FontWeight.w800,

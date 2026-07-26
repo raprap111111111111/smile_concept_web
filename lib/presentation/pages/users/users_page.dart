@@ -5,8 +5,8 @@ import '../../../data/repositories/role_repository.dart';
 import '../../../data/repositories/user_repository.dart';
 import '../../theme/app_colors.dart';
 import 'widgets/user_card.dart';
-import 'widgets/user_delete_dialog.dart';
 import 'widgets/user_filters.dart';
+import '../../widgets/shared/hold_to_delete_dialog.dart';
 import 'widgets/user_form_dialog.dart';
 
 class UsersPage extends ConsumerStatefulWidget {
@@ -165,39 +165,62 @@ class _UsersPageState extends ConsumerState<UsersPage> {
   }
 
   Future<void> _confirmDelete(Map<String, dynamic> user) async {
-    final confirmed = await showDialog<bool>(
-      context: context,
-      builder: (_) => UserDeleteDialog(user: user),
+  final name = user['name']?.toString() ?? 'this user';
+  final email = user['email']?.toString() ?? '';
+  final role = user['role']?.toString() ?? '';
+
+  // Build a helpful description with user context
+  final userInfo = [
+    if (email.isNotEmpty) email,
+    if (role.isNotEmpty) 'Role: $role',
+  ].join(' • ');
+
+  final confirmed = await HoldToDeleteDialog.show(
+    context: context,
+    title: 'Delete User',
+    itemName: name,
+    description: 'You are about to permanently delete the user "$name"'
+        '${userInfo.isNotEmpty ? '\n\n$userInfo' : ''}\n\n'
+        'This will revoke their access immediately and remove all '
+        'associated permissions. Historical records they created will '
+        'remain but be marked as deleted. This action cannot be undone.',
+  );
+
+  if (!confirmed || !mounted) return;
+
+  try {
+    final repo = ref.read(userRepositoryProvider);
+    await repo.deleteUser(user['id'] as int);
+
+    ref.invalidate(staffUsersProvider);
+
+    if (!mounted) return;
+
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        backgroundColor: const Color(0xFF10B981),
+        content: Text(
+          '"$name" deleted',
+          style: const TextStyle(color: Colors.white),
+        ),
+        behavior: SnackBarBehavior.floating,
+      ),
     );
+  } catch (error) {
+    if (!mounted) return;
 
-    if (confirmed != true || !mounted) return;
-
-    try {
-      final repo = ref.read(userRepositoryProvider);
-
-      await repo.deleteUser(user['id'] as int);
-
-      ref.invalidate(staffUsersProvider);
-
-      if (!mounted) return;
-
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          backgroundColor: Color(0xFF10B981),
-          content: Text('User deleted'),
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        backgroundColor: Colors.red,
+        content: Text(
+          'Error: $error',
+          style: const TextStyle(color: Colors.white),
         ),
-      );
-    } catch (error) {
-      if (!mounted) return;
-
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          backgroundColor: Colors.red,
-          content: Text('Error: $error'),
-        ),
-      );
-    }
+        behavior: SnackBarBehavior.floating,
+      ),
+    );
   }
+}
 }
 
 class UsersHeader extends StatelessWidget {
