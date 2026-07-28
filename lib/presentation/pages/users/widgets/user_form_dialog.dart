@@ -1,16 +1,16 @@
+// lib/presentation/pages/users/widgets/user_form_dialog.dart
+
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-
 import '../../../../data/repositories/role_repository.dart';
 import '../../../theme/app_colors.dart';
+import '../../../theme/app_dimensions.dart';
+import '../../../theme/app_text_styles.dart';
 
 class UserFormDialog extends ConsumerStatefulWidget {
   final Map<String, dynamic>? user;
 
-  const UserFormDialog({
-    super.key,
-    this.user,
-  });
+  const UserFormDialog({super.key, this.user});
 
   @override
   ConsumerState<UserFormDialog> createState() => _UserFormDialogState();
@@ -33,25 +33,22 @@ class _UserFormDialogState extends ConsumerState<UserFormDialog> {
   @override
   void initState() {
     super.initState();
-
     final user = widget.user;
-
-    _nameCtrl = TextEditingController(text: user?['name']?.toString() ?? '');
-    _emailCtrl = TextEditingController(text: user?['email']?.toString() ?? '');
-    _phoneCtrl = TextEditingController(text: user?['phone']?.toString() ?? '');
+    _nameCtrl =
+        TextEditingController(text: user?['name']?.toString() ?? '');
+    _emailCtrl =
+        TextEditingController(text: user?['email']?.toString() ?? '');
+    _phoneCtrl =
+        TextEditingController(text: user?['phone']?.toString() ?? '');
     _passwordCtrl = TextEditingController();
     _passwordConfirmCtrl = TextEditingController();
 
     final roles = user?['roles'];
-
     if (roles is List && roles.isNotEmpty) {
       final first = roles.first;
-
-      if (first is Map && first['name'] != null) {
-        _selectedRole = first['name'].toString();
-      } else {
-        _selectedRole = first.toString();
-      }
+      _selectedRole = first is Map && first['name'] != null
+          ? first['name'].toString()
+          : first.toString();
     }
 
     _isActive = _asBool(user?['is_active'] ?? true);
@@ -64,7 +61,6 @@ class _UserFormDialogState extends ConsumerState<UserFormDialog> {
     _phoneCtrl.dispose();
     _passwordCtrl.dispose();
     _passwordConfirmCtrl.dispose();
-
     super.dispose();
   }
 
@@ -74,136 +70,115 @@ class _UserFormDialogState extends ConsumerState<UserFormDialog> {
 
     return Dialog(
       backgroundColor: Colors.transparent,
+      insetPadding: const EdgeInsets.all(AppDimensions.paddingMedium),
       child: Container(
-        width: 500,
+        width: 520,
         decoration: BoxDecoration(
-          color: AppColors.surfaceDark,
-          borderRadius: BorderRadius.circular(20),
+          color: AppColors.background,
+          borderRadius:
+              BorderRadius.circular(AppDimensions.borderRadiusLarge),
+          border: Border.all(color: AppColors.border),
         ),
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
             _buildHeader(),
-            Padding(
-              padding: const EdgeInsets.all(24),
-              child: Form(
-                key: _formKey,
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    _field(
-                      _nameCtrl,
-                      'Full Name',
-                      validator: (value) {
-                        if (value == null || value.trim().isEmpty) {
-                          return 'Name is required';
-                        }
-
-                        return null;
-                      },
-                    ),
-                    const SizedBox(height: 14),
-                    _field(
-                      _emailCtrl,
-                      'Email Address',
-                      validator: (value) {
-                        if (value == null || value.trim().isEmpty) {
-                          return 'Email is required';
-                        }
-
-                        return null;
-                      },
-                    ),
-                    const SizedBox(height: 14),
-                    _field(_phoneCtrl, 'Phone optional'),
-                    const SizedBox(height: 14),
-                    if (!_isEdit) ...[
-                      _field(
-                        _passwordCtrl,
-                        'Password',
-                        obscure: true,
-                        validator: (value) {
-                          if (value == null || value.length < 8) {
-                            return 'Password must be at least 8 characters';
-                          }
-
-                          return null;
-                        },
-                      ),
-                      const SizedBox(height: 14),
-                      _field(
-                        _passwordConfirmCtrl,
-                        'Confirm Password',
-                        obscure: true,
-                        validator: (value) {
-                          if (value != _passwordCtrl.text) {
-                            return 'Passwords do not match';
-                          }
-
-                          return null;
-                        },
-                      ),
-                      const SizedBox(height: 14),
-                    ],
-                    rolesAsync.when(
-                      loading: () => const LinearProgressIndicator(),
-                      error: (_, __) => const Text(
-                        'Roles error',
-                        style: TextStyle(color: Colors.red),
-                      ),
-                      data: (roles) {
-                        final staffRoles = roles.where((role) {
-                          return role['name']?.toString() != 'patient';
-                        }).toList();
-
-                        return Container(
-                          padding: const EdgeInsets.symmetric(horizontal: 12),
-                          decoration: BoxDecoration(
-                            color: Colors.white.withValues(alpha: 0.05),
-                            borderRadius: BorderRadius.circular(10),
+            Flexible(
+              child: SingleChildScrollView(
+                padding: const EdgeInsets.all(AppDimensions.paddingLarge),
+                child: Form(
+                  key: _formKey,
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      _FormSection(label: 'Personal Information', children: [
+                        _FormField(
+                          controller: _nameCtrl,
+                          label: 'Full Name',
+                          hint: 'e.g. Juan Dela Cruz',
+                          icon: Icons.person_rounded,
+                          validator: (v) => (v == null || v.trim().isEmpty)
+                              ? 'Name is required'
+                              : null,
+                        ),
+                        const SizedBox(height: AppDimensions.paddingSmall),
+                        _FormField(
+                          controller: _emailCtrl,
+                          label: 'Email Address',
+                          hint: 'e.g. juan@clinic.com',
+                          icon: Icons.email_rounded,
+                          keyboardType: TextInputType.emailAddress,
+                          validator: (v) => (v == null || v.trim().isEmpty)
+                              ? 'Email is required'
+                              : null,
+                        ),
+                        const SizedBox(height: AppDimensions.paddingSmall),
+                        _FormField(
+                          controller: _phoneCtrl,
+                          label: 'Phone (optional)',
+                          hint: 'e.g. 09XX XXX XXXX',
+                          icon: Icons.phone_rounded,
+                          keyboardType: TextInputType.phone,
+                        ),
+                      ]),
+                      if (!_isEdit) ...[
+                        const SizedBox(height: AppDimensions.paddingMedium),
+                        _FormSection(label: 'Security', children: [
+                          _FormField(
+                            controller: _passwordCtrl,
+                            label: 'Password',
+                            hint: 'At least 8 characters',
+                            icon: Icons.lock_rounded,
+                            obscure: true,
+                            validator: (v) =>
+                                (v == null || v.length < 8)
+                                    ? 'Password must be at least 8 characters'
+                                    : null,
                           ),
-                          child: DropdownButtonHideUnderline(
-                            child: DropdownButton<String>(
-                              isExpanded: true,
-                              dropdownColor: AppColors.surfaceDark,
-                              value: _selectedRole,
-                              hint: const Text(
-                                'Select Role',
-                                style: TextStyle(color: Colors.white38),
-                              ),
-                              items: staffRoles.map((role) {
-                                final name = role['name'].toString();
-
-                                return DropdownMenuItem<String>(
-                                  value: name,
-                                  child: Text(
-                                    name,
-                                    style: const TextStyle(color: Colors.white),
-                                  ),
-                                );
-                              }).toList(),
-                              onChanged: (value) {
-                                setState(() => _selectedRole = value);
-                              },
+                          const SizedBox(height: AppDimensions.paddingSmall),
+                          _FormField(
+                            controller: _passwordConfirmCtrl,
+                            label: 'Confirm Password',
+                            hint: 'Re-enter password',
+                            icon: Icons.lock_outline_rounded,
+                            obscure: true,
+                            validator: (v) => v != _passwordCtrl.text
+                                ? 'Passwords do not match'
+                                : null,
+                          ),
+                        ]),
+                      ],
+                      const SizedBox(height: AppDimensions.paddingMedium),
+                      _FormSection(label: 'Access & Role', children: [
+                        rolesAsync.when(
+                          loading: () => const LinearProgressIndicator(
+                            color: AppColors.primary,
+                          ),
+                          error: (_, __) => Text(
+                            'Failed to load roles',
+                            style: AppTextStyles.labelSmall.copyWith(
+                              color: AppColors.error,
                             ),
                           ),
-                        );
-                      },
-                    ),
-                    const SizedBox(height: 14),
-                    SwitchListTile(
-                      contentPadding: EdgeInsets.zero,
-                      title: const Text(
-                        'Active',
-                        style: TextStyle(color: Colors.white),
-                      ),
-                      value: _isActive,
-                      activeThumbColor: const Color(0xFF06B6D4),
-                      onChanged: (value) {
-                        setState(() => _isActive = value);
-                      },
-                    ),
-                  ],
+                          data: (roles) {
+                            final staffRoles = roles.where((r) =>
+                                r['name']?.toString() != 'patient').toList();
+                            return _RoleDropdown(
+                              roles: staffRoles,
+                              selectedRole: _selectedRole,
+                              onChanged: (v) =>
+                                  setState(() => _selectedRole = v),
+                            );
+                          },
+                        ),
+                        const SizedBox(height: AppDimensions.paddingSmall),
+                        _ActiveToggle(
+                          value: _isActive,
+                          onChanged: (v) => setState(() => _isActive = v),
+                        ),
+                      ]),
+                    ],
+                  ),
                 ),
               ),
             ),
@@ -216,32 +191,52 @@ class _UserFormDialogState extends ConsumerState<UserFormDialog> {
 
   Widget _buildHeader() {
     return Container(
-      padding: const EdgeInsets.all(24),
+      padding: const EdgeInsets.all(AppDimensions.paddingLarge),
       decoration: const BoxDecoration(
-        gradient: LinearGradient(
-          colors: [
-            Color(0xFF06B6D4),
-            Color(0xFF3B82F6),
-          ],
-        ),
+        color: AppColors.primary,
         borderRadius: BorderRadius.only(
-          topLeft: Radius.circular(20),
-          topRight: Radius.circular(20),
+          topLeft: Radius.circular(AppDimensions.borderRadiusLarge),
+          topRight: Radius.circular(AppDimensions.borderRadiusLarge),
         ),
       ),
       child: Row(
         children: [
           Icon(
-            _isEdit ? Icons.edit : Icons.person_add,
+            _isEdit ? Icons.edit_rounded : Icons.person_add_rounded,
             color: Colors.white,
+            size: AppDimensions.iconSize,
           ),
-          const SizedBox(width: 12),
-          Text(
-            _isEdit ? 'Edit User' : 'Create New User',
-            style: const TextStyle(
+          const SizedBox(width: AppDimensions.paddingSmall),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  _isEdit ? 'Edit User' : 'Create New User',
+                  style: AppTextStyles.titleSmall.copyWith(
+                    color: Colors.white,
+                  ),
+                ),
+                Text(
+                  _isEdit
+                      ? 'Update account details and permissions'
+                      : 'Add a new staff member to the system',
+                  style: AppTextStyles.labelSmall.copyWith(
+                    color: Colors.white.withValues(alpha: 0.75),
+                    fontWeight: FontWeight.w400,
+                  ),
+                ),
+              ],
+            ),
+          ),
+          InkWell(
+            onTap: () => Navigator.pop(context),
+            borderRadius:
+                BorderRadius.circular(AppDimensions.borderRadius),
+            child: const Icon(
+              Icons.close_rounded,
               color: Colors.white,
-              fontSize: 18,
-              fontWeight: FontWeight.bold,
+              size: AppDimensions.iconSize,
             ),
           ),
         ],
@@ -251,43 +246,48 @@ class _UserFormDialogState extends ConsumerState<UserFormDialog> {
 
   Widget _buildFooter() {
     return Container(
-      padding: const EdgeInsets.all(20),
-      decoration: BoxDecoration(
-        border: Border(
-          top: BorderSide(
-            color: Colors.white.withValues(alpha: 0.05),
-          ),
-        ),
+      padding: const EdgeInsets.all(AppDimensions.paddingMedium),
+      decoration: const BoxDecoration(
+        border: Border(top: BorderSide(color: AppColors.divider)),
       ),
       child: Row(
         mainAxisAlignment: MainAxisAlignment.end,
         children: [
-          TextButton(
+          OutlinedButton(
             onPressed: () => Navigator.pop(context),
-            child: const Text(
-              'Cancel',
-              style: TextStyle(color: Colors.white70),
-            ),
-          ),
-          const SizedBox(width: 12),
-          ElevatedButton(
-            style: ElevatedButton.styleFrom(
-              backgroundColor: const Color(0xFF06B6D4),
+            style: OutlinedButton.styleFrom(
+              foregroundColor: AppColors.textSecondary,
+              side: const BorderSide(color: AppColors.border),
               padding: const EdgeInsets.symmetric(
-                horizontal: 24,
-                vertical: 14,
+                horizontal: AppDimensions.paddingLarge,
+                vertical: AppDimensions.paddingSmall,
               ),
               shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(10),
+                borderRadius:
+                    BorderRadius.circular(AppDimensions.borderRadius),
               ),
             ),
+            child: Text('Cancel', style: AppTextStyles.labelMedium),
+          ),
+          const SizedBox(width: AppDimensions.paddingSmall),
+          ElevatedButton(
             onPressed: _submit,
-            child: Text(
-              _isEdit ? 'Update' : 'Create',
-              style: const TextStyle(
-                color: Colors.white,
-                fontWeight: FontWeight.w600,
+            style: ElevatedButton.styleFrom(
+              backgroundColor: AppColors.primary,
+              foregroundColor: Colors.white,
+              elevation: 0,
+              padding: const EdgeInsets.symmetric(
+                horizontal: AppDimensions.paddingLarge,
+                vertical: AppDimensions.paddingSmall,
               ),
+              shape: RoundedRectangleBorder(
+                borderRadius:
+                    BorderRadius.circular(AppDimensions.borderRadius),
+              ),
+            ),
+            child: Text(
+              _isEdit ? 'Update User' : 'Create User',
+              style: AppTextStyles.labelLarge.copyWith(color: Colors.white),
             ),
           ),
         ],
@@ -295,47 +295,9 @@ class _UserFormDialogState extends ConsumerState<UserFormDialog> {
     );
   }
 
-  Widget _field(
-    TextEditingController controller,
-    String hint, {
-    bool obscure = false,
-    String? Function(String?)? validator,
-  }) {
-    return TextFormField(
-      controller: controller,
-      obscureText: obscure,
-      validator: validator,
-      style: const TextStyle(color: Colors.white),
-      decoration: InputDecoration(
-        hintText: hint,
-        hintStyle: const TextStyle(color: Colors.white38),
-        filled: true,
-        fillColor: Colors.white.withValues(alpha: 0.05),
-        border: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(10),
-          borderSide: BorderSide(
-            color: Colors.white.withValues(alpha: 0.1),
-          ),
-        ),
-        enabledBorder: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(10),
-          borderSide: BorderSide(
-            color: Colors.white.withValues(alpha: 0.1),
-          ),
-        ),
-        focusedBorder: const OutlineInputBorder(
-          borderSide: BorderSide(
-            color: Color(0xFF06B6D4),
-          ),
-        ),
-      ),
-    );
-  }
-
   void _submit() {
     if (!_formKey.currentState!.validate()) return;
-
-    final data = {
+    Navigator.pop(context, {
       'name': _nameCtrl.text.trim(),
       'email': _emailCtrl.text.trim(),
       'phone': _phoneCtrl.text.trim(),
@@ -345,9 +307,7 @@ class _UserFormDialogState extends ConsumerState<UserFormDialog> {
         'password': _passwordCtrl.text,
         'password_confirmation': _passwordConfirmCtrl.text,
       },
-    };
-
-    Navigator.pop(context, data);
+    });
   }
 
   bool _asBool(dynamic value) {
@@ -356,7 +316,193 @@ class _UserFormDialogState extends ConsumerState<UserFormDialog> {
     if (value is String) {
       return value == '1' || value.toLowerCase() == 'true';
     }
-
     return false;
+  }
+}
+
+// ─── Supporting Form Widgets ──────────────────────────────────────────────────
+
+class _FormSection extends StatelessWidget {
+  const _FormSection({required this.label, required this.children});
+
+  final String label;
+  final List<Widget> children;
+
+  @override
+  Widget build(BuildContext context) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Row(
+          children: [
+            Text(label, style: AppTextStyles.labelLarge),
+            const SizedBox(width: AppDimensions.paddingXS),
+            const Expanded(child: Divider(color: AppColors.divider)),
+          ],
+        ),
+        const SizedBox(height: AppDimensions.paddingSmall),
+        ...children,
+      ],
+    );
+  }
+}
+
+class _FormField extends StatelessWidget {
+  const _FormField({
+    required this.controller,
+    required this.label,
+    required this.hint,
+    required this.icon,
+    this.obscure = false,
+    this.keyboardType,
+    this.validator,
+  });
+
+  final TextEditingController controller;
+  final String label;
+  final String hint;
+  final IconData icon;
+  final bool obscure;
+  final TextInputType? keyboardType;
+  final String? Function(String?)? validator;
+
+  @override
+  Widget build(BuildContext context) {
+    return TextFormField(
+      controller: controller,
+      obscureText: obscure,
+      keyboardType: keyboardType,
+      validator: validator,
+      style: AppTextStyles.bodyMedium.copyWith(color: AppColors.textPrimary),
+      decoration: InputDecoration(
+        labelText: label,
+        hintText: hint,
+        prefixIcon: Icon(
+          icon,
+          size: AppDimensions.iconSizeMedium,
+          color: AppColors.primary,
+        ),
+      ),
+    );
+  }
+}
+
+class _RoleDropdown extends StatelessWidget {
+  const _RoleDropdown({
+    required this.roles,
+    required this.selectedRole,
+    required this.onChanged,
+  });
+
+  final List<Map<String, dynamic>> roles;
+  final String? selectedRole;
+  final ValueChanged<String?> onChanged;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.symmetric(
+        horizontal: AppDimensions.paddingSmall,
+      ),
+      decoration: BoxDecoration(
+        color: AppColors.surface,
+        borderRadius: BorderRadius.circular(AppDimensions.borderRadius),
+        border: Border.all(color: AppColors.border),
+      ),
+      child: DropdownButtonHideUnderline(
+        child: DropdownButton<String>(
+          isExpanded: true,
+          dropdownColor: AppColors.background,
+          value: selectedRole,
+          hint: Text(
+            'Select Role',
+            style: AppTextStyles.bodyMedium.copyWith(
+              color: AppColors.textMuted,
+            ),
+          ),
+          icon: const Icon(
+            Icons.keyboard_arrow_down_rounded,
+            color: AppColors.textTertiary,
+          ),
+          items: roles.map((role) {
+            final name = role['name'].toString();
+            return DropdownMenuItem<String>(
+              value: name,
+              child: Text(
+                name,
+                style: AppTextStyles.bodyMedium.copyWith(
+                  color: AppColors.textPrimary,
+                ),
+              ),
+            );
+          }).toList(),
+          onChanged: onChanged,
+        ),
+      ),
+    );
+  }
+}
+
+class _ActiveToggle extends StatelessWidget {
+  const _ActiveToggle({required this.value, required this.onChanged});
+
+  final bool value;
+  final ValueChanged<bool> onChanged;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.symmetric(
+        horizontal: AppDimensions.paddingSmall,
+        vertical: AppDimensions.paddingXS,
+      ),
+      decoration: BoxDecoration(
+        color: AppColors.surface,
+        borderRadius: BorderRadius.circular(AppDimensions.borderRadius),
+        border: Border.all(color: AppColors.border),
+      ),
+      child: Row(
+        children: [
+          Container(
+            width: 32,
+            height: 32,
+            decoration: BoxDecoration(
+              color: (value ? AppColors.success : AppColors.error)
+                  .withValues(alpha: 0.1),
+              borderRadius:
+                  BorderRadius.circular(AppDimensions.borderRadiusSmall),
+            ),
+            child: Icon(
+              value ? Icons.check_circle_rounded : Icons.cancel_rounded,
+              size: AppDimensions.iconSizeSmall,
+              color: value ? AppColors.success : AppColors.error,
+            ),
+          ),
+          const SizedBox(width: AppDimensions.paddingXS),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text('Account Status', style: AppTextStyles.labelMedium),
+                Text(
+                  value ? 'Active — user can log in' : 'Inactive — access revoked',
+                  style: AppTextStyles.labelSmall.copyWith(
+                    color: AppColors.textMuted,
+                    fontWeight: FontWeight.w400,
+                  ),
+                ),
+              ],
+            ),
+          ),
+          Switch(
+            value: value,
+            onChanged: onChanged,
+            activeColor: AppColors.success,
+            inactiveThumbColor: AppColors.error,
+            inactiveTrackColor: AppColors.error.withValues(alpha: 0.2),
+          ),
+        ],
+      ),
+    );
   }
 }

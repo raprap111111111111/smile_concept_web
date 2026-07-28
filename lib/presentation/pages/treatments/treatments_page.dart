@@ -8,6 +8,9 @@ import '/../core/permissions/app_permissions.dart';
 import '../../providers/auth/auth_provider.dart';
 import '../../providers/treatment/treatment_provider.dart';
 import '../../route/route_names.dart';
+import '../../theme/app_colors.dart';
+import '../../theme/app_dimensions.dart';
+import '../../theme/app_text_styles.dart';
 import 'widgets/treatment_card.dart';
 import 'widgets/treatment_empty_state.dart';
 import '../../widgets/shared/hold_to_delete_dialog.dart';
@@ -51,7 +54,7 @@ class _TreatmentsPageState extends ConsumerState<TreatmentsPage> {
   Future<void> _delete(int id, String name) async {
     final auth = ref.read(authStateProvider);
     if (!auth.hasPermission(Perm.treatmentDelete)) {
-      _showSnack('No permission to delete treatments', Colors.red);
+      _showSnack('No permission to delete treatments', AppColors.error);
       return;
     }
 
@@ -59,10 +62,11 @@ class _TreatmentsPageState extends ConsumerState<TreatmentsPage> {
       context: context,
       title: 'Delete Treatment',
       itemName: name,
-      description: 'You are about to delete "$name" from the treatments '
-          'catalog. Existing patient records referencing this treatment '
-          'will remain, but it will no longer be available for new '
-          'procedures. This action cannot be undone.',
+      description:
+          'You are about to delete "$name" from the treatments catalog. '
+          'Existing patient records referencing this treatment will remain, '
+          'but it will no longer be available for new procedures. '
+          'This action cannot be undone.',
     );
 
     if (!confirmed || !mounted) return;
@@ -75,13 +79,21 @@ class _TreatmentsPageState extends ConsumerState<TreatmentsPage> {
       success
           ? '"$name" deleted from catalog'
           : ref.read(treatmentProvider).listError ?? 'Failed to delete',
-      success ? Colors.green : Colors.red,
+      success ? AppColors.success : AppColors.error,
     );
   }
 
   void _showSnack(String msg, Color color) {
     ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(content: Text(msg), backgroundColor: color),
+      SnackBar(
+        content: Text(msg, style: AppTextStyles.bodySmall.copyWith(color: Colors.white)),
+        backgroundColor: color,
+        behavior: SnackBarBehavior.floating,
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(AppDimensions.borderRadius),
+        ),
+        margin: const EdgeInsets.all(AppDimensions.paddingMedium),
+      ),
     );
   }
 
@@ -94,54 +106,71 @@ class _TreatmentsPageState extends ConsumerState<TreatmentsPage> {
     final canDelete = auth.hasPermission(Perm.treatmentDelete);
 
     return Scaffold(
-      appBar: AppBar(
-        title: const Text('Treatments Catalog'),
-        actions: [
-          IconButton(
-            onPressed: () => _load(forceRefresh: true),
-            icon: const Icon(Icons.refresh),
-            tooltip: 'Refresh',
+      backgroundColor: AppColors.surface,
+      appBar: _buildAppBar(),
+      body: _buildBody(state, canDelete),
+      floatingActionButton: canCreate ? _buildFAB() : null,
+    );
+  }
+
+  PreferredSizeWidget _buildAppBar() {
+    return AppBar(
+      backgroundColor: AppColors.background,
+      elevation: 0,
+      centerTitle: false,
+      surfaceTintColor: Colors.transparent,
+      bottom: PreferredSize(
+        preferredSize: const Size.fromHeight(1),
+        child: Divider(
+          height: 1,
+          thickness: 1,
+          color: AppColors.divider,
+        ),
+      ),
+      title: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text('Treatments Catalog', style: AppTextStyles.titleLarge),
+          Text(
+            'Manage your treatment offerings',
+            style: AppTextStyles.labelSmall.copyWith(
+              color: AppColors.textMuted,
+              fontWeight: FontWeight.w400,
+            ),
           ),
         ],
       ),
-      body: _buildBody(state, canDelete),
-      floatingActionButton: canCreate
-          ? FloatingActionButton.extended(
-              onPressed: () => context.pushNamed(RouteNames.treatmentCreate),
-              icon: const Icon(Icons.add),
-              label: const Text('New Treatment'),
-            )
-          : null,
+      actions: [
+        _AppBarIconButton(
+          icon: Icons.refresh_rounded,
+          tooltip: 'Refresh',
+          onPressed: () => _load(forceRefresh: true),
+        ),
+        const SizedBox(width: AppDimensions.paddingSmall),
+      ],
+    );
+  }
+
+  Widget _buildFAB() {
+    return FloatingActionButton.extended(
+      onPressed: () => context.pushNamed(RouteNames.treatmentCreate),
+      backgroundColor: AppColors.primary,
+      foregroundColor: AppColors.textOnPrimary,
+      elevation: 2,
+      icon: const Icon(Icons.add_rounded),
+      label: Text('New Treatment', style: AppTextStyles.labelLarge.copyWith(color: Colors.white)),
     );
   }
 
   Widget _buildBody(TreatmentState state, bool canDelete) {
     if (state.isListLoading) {
-      return const Center(child: CircularProgressIndicator());
+      return const _LoadingView();
     }
 
     if (state.hasListError) {
-      return Center(
-        child: Padding(
-          padding: const EdgeInsets.all(24),
-          child: Column(
-            mainAxisAlignment: MainAxisAlignment.center,
-            children: [
-              const Icon(Icons.error_outline, size: 48, color: Colors.red),
-              const SizedBox(height: 12),
-              Text(
-                state.listError ?? 'Error',
-                textAlign: TextAlign.center,
-              ),
-              const SizedBox(height: 16),
-              ElevatedButton.icon(
-                onPressed: () => _load(forceRefresh: true),
-                icon: const Icon(Icons.refresh),
-                label: const Text('Retry'),
-              ),
-            ],
-          ),
-        ),
+      return _ErrorView(
+        message: state.listError ?? 'Something went wrong',
+        onRetry: () => _load(forceRefresh: true),
       );
     }
 
@@ -152,25 +181,187 @@ class _TreatmentsPageState extends ConsumerState<TreatmentsPage> {
     }
 
     return RefreshIndicator(
+      color: AppColors.primary,
+      backgroundColor: AppColors.background,
       onRefresh: () => ref.read(treatmentProvider.notifier).refresh(),
       child: ListView.builder(
         controller: _scrollController,
-        padding: const EdgeInsets.all(16),
+        padding: const EdgeInsets.symmetric(
+          horizontal: AppDimensions.paddingMedium,
+          vertical: AppDimensions.paddingMedium,
+        ),
         itemCount: state.treatments.length + (state.isLoadingMore ? 1 : 0),
         itemBuilder: (context, index) {
           if (index == state.treatments.length) {
-            return const Padding(
-              padding: EdgeInsets.all(16),
-              child: Center(child: CircularProgressIndicator()),
-            );
+            return const _LoadMoreIndicator();
           }
           final t = state.treatments[index];
-          return TreatmentCard(
-            treatment: t,
-            canDelete: canDelete,
-            onDelete: () => _delete(t.id, t.name),
+          return Padding(
+            padding: const EdgeInsets.only(bottom: AppDimensions.paddingSmall),
+            child: TreatmentCard(
+              treatment: t,
+              canDelete: canDelete,
+              onDelete: () => _delete(t.id, t.name),
+            ),
           );
         },
+      ),
+    );
+  }
+}
+
+// ─── Supporting Widgets ───────────────────────────────────────────────────────
+
+class _AppBarIconButton extends StatelessWidget {
+  const _AppBarIconButton({
+    required this.icon,
+    required this.onPressed,
+    this.tooltip,
+  });
+
+  final IconData icon;
+  final VoidCallback onPressed;
+  final String? tooltip;
+
+  @override
+  Widget build(BuildContext context) {
+    return Tooltip(
+      message: tooltip ?? '',
+      child: InkWell(
+        onTap: onPressed,
+        borderRadius: BorderRadius.circular(AppDimensions.borderRadius),
+        child: Container(
+          width: AppDimensions.iconBadgeSize,
+          height: AppDimensions.iconBadgeSize,
+          decoration: BoxDecoration(
+            color: AppColors.surface,
+            borderRadius: BorderRadius.circular(AppDimensions.borderRadius),
+            border: Border.all(color: AppColors.border),
+          ),
+          child: Icon(
+            icon,
+            size: AppDimensions.iconSize,
+            color: AppColors.textSecondary,
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+class _LoadingView extends StatelessWidget {
+  const _LoadingView();
+
+  @override
+  Widget build(BuildContext context) {
+    return Center(
+      child: Column(
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: [
+          const CircularProgressIndicator(
+            color: AppColors.primary,
+            strokeWidth: 2.5,
+          ),
+          const SizedBox(height: AppDimensions.paddingMedium),
+          Text(
+            'Loading treatments...',
+            style: AppTextStyles.bodySmall.copyWith(color: AppColors.textMuted),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _ErrorView extends StatelessWidget {
+  const _ErrorView({required this.message, required this.onRetry});
+
+  final String message;
+  final VoidCallback onRetry;
+
+  @override
+  Widget build(BuildContext context) {
+    return Center(
+      child: Padding(
+        padding: const EdgeInsets.all(AppDimensions.paddingXL),
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Container(
+              width: 72,
+              height: 72,
+              decoration: BoxDecoration(
+                color: AppColors.error.withValues(alpha: 0.08),
+                borderRadius: BorderRadius.circular(AppDimensions.borderRadiusLarge),
+              ),
+              child: const Icon(
+                Icons.error_outline_rounded,
+                size: 36,
+                color: AppColors.error,
+              ),
+            ),
+            const SizedBox(height: AppDimensions.paddingMedium),
+            Text(
+              'Something went wrong',
+              style: AppTextStyles.titleSmall,
+              textAlign: TextAlign.center,
+            ),
+            const SizedBox(height: AppDimensions.paddingXS),
+            Text(
+              message,
+              style: AppTextStyles.bodySmall.copyWith(color: AppColors.textMuted),
+              textAlign: TextAlign.center,
+            ),
+            const SizedBox(height: AppDimensions.paddingLarge),
+            OutlinedButton.icon(
+              onPressed: onRetry,
+              icon: const Icon(Icons.refresh_rounded, size: AppDimensions.iconSizeSmall),
+              label: const Text('Try Again'),
+              style: OutlinedButton.styleFrom(
+                foregroundColor: AppColors.primary,
+                side: const BorderSide(color: AppColors.primary),
+                padding: const EdgeInsets.symmetric(
+                  horizontal: AppDimensions.paddingLarge,
+                  vertical: AppDimensions.paddingSmall,
+                ),
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(AppDimensions.borderRadius),
+                ),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+class _LoadMoreIndicator extends StatelessWidget {
+  const _LoadMoreIndicator();
+
+  @override
+  Widget build(BuildContext context) {
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: AppDimensions.paddingLarge),
+      child: Center(
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            const SizedBox(
+              width: 16,
+              height: 16,
+              child: CircularProgressIndicator(
+                color: AppColors.primary,
+                strokeWidth: 2,
+              ),
+            ),
+            const SizedBox(width: AppDimensions.paddingSmall),
+            Text(
+              'Loading more...',
+              style: AppTextStyles.labelSmall.copyWith(color: AppColors.textMuted),
+            ),
+          ],
+        ),
       ),
     );
   }

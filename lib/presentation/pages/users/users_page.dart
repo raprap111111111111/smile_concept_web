@@ -1,9 +1,13 @@
+// lib/presentation/pages/users/users_page.dart
+
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../data/repositories/role_repository.dart';
 import '../../../data/repositories/user_repository.dart';
 import '../../theme/app_colors.dart';
+import '../../theme/app_dimensions.dart';
+import '../../theme/app_text_styles.dart';
 import 'widgets/user_card.dart';
 import 'widgets/user_filters.dart';
 import '../../widgets/shared/hold_to_delete_dialog.dart';
@@ -26,64 +30,53 @@ class _UsersPageState extends ConsumerState<UsersPage> {
     final rolesAsync = ref.watch(rolesProvider);
 
     return Scaffold(
-      backgroundColor: AppColors.backgroundDark,
+      backgroundColor: AppColors.surface,
       body: Padding(
-        padding: const EdgeInsets.all(32),
+        padding: const EdgeInsets.all(AppDimensions.paddingLarge),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            UsersHeader(
-              onAdd: () => _openUserDialog(),
-            ),
-            const SizedBox(height: 24),
+            UsersHeader(onAdd: () => _openUserDialog()),
+            const SizedBox(height: AppDimensions.paddingLarge),
             UserFilters(
               search: _search,
               roleFilter: _roleFilter,
               rolesAsync: rolesAsync,
-              onSearchChanged: (value) {
-                setState(() => _search = value);
-              },
-              onRoleChanged: (value) {
-                setState(() => _roleFilter = value);
-              },
+              onSearchChanged: (value) => setState(() => _search = value),
+              onRoleChanged: (value) => setState(() => _roleFilter = value),
             ),
-            const SizedBox(height: 24),
+            const SizedBox(height: AppDimensions.paddingLarge),
             Expanded(
               child: usersAsync.when(
                 data: (users) {
                   final filtered = users.where((user) {
-                    final name = user['name']?.toString().toLowerCase() ?? '';
-                    final email = user['email']?.toString().toLowerCase() ?? '';
+                    final name =
+                        user['name']?.toString().toLowerCase() ?? '';
+                    final email =
+                        user['email']?.toString().toLowerCase() ?? '';
                     final query = _search.toLowerCase().trim();
-
                     final matchesSearch = query.isEmpty ||
                         name.contains(query) ||
                         email.contains(query);
-
                     final roleNames = _extractRoleNames(user['roles']);
-
-                    final matchesRole =
-                        _roleFilter == null || roleNames.contains(_roleFilter);
-
+                    final matchesRole = _roleFilter == null ||
+                        roleNames.contains(_roleFilter);
                     return matchesSearch && matchesRole;
                   }).toList();
 
-                  if (filtered.isEmpty) {
-                    return const UsersEmptyState();
-                  }
+                  if (filtered.isEmpty) return const UsersEmptyState();
 
                   return GridView.builder(
                     gridDelegate:
                         const SliverGridDelegateWithMaxCrossAxisExtent(
                       maxCrossAxisExtent: 380,
-                      mainAxisSpacing: 20,
-                      crossAxisSpacing: 20,
+                      mainAxisSpacing: AppDimensions.paddingMedium,
+                      crossAxisSpacing: AppDimensions.paddingMedium,
                       childAspectRatio: 1.4,
                     ),
                     itemCount: filtered.length,
                     itemBuilder: (context, index) {
                       final user = filtered[index];
-
                       return UserCard(
                         user: user,
                         onEdit: () => _openUserDialog(user: user),
@@ -93,14 +86,9 @@ class _UsersPageState extends ConsumerState<UsersPage> {
                   );
                 },
                 loading: () => const Center(
-                  child: CircularProgressIndicator(),
+                  child: CircularProgressIndicator(color: AppColors.primary),
                 ),
-                error: (error, _) => Center(
-                  child: Text(
-                    'Error: $error',
-                    style: const TextStyle(color: Colors.white),
-                  ),
-                ),
+                error: (error, _) => _ErrorView(message: error.toString()),
               ),
             ),
           ],
@@ -111,19 +99,13 @@ class _UsersPageState extends ConsumerState<UsersPage> {
 
   List<String> _extractRoleNames(dynamic roles) {
     if (roles is! List) return [];
-
     return roles.map<String>((role) {
-      if (role is Map && role['name'] != null) {
-        return role['name'].toString();
-      }
-
+      if (role is Map && role['name'] != null) return role['name'].toString();
       return role.toString();
     }).toList();
   }
 
-  Future<void> _openUserDialog({
-    Map<String, dynamic>? user,
-  }) async {
+  Future<void> _openUserDialog({Map<String, dynamic>? user}) async {
     final result = await showDialog<Map<String, dynamic>>(
       context: context,
       barrierDismissible: false,
@@ -141,95 +123,76 @@ class _UsersPageState extends ConsumerState<UsersPage> {
       } else {
         await repo.createUser(result);
       }
-
       ref.invalidate(staffUsersProvider);
-
       if (!mounted) return;
-
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          backgroundColor: const Color(0xFF10B981),
-          content: Text(isEdit ? 'User updated' : 'User created'),
-        ),
+      _showSnack(
+        isEdit ? 'User updated successfully' : 'User created successfully',
+        AppColors.success,
       );
     } catch (error) {
       if (!mounted) return;
-
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          backgroundColor: Colors.red,
-          content: Text('Error: $error'),
-        ),
-      );
+      _showSnack('Error: $error', AppColors.error);
     }
   }
 
   Future<void> _confirmDelete(Map<String, dynamic> user) async {
-  final name = user['name']?.toString() ?? 'this user';
-  final email = user['email']?.toString() ?? '';
-  final role = user['role']?.toString() ?? '';
+    final name = user['name']?.toString() ?? 'this user';
+    final email = user['email']?.toString() ?? '';
+    final role = user['role']?.toString() ?? '';
 
-  // Build a helpful description with user context
-  final userInfo = [
-    if (email.isNotEmpty) email,
-    if (role.isNotEmpty) 'Role: $role',
-  ].join(' • ');
+    final userInfo = [
+      if (email.isNotEmpty) email,
+      if (role.isNotEmpty) 'Role: $role',
+    ].join(' • ');
 
-  final confirmed = await HoldToDeleteDialog.show(
-    context: context,
-    title: 'Delete User',
-    itemName: name,
-    description: 'You are about to permanently delete the user "$name"'
-        '${userInfo.isNotEmpty ? '\n\n$userInfo' : ''}\n\n'
-        'This will revoke their access immediately and remove all '
-        'associated permissions. Historical records they created will '
-        'remain but be marked as deleted. This action cannot be undone.',
-  );
-
-  if (!confirmed || !mounted) return;
-
-  try {
-    final repo = ref.read(userRepositoryProvider);
-    await repo.deleteUser(user['id'] as int);
-
-    ref.invalidate(staffUsersProvider);
-
-    if (!mounted) return;
-
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        backgroundColor: const Color(0xFF10B981),
-        content: Text(
-          '"$name" deleted',
-          style: const TextStyle(color: Colors.white),
-        ),
-        behavior: SnackBarBehavior.floating,
-      ),
+    final confirmed = await HoldToDeleteDialog.show(
+      context: context,
+      title: 'Delete User',
+      itemName: name,
+      description: 'You are about to permanently delete the user "$name"'
+          '${userInfo.isNotEmpty ? '\n\n$userInfo' : ''}\n\n'
+          'This will revoke their access immediately and remove all '
+          'associated permissions. This action cannot be undone.',
     );
-  } catch (error) {
-    if (!mounted) return;
 
+    if (!confirmed || !mounted) return;
+
+    try {
+      final repo = ref.read(userRepositoryProvider);
+      await repo.deleteUser(user['id'] as int);
+      ref.invalidate(staffUsersProvider);
+      if (!mounted) return;
+      _showSnack('"$name" deleted', AppColors.success);
+    } catch (error) {
+      if (!mounted) return;
+      _showSnack('Error: $error', AppColors.error);
+    }
+  }
+
+  void _showSnack(String msg, Color color) {
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(
-        backgroundColor: Colors.red,
         content: Text(
-          'Error: $error',
-          style: const TextStyle(color: Colors.white),
+          msg,
+          style: AppTextStyles.bodySmall.copyWith(color: Colors.white),
         ),
+        backgroundColor: color,
         behavior: SnackBarBehavior.floating,
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(AppDimensions.borderRadius),
+        ),
+        margin: const EdgeInsets.all(AppDimensions.paddingMedium),
       ),
     );
   }
 }
-}
+
+// ─── Header ───────────────────────────────────────────────────────────────────
 
 class UsersHeader extends StatelessWidget {
   final VoidCallback onAdd;
 
-  const UsersHeader({
-    super.key,
-    required this.onAdd,
-  });
+  const UsersHeader({super.key, required this.onAdd});
 
   @override
   Widget build(BuildContext context) {
@@ -239,87 +202,57 @@ class UsersHeader extends StatelessWidget {
         Row(
           children: [
             Container(
-              padding: const EdgeInsets.all(12),
+              width: AppDimensions.iconBadgeSize,
+              height: AppDimensions.iconBadgeSize,
               decoration: BoxDecoration(
-                gradient: const LinearGradient(
-                  colors: [
-                    Color(0xFF06B6D4),
-                    Color(0xFF3B82F6),
-                  ],
-                ),
-                borderRadius: BorderRadius.circular(12),
+                color: AppColors.primaryWithOpacity(0.1),
+                borderRadius:
+                    BorderRadius.circular(AppDimensions.borderRadius),
+                border: Border.all(color: AppColors.border),
               ),
               child: const Icon(
-                Icons.people_outline,
-                color: Colors.white,
-                size: 28,
+                Icons.people_rounded,
+                color: AppColors.primary,
+                size: AppDimensions.iconSize,
               ),
             ),
-            const SizedBox(width: 16),
-            const Column(
+            const SizedBox(width: AppDimensions.paddingMedium),
+            Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Text(
-                  'Users Management',
-                  style: TextStyle(
-                    color: Colors.white,
-                    fontSize: 26,
-                    fontWeight: FontWeight.bold,
-                  ),
-                ),
-                SizedBox(height: 4),
+                Text('Users Management', style: AppTextStyles.titleLarge),
                 Text(
                   'Manage staff accounts, roles, and access',
-                  style: TextStyle(
-                    color: Colors.white54,
-                    fontSize: 14,
+                  style: AppTextStyles.labelSmall.copyWith(
+                    color: AppColors.textMuted,
+                    fontWeight: FontWeight.w400,
                   ),
                 ),
               ],
             ),
           ],
         ),
-        Container(
-          decoration: BoxDecoration(
-            gradient: const LinearGradient(
-              colors: [
-                Color(0xFF06B6D4),
-                Color(0xFF3B82F6),
-              ],
-            ),
-            borderRadius: BorderRadius.circular(12),
-            boxShadow: [
-              BoxShadow(
-                color: const Color(0xFF06B6D4).withValues(alpha: 0.35),
-                blurRadius: 12,
-                offset: const Offset(0, 4),
-              ),
-            ],
+        ElevatedButton.icon(
+          onPressed: onAdd,
+          icon: const Icon(
+            Icons.add_rounded,
+            size: AppDimensions.iconSizeSmall,
           ),
-          child: Material(
-            color: Colors.transparent,
-            child: InkWell(
-              borderRadius: BorderRadius.circular(12),
-              onTap: onAdd,
-              child: const Padding(
-                padding: EdgeInsets.symmetric(
-                  horizontal: 20,
-                  vertical: 14,
-                ),
-                child: Row(
-                  children: [
-                    Icon(Icons.add, color: Colors.white),
-                    SizedBox(width: 8),
-                    Text(
-                      'Add User',
-                      style: TextStyle(
-                        color: Colors.white,
-                        fontWeight: FontWeight.w600,
-                      ),
-                    ),
-                  ],
-                ),
-              ),
+          label: Text(
+            'Add User',
+            style: AppTextStyles.labelLarge.copyWith(color: Colors.white),
+          ),
+          style: ElevatedButton.styleFrom(
+            backgroundColor: AppColors.primary,
+            foregroundColor: Colors.white,
+            elevation: 0,
+            padding: const EdgeInsets.symmetric(
+              horizontal: AppDimensions.paddingLarge,
+              vertical: AppDimensions.paddingSmall,
+            ),
+            shape: RoundedRectangleBorder(
+              borderRadius:
+                  BorderRadius.circular(AppDimensions.borderRadius),
             ),
           ),
         ),
@@ -327,6 +260,8 @@ class UsersHeader extends StatelessWidget {
     );
   }
 }
+
+// ─── Empty State ──────────────────────────────────────────────────────────────
 
 class UsersEmptyState extends StatelessWidget {
   const UsersEmptyState({super.key});
@@ -337,20 +272,79 @@ class UsersEmptyState extends StatelessWidget {
       child: Column(
         mainAxisAlignment: MainAxisAlignment.center,
         children: [
-          Icon(
-            Icons.people_outline,
-            size: 64,
-            color: Colors.white.withValues(alpha: 0.2),
+          Container(
+            width: 80,
+            height: 80,
+            decoration: BoxDecoration(
+              color: AppColors.primaryWithOpacity(0.06),
+              borderRadius:
+                  BorderRadius.circular(AppDimensions.borderRadiusLarge),
+              border: Border.all(
+                color: AppColors.primaryWithOpacity(0.12),
+              ),
+            ),
+            child: const Icon(
+              Icons.people_rounded,
+              size: 38,
+              color: AppColors.primaryLight,
+            ),
           ),
-          const SizedBox(height: 16),
-          const Text(
-            'No users found',
-            style: TextStyle(
-              color: Colors.white54,
-              fontSize: 16,
+          const SizedBox(height: AppDimensions.paddingMedium),
+          Text('No users found', style: AppTextStyles.titleSmall),
+          const SizedBox(height: AppDimensions.paddingXS),
+          Text(
+            'No staff accounts match your current filters.',
+            style: AppTextStyles.bodySmall.copyWith(
+              color: AppColors.textMuted,
             ),
           ),
         ],
+      ),
+    );
+  }
+}
+
+// ─── Error View ───────────────────────────────────────────────────────────────
+
+class _ErrorView extends StatelessWidget {
+  const _ErrorView({required this.message});
+
+  final String message;
+
+  @override
+  Widget build(BuildContext context) {
+    return Center(
+      child: Padding(
+        padding: const EdgeInsets.all(AppDimensions.paddingXL),
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Container(
+              width: 64,
+              height: 64,
+              decoration: BoxDecoration(
+                color: AppColors.error.withValues(alpha: 0.08),
+                borderRadius:
+                    BorderRadius.circular(AppDimensions.borderRadiusLarge),
+              ),
+              child: const Icon(
+                Icons.error_outline_rounded,
+                size: 32,
+                color: AppColors.error,
+              ),
+            ),
+            const SizedBox(height: AppDimensions.paddingMedium),
+            Text('Something went wrong', style: AppTextStyles.titleSmall),
+            const SizedBox(height: AppDimensions.paddingXS),
+            Text(
+              message,
+              style: AppTextStyles.bodySmall.copyWith(
+                color: AppColors.textMuted,
+              ),
+              textAlign: TextAlign.center,
+            ),
+          ],
+        ),
       ),
     );
   }
