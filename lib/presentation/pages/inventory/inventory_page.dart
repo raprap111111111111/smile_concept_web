@@ -11,10 +11,11 @@ import '../../route/route_names.dart';
 import '../../theme/app_colors.dart';
 import '../../theme/app_dimensions.dart';
 import '../../theme/app_text_styles.dart';
+import '../../widgets/shared/hold_to_delete_dialog.dart';
+import '../../widgets/shared/search_bar_onclick.dart';
 import 'widgets/inventory_card.dart';
 import 'widgets/inventory_empty_state.dart';
 import 'widgets/inventory_stats_bar.dart';
-import '../../widgets/shared/hold_to_delete_dialog.dart';
 
 class InventoryPage extends ConsumerStatefulWidget {
   const InventoryPage({super.key});
@@ -52,6 +53,16 @@ class _InventoryPageState extends ConsumerState<InventoryPage> {
         _scrollController.position.maxScrollExtent - 200) {
       ref.read(inventoryProvider.notifier).loadMore();
     }
+  }
+
+  // ── Search ──
+  void _onSearch(String value) {
+    ref.read(inventoryProvider.notifier).search(value);
+  }
+
+  void _onClearSearch() {
+    _searchController.clear();
+    ref.read(inventoryProvider.notifier).search('');
   }
 
   Future<void> _delete(int id, String? itemName) async {
@@ -115,8 +126,16 @@ class _InventoryPageState extends ConsumerState<InventoryPage> {
           // ── Header ──────────────────────────────────────
           _buildHeader(state),
 
-          // ── Search Bar ──────────────────────────────────
-          _buildSearchBar(),
+          // ── Search Bar (onClick) ────────────────────────
+          Padding(
+            padding: const EdgeInsets.all(AppDimensions.paddingLarge),
+            child: SearchBarOnClick(
+              controller: _searchController,
+              hintText: 'Search by item name or SKU...',
+              onChanged: _onSearch,
+              onClear: _onClearSearch,
+            ),
+          ),
 
           // ── Stats Bar ───────────────────────────────────
           if (!state.isListLoading && state.inventories.isNotEmpty)
@@ -139,8 +158,10 @@ class _InventoryPageState extends ConsumerState<InventoryPage> {
           ? FloatingActionButton.extended(
               onPressed: () => context.pushNamed(RouteNames.inventoryCreate),
               icon: const Icon(Icons.add, size: AppDimensions.iconSizeSmall),
-              label: const Text('Add Stock',
-                  style: TextStyle(fontWeight: FontWeight.w700)),
+              label: const Text(
+                'Add Stock',
+                style: TextStyle(fontWeight: FontWeight.w700),
+              ),
               backgroundColor: AppColors.primary,
               foregroundColor: AppColors.textOnPrimary,
               shape: RoundedRectangleBorder(
@@ -257,64 +278,6 @@ class _InventoryPageState extends ConsumerState<InventoryPage> {
     );
   }
 
-  // ── Search ──────────────────────────────────────────────────
-  Widget _buildSearchBar() {
-    return Padding(
-      padding: const EdgeInsets.all(AppDimensions.paddingLarge),
-      child: TextField(
-        controller: _searchController,
-        style: AppTextStyles.bodyMedium,
-        decoration: InputDecoration(
-          hintText: 'Search by item name or SKU...',
-          hintStyle: AppTextStyles.bodyMedium.copyWith(
-            color: AppColors.textMuted,
-          ),
-          prefixIcon: const Icon(
-            Icons.search,
-            color: AppColors.textSecondary,
-            size: AppDimensions.iconSizeMedium,
-          ),
-          suffixIcon: _searchController.text.isNotEmpty
-              ? IconButton(
-                  icon: const Icon(Icons.clear,
-                      color: AppColors.textSecondary,
-                      size: AppDimensions.iconSizeSmall),
-                  onPressed: () {
-                    _searchController.clear();
-                    ref.read(inventoryProvider.notifier).search('');
-                    setState(() {});
-                  },
-                )
-              : null,
-          filled: true,
-          fillColor: AppColors.background,
-          border: OutlineInputBorder(
-            borderRadius: BorderRadius.circular(AppDimensions.borderRadius),
-            borderSide: const BorderSide(color: AppColors.border),
-          ),
-          enabledBorder: OutlineInputBorder(
-            borderRadius: BorderRadius.circular(AppDimensions.borderRadius),
-            borderSide: const BorderSide(color: AppColors.border),
-          ),
-          focusedBorder: OutlineInputBorder(
-            borderRadius: BorderRadius.circular(AppDimensions.borderRadius),
-            borderSide: const BorderSide(
-              color: AppColors.primary,
-              width: 2,
-            ),
-          ),
-          contentPadding: const EdgeInsets.symmetric(
-            horizontal: AppDimensions.paddingMedium,
-            vertical: AppDimensions.paddingSmall,
-          ),
-        ),
-        onChanged: (value) => setState(() {}),
-        onSubmitted: (value) =>
-            ref.read(inventoryProvider.notifier).search(value),
-      ),
-    );
-  }
-
   // ── Body ────────────────────────────────────────────────────
   Widget _buildBody(InventoryState state, bool canDelete) {
     if (state.isListLoading) {
@@ -340,8 +303,10 @@ class _InventoryPageState extends ConsumerState<InventoryPage> {
               const SizedBox(height: AppDimensions.paddingMedium),
               ElevatedButton.icon(
                 onPressed: () => _load(forceRefresh: true),
-                icon: const Icon(Icons.refresh,
-                    size: AppDimensions.iconSizeSmall),
+                icon: const Icon(
+                  Icons.refresh,
+                  size: AppDimensions.iconSizeSmall,
+                ),
                 label: const Text('Retry'),
               ),
             ],

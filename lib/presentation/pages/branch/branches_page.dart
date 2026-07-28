@@ -9,16 +9,44 @@ import '../../providers/branch/branch_provider.dart';
 import '../../theme/app_colors.dart';
 import '../../theme/app_dimensions.dart';
 import '../../theme/app_text_styles.dart';
-import '../../widgets/shared/hold_to_delete_dialog.dart';  // ✅ NEW
+import '../../widgets/shared/hold_to_delete_dialog.dart';
+import '../../widgets/shared/search_bar_onclick.dart';
 import 'widgets/branch_card.dart';
 import 'widgets/branch_filters.dart';
 import 'widgets/branch_form_dialog.dart';
 
-class BranchesPage extends ConsumerWidget {
+class BranchesPage extends ConsumerStatefulWidget {
   const BranchesPage({super.key});
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
+  ConsumerState<BranchesPage> createState() => _BranchesPageState();
+}
+
+class _BranchesPageState extends ConsumerState<BranchesPage> {
+  final _searchController = TextEditingController();
+
+  @override
+  void dispose() {
+    _searchController.dispose();
+    super.dispose();
+  }
+
+  // ── Search ──
+  void _onSearch(String value) {
+    final filter = ref.read(branchFilterProvider);
+    ref.read(branchFilterProvider.notifier).state =
+        filter.copyWith(search: value);
+  }
+
+  void _onClearSearch() {
+    _searchController.clear();
+    final filter = ref.read(branchFilterProvider);
+    ref.read(branchFilterProvider.notifier).state =
+        filter.copyWith(search: '');
+  }
+
+  @override
+  Widget build(BuildContext context) {
     final branchesAsync = ref.watch(branchesProvider);
     final filter = ref.watch(branchFilterProvider);
 
@@ -33,12 +61,22 @@ class BranchesPage extends ConsumerWidget {
               onAdd: () => _openBranchDialog(context, ref),
             ),
             const SizedBox(height: AppDimensions.paddingLarge),
+
+            // ── Search Bar (onClick) ──
+            SearchBarOnClick(
+              controller: _searchController,
+              hintText: 'Search branches by name or location...',
+              onChanged: _onSearch,
+              onClear: _onClearSearch,
+            ),
+            const SizedBox(height: AppDimensions.paddingMedium),
+
+            // ── Active Filter Only (search removed from here) ──
             BranchFilters(
               search: filter.search,
               activeFilter: filter.isActive,
               onSearchChanged: (value) {
-                ref.read(branchFilterProvider.notifier).state =
-                    filter.copyWith(search: value);
+                // No-op — search handled by SearchBarOnClick above
               },
               onActiveFilterChanged: (value) {
                 ref.read(branchFilterProvider.notifier).state = value == null
@@ -47,6 +85,7 @@ class BranchesPage extends ConsumerWidget {
               },
             ),
             const SizedBox(height: AppDimensions.paddingLarge),
+
             Expanded(
               child: branchesAsync.when(
                 data: (branches) {
@@ -83,9 +122,7 @@ class BranchesPage extends ConsumerWidget {
                   );
                 },
                 loading: () => const Center(
-                  child: CircularProgressIndicator(
-                    color: AppColors.primary,
-                  ),
+                  child: CircularProgressIndicator(color: AppColors.primary),
                 ),
                 error: (error, _) => Center(
                   child: Text(
@@ -154,7 +191,6 @@ class BranchesPage extends ConsumerWidget {
     }
   }
 
-  // ✅ Hold-to-delete replaces old confirmation dialog
   static Future<void> _confirmDelete(
     BuildContext context,
     WidgetRef ref,
@@ -200,15 +236,12 @@ class BranchesPage extends ConsumerWidget {
   }
 }
 
-// (Keep your BranchesHeader and BranchesEmptyState classes unchanged)
+// ─── Header ──────────────────────────────────────────────────
 
 class BranchesHeader extends StatelessWidget {
   final VoidCallback onAdd;
 
-  const BranchesHeader({
-    super.key,
-    required this.onAdd,
-  });
+  const BranchesHeader({super.key, required this.onAdd});
 
   @override
   Widget build(BuildContext context) {
@@ -234,10 +267,7 @@ class BranchesHeader extends StatelessWidget {
             Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Text(
-                  'Branches',
-                  style: AppTextStyles.headlineSmall,
-                ),
+                Text('Branches', style: AppTextStyles.headlineSmall),
                 const SizedBox(height: 4),
                 Text(
                   'Manage your clinic locations',

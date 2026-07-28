@@ -1,7 +1,7 @@
 // lib/presentation/pages/patient_attachments/widgets/patient_folder_card.dart
 
 import 'package:flutter/material.dart';
-import '/core/config/api_config.dart'; // ✅ NEW
+import '/core/config/api_config.dart';
 import '/data/models/patient_attachment/patient_with_attachments.dart';
 import '/presentation/theme/app_colors.dart';
 import '/presentation/theme/app_dimensions.dart';
@@ -20,25 +20,28 @@ class PatientFolderCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Material(
-      color: Colors.transparent,
+      color: AppColors.background,
+      borderRadius: BorderRadius.circular(AppDimensions.borderRadiusLarge),
       child: InkWell(
         onTap: onTap,
         borderRadius: BorderRadius.circular(AppDimensions.borderRadiusLarge),
         child: Container(
-          padding: const EdgeInsets.all(AppDimensions.paddingMedium),
+          padding: const EdgeInsets.all(AppDimensions.cardPaddingMedium),
           decoration: BoxDecoration(
-            color: AppColors.background,
             borderRadius:
                 BorderRadius.circular(AppDimensions.borderRadiusLarge),
             border: Border.all(color: AppColors.border),
           ),
           child: Row(
             children: [
-              // ─── ✅ Avatar with Photo or Initials ─────────────
-              _buildAvatar(),
+              // ─── Avatar ────────────────────────────────
+              _PatientAvatar(
+                photoUrl: patient.profilePhoto,
+                initials: patient.initials,
+              ),
               const SizedBox(width: AppDimensions.paddingMedium),
 
-              // ─── Name + Email + Stats ─────────────────────
+              // ─── Content ───────────────────────────────
               Expanded(
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
@@ -48,66 +51,40 @@ class PatientFolderCard extends StatelessWidget {
                         Expanded(
                           child: Text(
                             patient.name,
-                            style: AppTextStyles.titleMedium.copyWith(
-                              fontWeight: FontWeight.w700,
-                            ),
+                            style: AppTextStyles.titleSmall,
                             maxLines: 1,
                             overflow: TextOverflow.ellipsis,
                           ),
                         ),
-                        // ✅ Show badge if pending scans
                         if (patient.hasPendingScans)
-                          Container(
-                            padding: const EdgeInsets.symmetric(
-                                horizontal: 6, vertical: 2),
-                            decoration: BoxDecoration(
-                              color: AppColors.warning
-                                  .withValues(alpha: 0.15),
-                              borderRadius: BorderRadius.circular(20),
-                            ),
-                            child: Row(
-                              mainAxisSize: MainAxisSize.min,
-                              children: [
-                                const Icon(Icons.hourglass_top,
-                                    size: 10, color: AppColors.warning),
-                                const SizedBox(width: 3),
-                                Text(
-                                  '${patient.pendingScans}',
-                                  style: AppTextStyles.labelSmall.copyWith(
-                                    color: AppColors.warning,
-                                    fontSize: 10,
-                                    fontWeight: FontWeight.w700,
-                                  ),
-                                ),
-                              ],
-                            ),
-                          ),
+                          _PendingBadge(count: patient.pendingScans),
                       ],
                     ),
                     if (patient.email != null) ...[
                       const SizedBox(height: 2),
                       Text(
                         patient.email!,
-                        style: AppTextStyles.bodySmall.copyWith(
+                        style: AppTextStyles.labelSmall.copyWith(
                           color: AppColors.textMuted,
+                          fontWeight: FontWeight.w400,
                         ),
                         maxLines: 1,
                         overflow: TextOverflow.ellipsis,
                       ),
                     ],
-                    const SizedBox(height: 8),
+                    const SizedBox(height: AppDimensions.paddingXS),
                     Wrap(
                       spacing: 6,
                       runSpacing: 4,
                       children: [
                         _StatChip(
-                          icon: Icons.attach_file,
+                          icon: Icons.attach_file_rounded,
                           label: '${patient.attachmentCount} files',
                           color: AppColors.primary,
                         ),
                         if (patient.xrayCount > 0)
                           _StatChip(
-                            icon: Icons.medical_information,
+                            icon: Icons.medical_information_rounded,
                             label: '${patient.xrayCount} X-rays',
                             color: AppColors.info,
                           ),
@@ -117,31 +94,42 @@ class PatientFolderCard extends StatelessWidget {
                 ),
               ),
 
-              const Icon(Icons.chevron_right, color: AppColors.textMuted),
+              const SizedBox(width: AppDimensions.paddingXS),
+              const Icon(
+                Icons.chevron_right_rounded,
+                color: AppColors.textTertiary,
+                size: AppDimensions.iconSize,
+              ),
             ],
           ),
         ),
       ),
     );
   }
+}
 
-  // ═══════════════════════════════════════════════════════
-  // ✅ AVATAR — Shows photo if available, else initials
-  // ═══════════════════════════════════════════════════════
-  Widget _buildAvatar() {
-    final photoUrl = patient.profilePhoto;
+// ─── Avatar ───────────────────────────────────────────────────────────────────
 
+class _PatientAvatar extends StatelessWidget {
+  const _PatientAvatar({required this.photoUrl, required this.initials});
+
+  final String? photoUrl;
+  final String initials;
+
+  @override
+  Widget build(BuildContext context) {
     return Container(
       width: 52,
       height: 52,
       decoration: BoxDecoration(
-        color: AppColors.primary.withValues(alpha: 0.1),
+        color: AppColors.primaryWithOpacity(0.1),
         borderRadius: BorderRadius.circular(AppDimensions.borderRadius),
+        border: Border.all(color: AppColors.primaryWithOpacity(0.2)),
       ),
       clipBehavior: Clip.antiAlias,
-      child: photoUrl != null && photoUrl.isNotEmpty
+      child: photoUrl != null && photoUrl!.isNotEmpty
           ? Image.network(
-              ApiConfig.storageUrl(photoUrl),
+              ApiConfig.storageUrl(photoUrl!),
               fit: BoxFit.cover,
               loadingBuilder: (context, child, progress) {
                 if (progress == null) return child;
@@ -156,34 +144,75 @@ class PatientFolderCard extends StatelessWidget {
   Widget _buildInitials() {
     return Center(
       child: Text(
-        patient.initials,
-        style: AppTextStyles.titleMedium.copyWith(
-          color: AppColors.primary,
-          fontWeight: FontWeight.w800,
-        ),
+        initials,
+        style: AppTextStyles.titleMedium.copyWith(color: AppColors.primary),
       ),
     );
   }
 }
 
-class _StatChip extends StatelessWidget {
-  final IconData icon;
-  final String label;
-  final Color color;
+// ─── Pending Badge ────────────────────────────────────────────────────────────
 
+class _PendingBadge extends StatelessWidget {
+  const _PendingBadge({required this.count});
+
+  final int count;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 3),
+      decoration: BoxDecoration(
+        color: AppColors.warning.withValues(alpha: 0.12),
+        borderRadius: BorderRadius.circular(20),
+        border: Border.all(color: AppColors.warning.withValues(alpha: 0.25)),
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          const Icon(
+            Icons.hourglass_top_rounded,
+            size: 10,
+            color: AppColors.warning,
+          ),
+          const SizedBox(width: 3),
+          Text(
+            '$count',
+            style: AppTextStyles.labelSmall.copyWith(
+              color: AppColors.warning,
+              fontSize: 10,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+// ─── Stat Chip ────────────────────────────────────────────────────────────────
+
+class _StatChip extends StatelessWidget {
   const _StatChip({
     required this.icon,
     required this.label,
     required this.color,
   });
 
+  final IconData icon;
+  final String label;
+  final Color color;
+
   @override
   Widget build(BuildContext context) {
     return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+      padding: const EdgeInsets.symmetric(
+        horizontal: AppDimensions.paddingXS,
+        vertical: 3,
+      ),
       decoration: BoxDecoration(
-        color: color.withValues(alpha: 0.1),
+        color: color.withValues(alpha: 0.08),
         borderRadius: BorderRadius.circular(20),
+        border: Border.all(color: color.withValues(alpha: 0.2)),
       ),
       child: Row(
         mainAxisSize: MainAxisSize.min,
@@ -192,11 +221,7 @@ class _StatChip extends StatelessWidget {
           const SizedBox(width: 4),
           Text(
             label,
-            style: AppTextStyles.labelSmall.copyWith(
-              color: color,
-              fontWeight: FontWeight.w700,
-              fontSize: 11,
-            ),
+            style: AppTextStyles.labelSmall.copyWith(color: color),
           ),
         ],
       ),

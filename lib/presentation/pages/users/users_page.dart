@@ -8,9 +8,10 @@ import '../../../data/repositories/user_repository.dart';
 import '../../theme/app_colors.dart';
 import '../../theme/app_dimensions.dart';
 import '../../theme/app_text_styles.dart';
+import '../../widgets/shared/hold_to_delete_dialog.dart';
+import '../../widgets/shared/search_bar_onclick.dart';
 import 'widgets/user_card.dart';
 import 'widgets/user_filters.dart';
-import '../../widgets/shared/hold_to_delete_dialog.dart';
 import 'widgets/user_form_dialog.dart';
 
 class UsersPage extends ConsumerStatefulWidget {
@@ -21,8 +22,25 @@ class UsersPage extends ConsumerStatefulWidget {
 }
 
 class _UsersPageState extends ConsumerState<UsersPage> {
+  final _searchController = TextEditingController();
   String _search = '';
   String? _roleFilter;
+
+  @override
+  void dispose() {
+    _searchController.dispose();
+    super.dispose();
+  }
+
+  // ── Search ──
+  void _onSearch(String value) {
+    setState(() => _search = value);
+  }
+
+  void _onClearSearch() {
+    _searchController.clear();
+    setState(() => _search = '');
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -38,20 +56,33 @@ class _UsersPageState extends ConsumerState<UsersPage> {
           children: [
             UsersHeader(onAdd: () => _openUserDialog()),
             const SizedBox(height: AppDimensions.paddingLarge),
+
+            // ── Search Bar (onClick) ──
+            SearchBarOnClick(
+              controller: _searchController,
+              hintText: 'Search users by name or email...',
+              onChanged: _onSearch,
+              onClear: _onClearSearch,
+            ),
+            const SizedBox(height: AppDimensions.paddingMedium),
+
+            // ── Role Filter Only (search bypassed) ──
             UserFilters(
               search: _search,
               roleFilter: _roleFilter,
               rolesAsync: rolesAsync,
-              onSearchChanged: (value) => setState(() => _search = value),
+              onSearchChanged: (_) {
+                // No-op — search handled by SearchBarOnClick above
+              },
               onRoleChanged: (value) => setState(() => _roleFilter = value),
             ),
             const SizedBox(height: AppDimensions.paddingLarge),
+
             Expanded(
               child: usersAsync.when(
                 data: (users) {
                   final filtered = users.where((user) {
-                    final name =
-                        user['name']?.toString().toLowerCase() ?? '';
+                    final name = user['name']?.toString().toLowerCase() ?? '';
                     final email =
                         user['email']?.toString().toLowerCase() ?? '';
                     final query = _search.toLowerCase().trim();
@@ -59,8 +90,8 @@ class _UsersPageState extends ConsumerState<UsersPage> {
                         name.contains(query) ||
                         email.contains(query);
                     final roleNames = _extractRoleNames(user['roles']);
-                    final matchesRole = _roleFilter == null ||
-                        roleNames.contains(_roleFilter);
+                    final matchesRole =
+                        _roleFilter == null || roleNames.contains(_roleFilter);
                     return matchesSearch && matchesRole;
                   }).toList();
 
@@ -206,8 +237,7 @@ class UsersHeader extends StatelessWidget {
               height: AppDimensions.iconBadgeSize,
               decoration: BoxDecoration(
                 color: AppColors.primaryWithOpacity(0.1),
-                borderRadius:
-                    BorderRadius.circular(AppDimensions.borderRadius),
+                borderRadius: BorderRadius.circular(AppDimensions.borderRadius),
                 border: Border.all(color: AppColors.border),
               ),
               child: const Icon(
@@ -251,8 +281,7 @@ class UsersHeader extends StatelessWidget {
               vertical: AppDimensions.paddingSmall,
             ),
             shape: RoundedRectangleBorder(
-              borderRadius:
-                  BorderRadius.circular(AppDimensions.borderRadius),
+              borderRadius: BorderRadius.circular(AppDimensions.borderRadius),
             ),
           ),
         ),

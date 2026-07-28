@@ -12,6 +12,7 @@ import '/presentation/route/route_names.dart';
 import '/presentation/theme/app_colors.dart';
 import '/presentation/theme/app_dimensions.dart';
 import '/presentation/theme/app_text_styles.dart';
+import '../../widgets/shared/search_bar_onclick.dart';
 import 'widgets/patient_folder_card.dart';
 
 class PatientFoldersPage extends ConsumerStatefulWidget {
@@ -48,6 +49,18 @@ class _PatientFoldersPageState extends ConsumerState<PatientFoldersPage> {
     _searchController.dispose();
     _scrollController.dispose();
     super.dispose();
+  }
+
+  // ── Search ──
+  void _onSearch(String value) {
+    ref
+        .read(patientsWithAttachmentsProvider.notifier)
+        .setSearch(value.isEmpty ? null : value);
+  }
+
+  void _onClearSearch() {
+    _searchController.clear();
+    ref.read(patientsWithAttachmentsProvider.notifier).setSearch(null);
   }
 
   @override
@@ -127,8 +140,8 @@ class _PatientFoldersPageState extends ConsumerState<PatientFoldersPage> {
 
   Widget _buildHeader(PatientsWithAttachmentsState state, bool canViewAny) {
     final totalPatients = state.patients.length;
-    final totalPending = state.patients
-        .fold<int>(0, (sum, p) => sum + p.pendingScans);
+    final totalPending =
+        state.patients.fold<int>(0, (sum, p) => sum + p.pendingScans);
 
     return Container(
       padding: const EdgeInsets.fromLTRB(
@@ -153,8 +166,11 @@ class _PatientFoldersPageState extends ConsumerState<PatientFoldersPage> {
                   borderRadius:
                       BorderRadius.circular(AppDimensions.borderRadius),
                 ),
-                child: const Icon(Icons.folder_shared,
-                    color: AppColors.primary, size: 24),
+                child: const Icon(
+                  Icons.folder_shared,
+                  color: AppColors.primary,
+                  size: 24,
+                ),
               ),
               const SizedBox(width: AppDimensions.paddingSmall),
               Expanded(
@@ -173,43 +189,13 @@ class _PatientFoldersPageState extends ConsumerState<PatientFoldersPage> {
             ],
           ),
           const SizedBox(height: AppDimensions.paddingMedium),
-          TextField(
+
+          // ── Search Bar (onClick) ──
+          SearchBarOnClick(
             controller: _searchController,
-            onChanged: (v) => ref
-                .read(patientsWithAttachmentsProvider.notifier)
-                .setSearch(v.isEmpty ? null : v),
-            decoration: InputDecoration(
-              hintText: 'Search patient by name or email...',
-              prefixIcon: const Icon(Icons.search,
-                  color: AppColors.textMuted),
-              suffixIcon: _searchController.text.isNotEmpty
-                  ? IconButton(
-                      icon: const Icon(Icons.clear, size: 18),
-                      onPressed: () {
-                        _searchController.clear();
-                        ref
-                            .read(patientsWithAttachmentsProvider.notifier)
-                            .setSearch(null);
-                      },
-                    )
-                  : null,
-              filled: true,
-              fillColor: AppColors.surface,
-              contentPadding: const EdgeInsets.symmetric(
-                horizontal: AppDimensions.paddingMedium,
-                vertical: AppDimensions.paddingSmall,
-              ),
-              border: OutlineInputBorder(
-                borderRadius:
-                    BorderRadius.circular(AppDimensions.borderRadius),
-                borderSide: const BorderSide(color: AppColors.border),
-              ),
-              enabledBorder: OutlineInputBorder(
-                borderRadius:
-                    BorderRadius.circular(AppDimensions.borderRadius),
-                borderSide: const BorderSide(color: AppColors.border),
-              ),
-            ),
+            hintText: 'Search patient by name or email...',
+            onChanged: _onSearch,
+            onClear: _onClearSearch,
           ),
         ],
       ),
@@ -231,8 +217,7 @@ class _PatientFoldersPageState extends ConsumerState<PatientFoldersPage> {
               icon: Icons.folder_open,
               label: 'All Files',
               color: AppColors.primary,
-              onTap: () =>
-                  context.pushNamed(RouteNames.patientAttachments),
+              onTap: () => context.pushNamed(RouteNames.patientAttachments),
             ),
           ),
           const SizedBox(width: 8),
@@ -305,12 +290,10 @@ class _PatientFoldersPageState extends ConsumerState<PatientFoldersPage> {
           return PatientFolderCard(
             patient: patient,
             onTap: () {
-              // ✅ DEBUG click
               debugPrint('════════════════════════════════════');
               debugPrint('👆 CLICKED: ${patient.name} (ID: ${patient.id})');
               debugPrint('════════════════════════════════════');
 
-              // ✅ Use NEW dedicated folder route
               context.pushNamed(
                 RouteNames.patientFolderDetail,
                 pathParameters: {'userId': patient.id.toString()},
@@ -334,8 +317,11 @@ class _PatientFoldersPageState extends ConsumerState<PatientFoldersPage> {
               color: AppColors.primary.withValues(alpha: 0.08),
               shape: BoxShape.circle,
             ),
-            child: const Icon(Icons.folder_off_outlined,
-                size: 48, color: AppColors.primary),
+            child: const Icon(
+              Icons.folder_off_outlined,
+              size: 48,
+              color: AppColors.primary,
+            ),
           ),
           const SizedBox(height: AppDimensions.paddingMedium),
           Text(
@@ -353,8 +339,7 @@ class _PatientFoldersPageState extends ConsumerState<PatientFoldersPage> {
           ),
           const SizedBox(height: AppDimensions.paddingMedium),
           ElevatedButton.icon(
-            onPressed: () =>
-                context.pushNamed(RouteNames.attachmentUpload),
+            onPressed: () => context.pushNamed(RouteNames.attachmentUpload),
             icon: const Icon(Icons.upload_file, size: 18),
             label: const Text('Upload First Attachment'),
             style: ElevatedButton.styleFrom(
@@ -374,11 +359,9 @@ class _PatientFoldersPageState extends ConsumerState<PatientFoldersPage> {
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            const Icon(Icons.error_outline,
-                size: 48, color: AppColors.error),
+            const Icon(Icons.error_outline, size: 48, color: AppColors.error),
             const SizedBox(height: AppDimensions.paddingSmall),
-            Text('Something went wrong',
-                style: AppTextStyles.titleMedium),
+            Text('Something went wrong', style: AppTextStyles.titleMedium),
             const SizedBox(height: 4),
             Text(
               error,
@@ -432,8 +415,7 @@ class _QuickActionButton extends StatelessWidget {
           ),
           decoration: BoxDecoration(
             color: color.withValues(alpha: 0.08),
-            borderRadius:
-                BorderRadius.circular(AppDimensions.borderRadius),
+            borderRadius: BorderRadius.circular(AppDimensions.borderRadius),
             border: Border.all(color: color.withValues(alpha: 0.2)),
           ),
           child: Column(

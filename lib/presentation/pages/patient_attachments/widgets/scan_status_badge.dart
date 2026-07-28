@@ -15,10 +15,14 @@ class ScanStatusBadge extends StatelessWidget {
     final config = _getConfig();
 
     return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+      padding: const EdgeInsets.symmetric(
+        horizontal: AppDimensions.paddingXS,
+        vertical: 4,
+      ),
       decoration: BoxDecoration(
-        color: config.color.withValues(alpha: 0.1),
+        color: config.color.withValues(alpha: 0.08),
         borderRadius: BorderRadius.circular(AppDimensions.borderRadiusSmall),
+        border: Border.all(color: config.color.withValues(alpha: 0.2)),
       ),
       child: Row(
         mainAxisSize: MainAxisSize.min,
@@ -33,13 +37,12 @@ class ScanStatusBadge extends StatelessWidget {
               ),
             )
           else
-            Icon(config.icon, size: 14, color: config.color),
+            Icon(config.icon, size: 12, color: config.color),
           const SizedBox(width: 4),
           Text(
             config.label,
             style: AppTextStyles.labelSmall.copyWith(
               color: config.color,
-              fontWeight: FontWeight.w700,
             ),
           ),
         ],
@@ -51,19 +54,34 @@ class ScanStatusBadge extends StatelessWidget {
     switch (status) {
       case 'pending':
         return _ScanConfig(
-            'Pending Scan', Icons.schedule, AppColors.statusPending);
+          'Pending Scan',
+          Icons.schedule_rounded,
+          AppColors.warning,
+        );
       case 'processing':
         return _ScanConfig(
-            'Scanning...', Icons.sync, AppColors.info);
+          'Scanning...',
+          Icons.sync_rounded,
+          AppColors.info,
+        );
       case 'completed':
         return _ScanConfig(
-            'Scan Done', Icons.check_circle_outline, AppColors.success);
+          'Scan Done',
+          Icons.check_circle_rounded,
+          AppColors.success,
+        );
       case 'failed':
         return _ScanConfig(
-            'Scan Failed', Icons.error_outline, AppColors.error);
+          'Scan Failed',
+          Icons.error_rounded,
+          AppColors.error,
+        );
       default:
         return _ScanConfig(
-            'No Scan', Icons.remove_circle_outline, AppColors.textMuted);
+          'No Scan',
+          Icons.remove_circle_outline_rounded,
+          AppColors.textMuted,
+        );
     }
   }
 }
