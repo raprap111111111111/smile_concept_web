@@ -2,6 +2,9 @@
 
 import 'package:flutter/material.dart';
 import '../../../../data/models/treatment/treatment_model.dart';
+import '../../../theme/app_colors.dart';
+import '../../../theme/app_dimensions.dart';
+import '../../../theme/app_text_styles.dart';
 import 'treatment_info_chip.dart';
 
 class TreatmentCard extends StatelessWidget {
@@ -18,84 +21,65 @@ class TreatmentCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-    final cs    = theme.colorScheme;
-
-    return Card(
-      elevation: 0,
-      color:     cs.surface,
-      margin: const EdgeInsets.only(bottom: 12),
-      shape: RoundedRectangleBorder(
-        borderRadius: BorderRadius.circular(12),
-        side: BorderSide(color: Colors.grey.shade200),
+    return Container(
+      decoration: BoxDecoration(
+        color: AppColors.background,
+        borderRadius: BorderRadius.circular(AppDimensions.borderRadiusLarge),
+        border: Border.all(color: AppColors.border),
       ),
       child: Padding(
-        padding: const EdgeInsets.all(16),
+        padding: const EdgeInsets.all(AppDimensions.cardPaddingMedium),
         child: Row(
+          crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             // ── Avatar ──────────────────────────────────
-            CircleAvatar(
-              radius: 24,
-              backgroundColor:
-                  cs.primary.withValues(alpha: 0.1),
-              child: Icon(
-                Icons.medical_services_rounded,
-                color: cs.primary,
-              ),
-            ),
-            const SizedBox(width: 12),
+            _TreatmentAvatar(isActive: treatment.isActive),
+            const SizedBox(width: AppDimensions.paddingSmall),
 
             // ── Info ────────────────────────────────────
             Expanded(
               child: Column(
-                crossAxisAlignment:
-                    CrossAxisAlignment.start,
+                crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   Text(
                     treatment.name,
-                    style: theme.textTheme.titleSmall
-                        ?.copyWith(
-                          fontWeight: FontWeight.w700,
-                        ),
+                    style: AppTextStyles.titleSmall,
                   ),
                   if (treatment.description != null &&
                       treatment.description!.isNotEmpty) ...[
-                    const SizedBox(height: 2),
+                    const SizedBox(height: 4),
                     Text(
                       treatment.description!,
-                      style: theme.textTheme.bodySmall
-                          ?.copyWith(
-                            color: Colors.grey.shade600,
-                          ),
+                      style: AppTextStyles.bodySmall.copyWith(
+                        color: AppColors.textMuted,
+                      ),
                       maxLines: 2,
                       overflow: TextOverflow.ellipsis,
                     ),
                   ],
-                  const SizedBox(height: 6),
+                  const SizedBox(height: AppDimensions.paddingXS),
                   Wrap(
-                    spacing:    6,
+                    spacing: 6,
                     runSpacing: 4,
                     children: [
                       TreatmentInfoChip(
                         label: treatment.formattedPrice,
-                        icon:  Icons.monetization_on_outlined,
-                        color: Colors.green,
+                        icon: Icons.payments_rounded,
+                        color: AppColors.success,
                       ),
                       TreatmentInfoChip(
                         label: treatment.durationLabel,
-                        icon:  Icons.timer_outlined,
-                        color: Colors.blue,
+                        icon: Icons.timer_rounded,
+                        color: AppColors.primary,
                       ),
                       TreatmentInfoChip(
-                        label: treatment.isActive
-                            ? 'Active'
-                            : 'Inactive',
+                        label: treatment.isActive ? 'Active' : 'Inactive',
                         icon: treatment.isActive
-                            ? Icons.check_circle_outline
-                            : Icons.cancel_outlined,
+                            ? Icons.check_circle_rounded
+                            : Icons.cancel_rounded,
                         color: treatment.isActive
-                            ? Colors.teal
-                            : Colors.red,
+                            ? AppColors.success
+                            : AppColors.error,
                       ),
                     ],
                   ),
@@ -103,17 +87,70 @@ class TreatmentCard extends StatelessWidget {
               ),
             ),
 
-            // ✅ Delete: only if permitted
-            if (canDelete)
-              IconButton(
-                onPressed: onDelete,
-                icon: const Icon(
-                  Icons.delete_outline,
-                  color: Colors.red,
-                ),
-                tooltip: 'Delete',
-              ),
+            // ── Delete ──────────────────────────────────
+            if (canDelete) ...[
+              const SizedBox(width: AppDimensions.paddingXS),
+              _DeleteButton(onPressed: onDelete),
+            ],
           ],
+        ),
+      ),
+    );
+  }
+}
+
+// ─── Supporting Widgets ───────────────────────────────────────────────────────
+
+class _TreatmentAvatar extends StatelessWidget {
+  const _TreatmentAvatar({required this.isActive});
+
+  final bool isActive;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      width: 46,
+      height: 46,
+      decoration: BoxDecoration(
+        color: AppColors.primaryWithOpacity(0.08),
+        borderRadius: BorderRadius.circular(AppDimensions.borderRadius),
+      ),
+      child: const Icon(
+        Icons.medical_services_rounded,
+        color: AppColors.primary,
+        size: AppDimensions.iconSize,
+      ),
+    );
+  }
+}
+
+class _DeleteButton extends StatelessWidget {
+  const _DeleteButton({required this.onPressed});
+
+  final VoidCallback onPressed;
+
+  @override
+  Widget build(BuildContext context) {
+    return Tooltip(
+      message: 'Delete treatment',
+      child: InkWell(
+        onTap: onPressed,
+        borderRadius: BorderRadius.circular(AppDimensions.borderRadius),
+        child: Container(
+          width: 36,
+          height: 36,
+          decoration: BoxDecoration(
+            color: AppColors.error.withValues(alpha: 0.06),
+            borderRadius: BorderRadius.circular(AppDimensions.borderRadius),
+            border: Border.all(
+              color: AppColors.error.withValues(alpha: 0.15),
+            ),
+          ),
+          child: const Icon(
+            Icons.delete_outline_rounded,
+            size: AppDimensions.iconSizeSmall,
+            color: AppColors.error,
+          ),
         ),
       ),
     );

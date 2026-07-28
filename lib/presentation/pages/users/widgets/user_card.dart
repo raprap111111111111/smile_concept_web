@@ -1,6 +1,9 @@
-import 'package:flutter/material.dart';
+// lib/presentation/pages/users/widgets/user_card.dart
 
+import 'package:flutter/material.dart';
 import '../../../theme/app_colors.dart';
+import '../../../theme/app_dimensions.dart';
+import '../../../theme/app_text_styles.dart';
 
 class UserCard extends StatelessWidget {
   final Map<String, dynamic> user;
@@ -21,158 +24,120 @@ class UserCard extends StatelessWidget {
     final phone = user['phone']?.toString() ?? '-';
     final isActive = _asBool(user['is_active']);
     final roles = _extractRoleNames(user['roles']);
-    final colorPair = _colorForRole(roles.isNotEmpty ? roles.first : '');
+    final roleColor = _colorForRole(roles.isNotEmpty ? roles.first : '');
     final initials = _initials(name);
 
     return Container(
       decoration: BoxDecoration(
-        color: AppColors.surfaceDark,
-        borderRadius: BorderRadius.circular(16),
-        border: Border.all(
-          color: Colors.white.withValues(alpha: 0.05),
-        ),
+        color: AppColors.background,
+        borderRadius:
+            BorderRadius.circular(AppDimensions.borderRadiusLarge),
+        border: Border.all(color: AppColors.border),
       ),
-      padding: const EdgeInsets.all(20),
+      padding: const EdgeInsets.all(AppDimensions.cardPaddingMedium),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
+          // ── Top row: avatar + name + status ───────
           Row(
             children: [
-              Container(
-                width: 52,
-                height: 52,
-                decoration: BoxDecoration(
-                  gradient: LinearGradient(colors: colorPair),
-                  shape: BoxShape.circle,
-                ),
-                child: Center(
-                  child: Text(
-                    initials,
-                    style: const TextStyle(
-                      color: Colors.white,
-                      fontSize: 18,
-                      fontWeight: FontWeight.bold,
-                    ),
-                  ),
-                ),
-              ),
-              const SizedBox(width: 12),
+              _UserAvatar(initials: initials, color: roleColor),
+              const SizedBox(width: AppDimensions.paddingSmall),
               Expanded(
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     Text(
                       name,
-                      style: const TextStyle(
-                        color: Colors.white,
-                        fontSize: 15,
-                        fontWeight: FontWeight.w700,
-                      ),
+                      style: AppTextStyles.titleSmall,
                       overflow: TextOverflow.ellipsis,
                     ),
                     Text(
                       email,
-                      style: const TextStyle(
-                        color: Colors.white54,
-                        fontSize: 12,
+                      style: AppTextStyles.labelSmall.copyWith(
+                        color: AppColors.textMuted,
+                        fontWeight: FontWeight.w400,
                       ),
                       overflow: TextOverflow.ellipsis,
                     ),
                   ],
                 ),
               ),
-              Container(
-                width: 8,
-                height: 8,
-                decoration: BoxDecoration(
-                  color: isActive ? Colors.green : Colors.red,
-                  shape: BoxShape.circle,
-                ),
-              ),
+              _StatusDot(isActive: isActive),
             ],
           ),
-          const SizedBox(height: 14),
-          Wrap(
-            spacing: 6,
-            runSpacing: 6,
-            children: roles.map((role) {
-              return Container(
-                padding: const EdgeInsets.symmetric(
-                  horizontal: 8,
-                  vertical: 4,
-                ),
-                decoration: BoxDecoration(
-                  color: colorPair.first.withValues(alpha: 0.2),
-                  borderRadius: BorderRadius.circular(20),
-                ),
-                child: Text(
-                  role,
-                  style: TextStyle(
-                    color: colorPair.first,
-                    fontSize: 11,
-                    fontWeight: FontWeight.w600,
-                  ),
-                ),
-              );
-            }).toList(),
-          ),
-          const SizedBox(height: 12),
+          const SizedBox(height: AppDimensions.paddingSmall),
+
+          // ── Role chips ─────────────────────────────
+          if (roles.isNotEmpty)
+            Wrap(
+              spacing: 6,
+              runSpacing: 4,
+              children: roles.map((role) {
+                return _RoleChip(label: role, color: roleColor);
+              }).toList(),
+            ),
+
+          const SizedBox(height: AppDimensions.paddingSmall),
+
+          // ── Phone ──────────────────────────────────
           Row(
             children: [
               const Icon(
-                Icons.phone,
-                color: Colors.white38,
-                size: 14,
+                Icons.phone_rounded,
+                color: AppColors.textTertiary,
+                size: AppDimensions.iconSizeSmall,
               ),
               const SizedBox(width: 6),
               Expanded(
                 child: Text(
                   phone,
-                  style: const TextStyle(
-                    color: Colors.white70,
-                    fontSize: 12,
+                  style: AppTextStyles.labelSmall.copyWith(
+                    color: AppColors.textSecondary,
+                    fontWeight: FontWeight.w400,
                   ),
                   overflow: TextOverflow.ellipsis,
                 ),
               ),
             ],
           ),
+
           const Spacer(),
+          const Divider(color: AppColors.divider, height: 1),
+          const SizedBox(height: AppDimensions.paddingSmall),
+
+          // ── Actions ────────────────────────────────
           Row(
             children: [
               Expanded(
                 child: OutlinedButton.icon(
                   onPressed: onEdit,
-                  icon: const Icon(Icons.edit, size: 14),
-                  label: const Text('Edit'),
+                  icon: const Icon(
+                    Icons.edit_rounded,
+                    size: AppDimensions.iconSizeSmall,
+                  ),
+                  label: Text(
+                    'Edit',
+                    style: AppTextStyles.labelSmall.copyWith(
+                      color: AppColors.primary,
+                    ),
+                  ),
                   style: OutlinedButton.styleFrom(
-                    foregroundColor: Colors.white,
-                    side: BorderSide(
-                      color: Colors.white.withValues(alpha: 0.1),
+                    foregroundColor: AppColors.primary,
+                    side: const BorderSide(color: AppColors.border),
+                    padding: const EdgeInsets.symmetric(
+                      vertical: AppDimensions.paddingXS,
                     ),
                     shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(10),
+                      borderRadius: BorderRadius.circular(
+                        AppDimensions.borderRadius,
+                      ),
                     ),
                   ),
                 ),
               ),
-              const SizedBox(width: 8),
-              Material(
-                color: Colors.red.withValues(alpha: 0.15),
-                borderRadius: BorderRadius.circular(10),
-                child: InkWell(
-                  onTap: onDelete,
-                  borderRadius: BorderRadius.circular(10),
-                  child: const Padding(
-                    padding: EdgeInsets.all(10),
-                    child: Icon(
-                      Icons.delete_outline,
-                      color: Colors.red,
-                      size: 18,
-                    ),
-                  ),
-                ),
-              ),
+              const SizedBox(width: AppDimensions.paddingXS),
+              _DeleteButton(onPressed: onDelete),
             ],
           ),
         ],
@@ -182,12 +147,8 @@ class UserCard extends StatelessWidget {
 
   List<String> _extractRoleNames(dynamic roles) {
     if (roles is! List) return [];
-
     return roles.map<String>((role) {
-      if (role is Map && role['name'] != null) {
-        return role['name'].toString();
-      }
-
+      if (role is Map && role['name'] != null) return role['name'].toString();
       return role.toString();
     }).toList();
   }
@@ -198,38 +159,144 @@ class UserCard extends StatelessWidget {
     if (value is String) {
       return value == '1' || value.toLowerCase() == 'true';
     }
-
     return false;
   }
 
   String _initials(String name) {
-    final parts = name.trim().split(' ').where((p) => p.isNotEmpty).toList();
-
+    final parts =
+        name.trim().split(' ').where((p) => p.isNotEmpty).toList();
     if (parts.isEmpty) return '?';
     if (parts.length == 1) return parts.first[0].toUpperCase();
-
     return (parts.first[0] + parts.last[0]).toUpperCase();
   }
 
-  List<Color> _colorForRole(dynamic role) {
+  Color _colorForRole(dynamic role) {
     final value = role.toString().toLowerCase();
-
-    if (value.contains('admin')) {
-      return [const Color(0xFF7C3AED), const Color(0xFF4F46E5)];
-    }
-
+    if (value.contains('admin')) return const Color(0xFF7C3AED);
     if (value.contains('dentist') || value.contains('doctor')) {
-      return [const Color(0xFF06B6D4), const Color(0xFF3B82F6)];
+      return AppColors.primary;
     }
+    if (value.contains('receptionist')) return AppColors.success;
+    if (value.contains('manager')) return AppColors.warning;
+    return AppColors.textSecondary;
+  }
+}
 
-    if (value.contains('receptionist')) {
-      return [const Color(0xFF10B981), const Color(0xFF059669)];
-    }
+// ─── Supporting Widgets ───────────────────────────────────────────────────────
 
-    if (value.contains('manager')) {
-      return [const Color(0xFFF59E0B), const Color(0xFFEF4444)];
-    }
+class _UserAvatar extends StatelessWidget {
+  const _UserAvatar({required this.initials, required this.color});
 
-    return [const Color(0xFF64748B), const Color(0xFF475569)];
+  final String initials;
+  final Color color;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      width: 44,
+      height: 44,
+      decoration: BoxDecoration(
+        color: color.withValues(alpha: 0.12),
+        borderRadius: BorderRadius.circular(AppDimensions.borderRadius),
+        border: Border.all(color: color.withValues(alpha: 0.2)),
+      ),
+      child: Center(
+        child: Text(
+          initials,
+          style: AppTextStyles.labelLarge.copyWith(color: color),
+        ),
+      ),
+    );
+  }
+}
+
+class _StatusDot extends StatelessWidget {
+  const _StatusDot({required this.isActive});
+
+  final bool isActive;
+
+  @override
+  Widget build(BuildContext context) {
+    final color = isActive ? AppColors.success : AppColors.error;
+    return Row(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        Container(
+          width: 8,
+          height: 8,
+          decoration: BoxDecoration(
+            color: color,
+            shape: BoxShape.circle,
+          ),
+        ),
+        const SizedBox(width: 4),
+        Text(
+          isActive ? 'Active' : 'Inactive',
+          style: AppTextStyles.labelSmall.copyWith(color: color),
+        ),
+      ],
+    );
+  }
+}
+
+class _RoleChip extends StatelessWidget {
+  const _RoleChip({required this.label, required this.color});
+
+  final String label;
+  final Color color;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+      decoration: BoxDecoration(
+        color: color.withValues(alpha: 0.08),
+        borderRadius: BorderRadius.circular(20),
+        border: Border.all(color: color.withValues(alpha: 0.2)),
+      ),
+      child: Text(
+        label,
+        style: TextStyle(
+          color: color,
+          fontSize: 11,
+          fontWeight: FontWeight.w700,
+          height: 1.2,
+        ),
+      ),
+    );
+  }
+}
+
+class _DeleteButton extends StatelessWidget {
+  const _DeleteButton({required this.onPressed});
+
+  final VoidCallback onPressed;
+
+  @override
+  Widget build(BuildContext context) {
+    return Tooltip(
+      message: 'Delete user',
+      child: InkWell(
+        onTap: onPressed,
+        borderRadius: BorderRadius.circular(AppDimensions.borderRadius),
+        child: Container(
+          width: 36,
+          height: 36,
+          decoration: BoxDecoration(
+            color: AppColors.error.withValues(alpha: 0.06),
+            borderRadius:
+                BorderRadius.circular(AppDimensions.borderRadius),
+            border: Border.all(
+              color: AppColors.error.withValues(alpha: 0.15),
+            ),
+          ),
+          child: const Icon(
+            Icons.delete_outline_rounded,
+            size: AppDimensions.iconSizeSmall,
+            color: AppColors.error,
+          ),
+        ),
+      ),
+    );
   }
 }
