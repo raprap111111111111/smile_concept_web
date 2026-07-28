@@ -9,6 +9,7 @@ import '../../providers/patient/patient_list_provider.dart';
 import '../../theme/app_colors.dart';
 import '../../theme/app_dimensions.dart';
 import '../../theme/app_text_styles.dart';
+import '../../widgets/shared/search_bar_onclick.dart';
 
 class PatientsListPage extends ConsumerWidget {
   const PatientsListPage({super.key});
@@ -31,7 +32,12 @@ class PatientsListPage extends ConsumerWidget {
         children: [
           _Header(canCreate: canCreate),
           const SizedBox(height: AppDimensions.paddingLarge),
-          _SearchBar(onChanged: notifier.search),
+          // ✅ Replaced _SearchBar with shared SearchBarOnClick
+          SearchBarOnClick(
+            hintText: 'Search patients...',
+            onChanged: notifier.search,
+            onClear: () => notifier.search(''),
+          ),
           const SizedBox(height: AppDimensions.paddingMedium),
           if (!state.isLoading && state.errorMessage == null)
             _Toolbar(state: state, notifier: notifier),
@@ -84,42 +90,6 @@ class _Header extends StatelessWidget {
             ),
           ),
       ],
-    );
-  }
-}
-
-// ── Search Bar ────────────────────────────────────────────────
-class _SearchBar extends StatelessWidget {
-  final ValueChanged<String> onChanged;
-  const _SearchBar({required this.onChanged});
-
-  @override
-  Widget build(BuildContext context) {
-    return TextField(
-      style: AppTextStyles.bodyMedium.copyWith(color: AppColors.ink),
-      onChanged: onChanged,
-      decoration: InputDecoration(
-        hintText: 'Search patients...',
-        prefixIcon: const Icon(Icons.search, color: AppColors.textSecondary),
-        filled: true,
-        fillColor: AppColors.surface,
-        contentPadding: const EdgeInsets.symmetric(vertical: 16),
-        border: OutlineInputBorder(
-          borderRadius:
-              BorderRadius.circular(AppDimensions.borderRadiusLarge),
-          borderSide: const BorderSide(color: AppColors.border),
-        ),
-        enabledBorder: OutlineInputBorder(
-          borderRadius:
-              BorderRadius.circular(AppDimensions.borderRadiusLarge),
-          borderSide: const BorderSide(color: AppColors.border),
-        ),
-        focusedBorder: OutlineInputBorder(
-          borderRadius:
-              BorderRadius.circular(AppDimensions.borderRadiusLarge),
-          borderSide: const BorderSide(color: AppColors.primary, width: 2),
-        ),
-      ),
     );
   }
 }
@@ -302,8 +272,7 @@ class _PatientTable extends StatelessWidget {
     return Container(
       decoration: BoxDecoration(
         color: AppColors.background,
-        borderRadius:
-            BorderRadius.circular(AppDimensions.borderRadiusLarge),
+        borderRadius: BorderRadius.circular(AppDimensions.borderRadiusLarge),
         border: Border.all(color: AppColors.line),
       ),
       clipBehavior: Clip.antiAlias,
@@ -320,8 +289,7 @@ class _PatientTable extends StatelessWidget {
               headingRowHeight: 52,
               dataRowMinHeight: 56,
               dataRowMaxHeight: 64,
-              headingRowColor:
-                  WidgetStateProperty.all(AppColors.surface),
+              headingRowColor: WidgetStateProperty.all(AppColors.surface),
               dividerThickness: 0.5,
               columns: const [
                 DataColumn(label: _HeaderCell('ID')),
@@ -455,8 +423,7 @@ class _ActionButtons extends ConsumerWidget {
       builder: (ctx) => AlertDialog(
         backgroundColor: AppColors.background,
         shape: RoundedRectangleBorder(
-          borderRadius:
-              BorderRadius.circular(AppDimensions.borderRadiusLarge),
+          borderRadius: BorderRadius.circular(AppDimensions.borderRadiusLarge),
         ),
         title: Text('Delete Patient?', style: AppTextStyles.titleMedium),
         content: Text(
@@ -537,17 +504,13 @@ class _PaginationBar extends StatelessWidget {
         padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
         decoration: BoxDecoration(
           color: AppColors.surface,
-          borderRadius:
-              BorderRadius.circular(AppDimensions.borderRadiusLarge),
+          borderRadius: BorderRadius.circular(AppDimensions.borderRadiusLarge),
           border: Border.all(color: AppColors.line),
         ),
         child: Row(
           mainAxisAlignment: MainAxisAlignment.spaceBetween,
           children: [
-            Text(
-              'Page $current of $last',
-              style: AppTextStyles.bodySmall,
-            ),
+            Text('Page $current of $last', style: AppTextStyles.bodySmall),
             _PageControls(state: state, notifier: notifier),
             Text(_rangeText(), style: AppTextStyles.bodySmall),
           ],
@@ -651,8 +614,7 @@ class _PageControls extends StatelessWidget {
                 '$page',
                 style: TextStyle(
                   color: isActive ? Colors.white : AppColors.textSecondary,
-                  fontWeight:
-                      isActive ? FontWeight.w800 : FontWeight.w500,
+                  fontWeight: isActive ? FontWeight.w800 : FontWeight.w500,
                   fontSize: 13,
                 ),
               ),

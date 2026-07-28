@@ -1,3 +1,5 @@
+// lib/presentation/pages/roles/roles_permissions_page.dart
+
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
@@ -5,11 +7,11 @@ import '../../../data/repositories/role_repository.dart';
 import '../../theme/app_colors.dart';
 import '../../theme/app_dimensions.dart';
 import '../../theme/app_text_styles.dart';
+import '../../widgets/shared/hold_to_delete_dialog.dart';
+import '../../widgets/shared/search_bar_onclick.dart';
 import 'widgets/permissions_dialog.dart';
 import 'widgets/role_card.dart';
 import 'widgets/role_form_dialog.dart';
-import 'widgets/role_search_bar.dart';
-import '../../widgets/shared/hold_to_delete_dialog.dart';
 
 class RolesPermissionsPage extends ConsumerStatefulWidget {
   const RolesPermissionsPage({super.key});
@@ -20,7 +22,24 @@ class RolesPermissionsPage extends ConsumerStatefulWidget {
 }
 
 class _RolesPermissionsPageState extends ConsumerState<RolesPermissionsPage> {
+  final _searchController = TextEditingController();
   String _search = '';
+
+  @override
+  void dispose() {
+    _searchController.dispose();
+    super.dispose();
+  }
+
+  // ── Search ──
+  void _onSearch(String value) {
+    setState(() => _search = value);
+  }
+
+  void _onClearSearch() {
+    _searchController.clear();
+    setState(() => _search = '');
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -37,11 +56,15 @@ class _RolesPermissionsPageState extends ConsumerState<RolesPermissionsPage> {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  RoleSearchBar(
-                    search: _search,
-                    onChanged: (value) => setState(() => _search = value),
+                  // ── Search Bar (onClick) ──
+                  SearchBarOnClick(
+                    controller: _searchController,
+                    hintText: 'Search roles by name or description...',
+                    onChanged: _onSearch,
+                    onClear: _onClearSearch,
                   ),
                   const SizedBox(height: AppDimensions.paddingLarge),
+
                   Expanded(
                     child: rolesAsync.when(
                       data: (roles) {
@@ -81,7 +104,8 @@ class _RolesPermissionsPageState extends ConsumerState<RolesPermissionsPage> {
                       },
                       loading: () => const Center(
                         child: CircularProgressIndicator(
-                          valueColor: AlwaysStoppedAnimation(AppColors.primary),
+                          valueColor:
+                              AlwaysStoppedAnimation(AppColors.primary),
                         ),
                       ),
                       error: (error, _) => Center(

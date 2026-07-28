@@ -13,9 +13,9 @@ import '/presentation/route/route_names.dart';
 import '/presentation/theme/app_colors.dart';
 import '/presentation/theme/app_dimensions.dart';
 import '/presentation/theme/app_text_styles.dart';
-import 'widgets/attachment_card.dart';
 import '../../widgets/shared/hold_to_delete_dialog.dart';
-
+import '../../widgets/shared/search_bar_onclick.dart';
+import 'widgets/attachment_card.dart';
 
 class PatientFolderDetailPage extends ConsumerStatefulWidget {
   final int patientId;
@@ -41,7 +41,6 @@ class _PatientFolderDetailPageState
   void initState() {
     super.initState();
     WidgetsBinding.instance.addPostFrameCallback((_) {
-      // ✅ Open the folder — loads the patient's attachments
       ref.read(patientFolderProvider.notifier).openFolder(
             patientId: widget.patientId,
             patientName: widget.patientName,
@@ -68,6 +67,18 @@ class _PatientFolderDetailPageState
     super.dispose();
   }
 
+  // ── Search ──
+  void _onSearch(String value) {
+    ref
+        .read(patientFolderProvider.notifier)
+        .setSearch(value.isEmpty ? null : value);
+  }
+
+  void _onClearSearch() {
+    _searchController.clear();
+    ref.read(patientFolderProvider.notifier).setSearch(null);
+  }
+
   @override
   Widget build(BuildContext context) {
     final state = ref.watch(patientFolderProvider);
@@ -79,226 +90,61 @@ class _PatientFolderDetailPageState
       backgroundColor: AppColors.surface,
       body: Column(
         children: [
-          _buildHeader(context, state),
-          _buildScopeIndicator(canViewAny, state),
-          _buildFilterBar(state),
+          _FolderHeader(
+            state: state,
+            fallbackName: widget.patientName,
+            searchController: _searchController,
+            onSearch: _onSearch,
+            onClearSearch: _onClearSearch,
+            onBack: () => context.goNamed(RouteNames.patientFolders),
+          ),
+          _ScopeIndicator(canViewAny: canViewAny, total: state.total),
+          _FilterBar(
+            selected: state.categoryFilter,
+            onSelected: (v) =>
+                ref.read(patientFolderProvider.notifier).setCategoryFilter(v),
+          ),
           Expanded(child: _buildList(state)),
         ],
       ),
-      floatingActionButton: canUpload
-          ? FloatingActionButton.extended(
-              onPressed: () => context.pushNamed(RouteNames.attachmentUpload),
-              backgroundColor: AppColors.primary,
-              foregroundColor: Colors.white,
-              icon: const Icon(Icons.upload_file),
-              label: const Text('Upload'),
-            )
-          : null,
+      floatingActionButton: canUpload ? _buildUploadFAB() : null,
     );
   }
 
-  Widget _buildHeader(BuildContext context, PatientFolderState state) {
-    return Container(
-      padding: const EdgeInsets.fromLTRB(
-        AppDimensions.paddingLarge,
-        AppDimensions.paddingLarge,
-        AppDimensions.paddingLarge,
-        AppDimensions.paddingMedium,
-      ),
-      decoration: const BoxDecoration(
-        color: AppColors.background,
-        border: Border(bottom: BorderSide(color: AppColors.border)),
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Row(
-            children: [
-              IconButton(
-                onPressed: () => context.goNamed(RouteNames.patientFolders),
-                icon: const Icon(Icons.arrow_back, color: AppColors.textMuted),
-                padding: EdgeInsets.zero,
-                constraints: const BoxConstraints(),
-              ),
-              const SizedBox(width: 8),
-              Container(
-                padding: const EdgeInsets.all(10),
-                decoration: BoxDecoration(
-                  color: AppColors.primary.withValues(alpha: 0.1),
-                  borderRadius:
-                      BorderRadius.circular(AppDimensions.borderRadius),
-                ),
-                child: const Icon(Icons.folder_shared,
-                    color: AppColors.primary, size: 24),
-              ),
-              const SizedBox(width: AppDimensions.paddingSmall),
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      state.patientName != null
-                          ? "${state.patientName}'s Folder"
-                          : (widget.patientName ?? 'Patient Folder'),
-                      style: AppTextStyles.titleLarge,
-                    ),
-                    const SizedBox(height: 2),
-                    Text(
-                      state.patientEmail ?? 'Files uploaded for this patient',
-                      style: AppTextStyles.bodySmall,
-                    ),
-                  ],
-                ),
-              ),
-            ],
-          ),
-          const SizedBox(height: AppDimensions.paddingMedium),
-          TextField(
-            controller: _searchController,
-            onChanged: (v) => ref
-                .read(patientFolderProvider.notifier)
-                .setSearch(v.isEmpty ? null : v),
-            decoration: InputDecoration(
-              hintText: 'Search in this folder...',
-              prefixIcon: const Icon(Icons.search, color: AppColors.textMuted),
-              suffixIcon: _searchController.text.isNotEmpty
-                  ? IconButton(
-                      icon: const Icon(Icons.clear, size: 18),
-                      onPressed: () {
-                        _searchController.clear();
-                        ref
-                            .read(patientFolderProvider.notifier)
-                            .setSearch(null);
-                      },
-                    )
-                  : null,
-              filled: true,
-              fillColor: AppColors.surface,
-              contentPadding: const EdgeInsets.symmetric(
-                horizontal: AppDimensions.paddingMedium,
-                vertical: AppDimensions.paddingSmall,
-              ),
-              border: OutlineInputBorder(
-                borderRadius: BorderRadius.circular(AppDimensions.borderRadius),
-                borderSide: const BorderSide(color: AppColors.border),
-              ),
-              enabledBorder: OutlineInputBorder(
-                borderRadius: BorderRadius.circular(AppDimensions.borderRadius),
-                borderSide: const BorderSide(color: AppColors.border),
-              ),
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildScopeIndicator(bool canViewAny, PatientFolderState state) {
-    final label = canViewAny
-        ? 'All uploads for this patient'
-        : 'Your uploads for this patient';
-    final icon = canViewAny ? Icons.groups_outlined : Icons.person_outline;
-    final color = canViewAny ? AppColors.info : AppColors.primary;
-
-    return Container(
-      color: color.withValues(alpha: 0.05),
-      padding: const EdgeInsets.symmetric(
-        horizontal: AppDimensions.paddingLarge,
-        vertical: 8,
-      ),
-      child: Row(
-        children: [
-          Icon(icon, size: 16, color: color),
-          const SizedBox(width: 8),
-          Expanded(
-            child: Text(
-              label,
-              style: AppTextStyles.labelSmall.copyWith(
-                color: color,
-                fontWeight: FontWeight.w600,
-              ),
-            ),
-          ),
-          Container(
-            padding: const EdgeInsets.symmetric(
-              horizontal: 8,
-              vertical: 2,
-            ),
-            decoration: BoxDecoration(
-              color: color.withValues(alpha: 0.15),
-              borderRadius: BorderRadius.circular(10),
-            ),
-            child: Text(
-              '${state.total} file(s)',
-              style: AppTextStyles.labelSmall.copyWith(
-                color: color,
-                fontWeight: FontWeight.w700,
-              ),
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildFilterBar(PatientFolderState state) {
-    final categories = [
-      ('All', null),
-      ('X-Rays', 'xray'),
-      ('Photos', 'photo'),
-      ('Consent', 'consent_form'),
-      ('Lab Reports', 'lab_report'),
-      ('Prescriptions', 'prescription'),
-      ('Other', 'other'),
-    ];
-
-    return Container(
-      height: 50,
-      color: AppColors.background,
-      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-      child: ListView.separated(
-        scrollDirection: Axis.horizontal,
-        itemCount: categories.length,
-        separatorBuilder: (_, __) => const SizedBox(width: 8),
-        itemBuilder: (context, index) {
-          final cat = categories[index];
-          final isSelected = state.categoryFilter == cat.$2;
-
-          return ChoiceChip(
-            label: Text(cat.$1),
-            selected: isSelected,
-            selectedColor: AppColors.primary,
-            labelStyle: TextStyle(
-              color: isSelected ? Colors.white : AppColors.ink,
-              fontSize: 12,
-              fontWeight: FontWeight.w600,
-            ),
-            onSelected: (_) => ref
-                .read(patientFolderProvider.notifier)
-                .setCategoryFilter(cat.$2),
-          );
-        },
+  Widget _buildUploadFAB() {
+    return FloatingActionButton.extended(
+      onPressed: () => context.pushNamed(RouteNames.attachmentUpload),
+      backgroundColor: AppColors.primary,
+      foregroundColor: Colors.white,
+      elevation: 2,
+      icon: const Icon(Icons.upload_file_rounded),
+      label: Text(
+        'Upload',
+        style: AppTextStyles.labelLarge.copyWith(color: Colors.white),
       ),
     );
   }
 
   Widget _buildList(PatientFolderState state) {
     if (state.isLoading && state.attachments.isEmpty) {
-      return const Center(
-        child: CircularProgressIndicator(color: AppColors.primary),
-      );
+      return const _LoadingView();
     }
 
     if (state.error != null && state.attachments.isEmpty) {
-      return _buildErrorState(state.error!);
+      return _ErrorView(
+        message: state.error!,
+        onRetry: () =>
+            ref.read(patientFolderProvider.notifier).fetch(refresh: true),
+      );
     }
 
     if (state.attachments.isEmpty) {
-      return _buildEmptyState();
+      return const _EmptyState();
     }
 
     return RefreshIndicator(
       color: AppColors.primary,
+      backgroundColor: AppColors.background,
       onRefresh: () =>
           ref.read(patientFolderProvider.notifier).fetch(refresh: true),
       child: ListView.separated(
@@ -309,17 +155,8 @@ class _PatientFolderDetailPageState
             const SizedBox(height: AppDimensions.paddingSmall),
         itemBuilder: (context, index) {
           if (index >= state.attachments.length) {
-            return const Center(
-              child: Padding(
-                padding: EdgeInsets.all(AppDimensions.paddingMedium),
-                child: CircularProgressIndicator(
-                  color: AppColors.primary,
-                  strokeWidth: 2,
-                ),
-              ),
-            );
+            return const _LoadMoreIndicator();
           }
-
           final attachment = state.attachments[index];
           return AttachmentCard(
             attachment: attachment,
@@ -327,61 +164,6 @@ class _PatientFolderDetailPageState
             onDelete: () => _confirmDelete(attachment),
           );
         },
-      ),
-    );
-  }
-
-  Widget _buildEmptyState() {
-    return Center(
-      child: Column(
-        mainAxisAlignment: MainAxisAlignment.center,
-        children: [
-          Container(
-            padding: const EdgeInsets.all(20),
-            decoration: BoxDecoration(
-              color: AppColors.primary.withValues(alpha: 0.08),
-              shape: BoxShape.circle,
-            ),
-            child: const Icon(Icons.folder_open_outlined,
-                size: 48, color: AppColors.primary),
-          ),
-          const SizedBox(height: AppDimensions.paddingMedium),
-          Text('No files in this folder', style: AppTextStyles.titleMedium),
-          const SizedBox(height: 4),
-          Text(
-            'Upload files for this patient to see them here',
-            style: AppTextStyles.bodySmall,
-          ),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildErrorState(String error) {
-    return Center(
-      child: Padding(
-        padding: const EdgeInsets.all(AppDimensions.paddingLarge),
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            const Icon(Icons.error_outline, size: 48, color: AppColors.error),
-            const SizedBox(height: AppDimensions.paddingSmall),
-            Text('Something went wrong', style: AppTextStyles.titleMedium),
-            const SizedBox(height: AppDimensions.paddingXS),
-            Text(
-              error,
-              style:
-                  AppTextStyles.bodySmall.copyWith(color: AppColors.textMuted),
-              textAlign: TextAlign.center,
-            ),
-            const SizedBox(height: AppDimensions.paddingSmall),
-            TextButton(
-              onPressed: () =>
-                  ref.read(patientFolderProvider.notifier).fetch(refresh: true),
-              child: const Text('Retry'),
-            ),
-          ],
-        ),
       ),
     );
   }
@@ -408,35 +190,480 @@ class _PatientFolderDetailPageState
 
     try {
       await ref.read(patientAttachmentProvider.notifier).delete(attachment.id);
-
-      // Reload the folder
       await ref.read(patientFolderProvider.notifier).fetch(refresh: true);
 
       if (!mounted) return;
-
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          backgroundColor: AppColors.success,
-          content: Text(
-            '"${attachment.fileName}" deleted',
-            style: const TextStyle(color: Colors.white),
-          ),
-          behavior: SnackBarBehavior.floating,
-        ),
-      );
+      _showSnack('"${attachment.fileName}" deleted', AppColors.success);
     } catch (e) {
       if (!mounted) return;
-
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          backgroundColor: AppColors.error,
-          content: Text(
-            'Failed to delete: $e',
-            style: const TextStyle(color: Colors.white),
-          ),
-          behavior: SnackBarBehavior.floating,
-        ),
-      );
+      _showSnack('Failed to delete: $e', AppColors.error);
     }
+  }
+
+  void _showSnack(String msg, Color color) {
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text(
+          msg,
+          style: AppTextStyles.bodySmall.copyWith(color: Colors.white),
+        ),
+        backgroundColor: color,
+        behavior: SnackBarBehavior.floating,
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(AppDimensions.borderRadius),
+        ),
+        margin: const EdgeInsets.all(AppDimensions.paddingMedium),
+      ),
+    );
+  }
+}
+
+// ─── Header ───────────────────────────────────────────────────────────────────
+
+class _FolderHeader extends StatelessWidget {
+  const _FolderHeader({
+    required this.state,
+    required this.fallbackName,
+    required this.searchController,
+    required this.onSearch,
+    required this.onClearSearch,
+    required this.onBack,
+  });
+
+  final PatientFolderState state;
+  final String? fallbackName;
+  final TextEditingController searchController;
+  final ValueChanged<String> onSearch;
+  final VoidCallback onClearSearch;
+  final VoidCallback onBack;
+
+  @override
+  Widget build(BuildContext context) {
+    final name = state.patientName != null
+        ? "${state.patientName}'s Folder"
+        : (fallbackName ?? 'Patient Folder');
+
+    return Container(
+      padding: const EdgeInsets.fromLTRB(
+        AppDimensions.paddingLarge,
+        AppDimensions.paddingLarge,
+        AppDimensions.paddingLarge,
+        AppDimensions.paddingMedium,
+      ),
+      decoration: const BoxDecoration(
+        color: AppColors.background,
+        border: Border(bottom: BorderSide(color: AppColors.border)),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          // ── Title Row ──
+          Row(
+            children: [
+              _BackButton(onPressed: onBack),
+              const SizedBox(width: AppDimensions.paddingSmall),
+              Container(
+                width: AppDimensions.iconBadgeSize,
+                height: AppDimensions.iconBadgeSize,
+                decoration: BoxDecoration(
+                  color: AppColors.primaryWithOpacity(0.1),
+                  borderRadius:
+                      BorderRadius.circular(AppDimensions.borderRadius),
+                  border: Border.all(color: AppColors.border),
+                ),
+                child: const Icon(
+                  Icons.folder_shared_rounded,
+                  color: AppColors.primary,
+                  size: AppDimensions.iconSize,
+                ),
+              ),
+              const SizedBox(width: AppDimensions.paddingSmall),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(name, style: AppTextStyles.titleLarge),
+                    Text(
+                      state.patientEmail ?? 'Files uploaded for this patient',
+                      style: AppTextStyles.labelSmall.copyWith(
+                        color: AppColors.textMuted,
+                        fontWeight: FontWeight.w400,
+                      ),
+                      overflow: TextOverflow.ellipsis,
+                    ),
+                  ],
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: AppDimensions.paddingMedium),
+
+          // ── Search Bar (onClick) ──
+          SearchBarOnClick(
+            controller: searchController,
+            hintText: 'Search in this folder...',
+            onChanged: onSearch,
+            onClear: onClearSearch,
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _BackButton extends StatelessWidget {
+  const _BackButton({required this.onPressed});
+
+  final VoidCallback onPressed;
+
+  @override
+  Widget build(BuildContext context) {
+    return InkWell(
+      onTap: onPressed,
+      borderRadius: BorderRadius.circular(AppDimensions.borderRadius),
+      child: Container(
+        width: 36,
+        height: 36,
+        decoration: BoxDecoration(
+          color: AppColors.surface,
+          borderRadius: BorderRadius.circular(AppDimensions.borderRadius),
+          border: Border.all(color: AppColors.border),
+        ),
+        child: const Icon(
+          Icons.arrow_back_rounded,
+          size: AppDimensions.iconSizeSmall,
+          color: AppColors.textSecondary,
+        ),
+      ),
+    );
+  }
+}
+
+// ─── Scope Indicator ──────────────────────────────────────────────────────────
+
+class _ScopeIndicator extends StatelessWidget {
+  const _ScopeIndicator({required this.canViewAny, required this.total});
+
+  final bool canViewAny;
+  final int total;
+
+  @override
+  Widget build(BuildContext context) {
+    final label = canViewAny
+        ? 'All uploads for this patient'
+        : 'Your uploads for this patient';
+    final icon =
+        canViewAny ? Icons.groups_rounded : Icons.person_outline_rounded;
+    final color = canViewAny ? AppColors.info : AppColors.primary;
+
+    return Container(
+      color: color.withValues(alpha: 0.05),
+      padding: const EdgeInsets.symmetric(
+        horizontal: AppDimensions.paddingLarge,
+        vertical: AppDimensions.paddingXS,
+      ),
+      child: Row(
+        children: [
+          Icon(icon, size: AppDimensions.iconSizeSmall, color: color),
+          const SizedBox(width: AppDimensions.paddingXS),
+          Expanded(
+            child: Text(
+              label,
+              style: AppTextStyles.labelSmall.copyWith(color: color),
+            ),
+          ),
+          Container(
+            padding: const EdgeInsets.symmetric(
+              horizontal: AppDimensions.paddingXS,
+              vertical: 2,
+            ),
+            decoration: BoxDecoration(
+              color: color.withValues(alpha: 0.15),
+              borderRadius:
+                  BorderRadius.circular(AppDimensions.borderRadiusSmall),
+              border: Border.all(color: color.withValues(alpha: 0.25)),
+            ),
+            child: Text(
+              '$total file(s)',
+              style: AppTextStyles.labelSmall.copyWith(color: color),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+// ─── Filter Bar ───────────────────────────────────────────────────────────────
+
+class _FilterBar extends StatelessWidget {
+  const _FilterBar({required this.selected, required this.onSelected});
+
+  final String? selected;
+  final ValueChanged<String?> onSelected;
+
+  static const _categories = <(String, String?)>[
+    ('All', null),
+    ('X-Rays', 'xray'),
+    ('Photos', 'photo'),
+    ('Consent', 'consent_form'),
+    ('Lab Reports', 'lab_report'),
+    ('Prescriptions', 'prescription'),
+    ('Other', 'other'),
+  ];
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      color: AppColors.background,
+      padding: const EdgeInsets.symmetric(
+        horizontal: AppDimensions.paddingMedium,
+        vertical: AppDimensions.paddingSmall,
+      ),
+      child: SizedBox(
+        height: 36,
+        child: ListView.separated(
+          scrollDirection: Axis.horizontal,
+          itemCount: _categories.length,
+          separatorBuilder: (_, __) =>
+              const SizedBox(width: AppDimensions.paddingXS),
+          itemBuilder: (context, index) {
+            final (label, value) = _categories[index];
+            final isSelected = selected == value;
+            return _FilterChip(
+              label: label,
+              isSelected: isSelected,
+              onTap: () => onSelected(value),
+            );
+          },
+        ),
+      ),
+    );
+  }
+}
+
+class _FilterChip extends StatelessWidget {
+  const _FilterChip({
+    required this.label,
+    required this.isSelected,
+    required this.onTap,
+  });
+
+  final String label;
+  final bool isSelected;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    return InkWell(
+      onTap: onTap,
+      borderRadius: BorderRadius.circular(20),
+      child: AnimatedContainer(
+        duration: const Duration(milliseconds: 150),
+        padding: const EdgeInsets.symmetric(
+          horizontal: AppDimensions.paddingSmall,
+          vertical: 6,
+        ),
+        decoration: BoxDecoration(
+          color: isSelected ? AppColors.primary : AppColors.surface,
+          borderRadius: BorderRadius.circular(20),
+          border: Border.all(
+            color: isSelected ? AppColors.primary : AppColors.border,
+          ),
+        ),
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            if (isSelected) ...[
+              const Icon(
+                Icons.check_rounded,
+                size: 14,
+                color: Colors.white,
+              ),
+              const SizedBox(width: 4),
+            ],
+            Text(
+              label,
+              style: AppTextStyles.labelSmall.copyWith(
+                color: isSelected ? Colors.white : AppColors.textSecondary,
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+// ─── State Views ──────────────────────────────────────────────────────────────
+
+class _LoadingView extends StatelessWidget {
+  const _LoadingView();
+
+  @override
+  Widget build(BuildContext context) {
+    return Center(
+      child: Column(
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: [
+          const CircularProgressIndicator(
+            color: AppColors.primary,
+            strokeWidth: 2.5,
+          ),
+          const SizedBox(height: AppDimensions.paddingMedium),
+          Text(
+            'Loading files...',
+            style:
+                AppTextStyles.bodySmall.copyWith(color: AppColors.textMuted),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _LoadMoreIndicator extends StatelessWidget {
+  const _LoadMoreIndicator();
+
+  @override
+  Widget build(BuildContext context) {
+    return Padding(
+      padding:
+          const EdgeInsets.symmetric(vertical: AppDimensions.paddingMedium),
+      child: Center(
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            const SizedBox(
+              width: 16,
+              height: 16,
+              child: CircularProgressIndicator(
+                color: AppColors.primary,
+                strokeWidth: 2,
+              ),
+            ),
+            const SizedBox(width: AppDimensions.paddingSmall),
+            Text(
+              'Loading more...',
+              style: AppTextStyles.labelSmall
+                  .copyWith(color: AppColors.textMuted),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+class _EmptyState extends StatelessWidget {
+  const _EmptyState();
+
+  @override
+  Widget build(BuildContext context) {
+    return Center(
+      child: Padding(
+        padding: const EdgeInsets.all(AppDimensions.paddingXL),
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Container(
+              width: 88,
+              height: 88,
+              decoration: BoxDecoration(
+                color: AppColors.primaryWithOpacity(0.06),
+                borderRadius:
+                    BorderRadius.circular(AppDimensions.borderRadiusLarge),
+                border: Border.all(
+                  color: AppColors.primaryWithOpacity(0.12),
+                ),
+              ),
+              child: const Icon(
+                Icons.folder_open_rounded,
+                size: 40,
+                color: AppColors.primaryLight,
+              ),
+            ),
+            const SizedBox(height: AppDimensions.paddingLarge),
+            Text(
+              'No files in this folder',
+              style: AppTextStyles.titleMedium,
+            ),
+            const SizedBox(height: AppDimensions.paddingXS),
+            Text(
+              'Upload files for this patient to see them here',
+              textAlign: TextAlign.center,
+              style: AppTextStyles.bodySmall.copyWith(
+                color: AppColors.textMuted,
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+class _ErrorView extends StatelessWidget {
+  const _ErrorView({required this.message, required this.onRetry});
+
+  final String message;
+  final VoidCallback onRetry;
+
+  @override
+  Widget build(BuildContext context) {
+    return Center(
+      child: Padding(
+        padding: const EdgeInsets.all(AppDimensions.paddingXL),
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Container(
+              width: 72,
+              height: 72,
+              decoration: BoxDecoration(
+                color: AppColors.error.withValues(alpha: 0.08),
+                borderRadius:
+                    BorderRadius.circular(AppDimensions.borderRadiusLarge),
+              ),
+              child: const Icon(
+                Icons.error_outline_rounded,
+                size: 36,
+                color: AppColors.error,
+              ),
+            ),
+            const SizedBox(height: AppDimensions.paddingMedium),
+            Text('Something went wrong', style: AppTextStyles.titleSmall),
+            const SizedBox(height: AppDimensions.paddingXS),
+            Text(
+              message,
+              style:
+                  AppTextStyles.bodySmall.copyWith(color: AppColors.textMuted),
+              textAlign: TextAlign.center,
+            ),
+            const SizedBox(height: AppDimensions.paddingLarge),
+            OutlinedButton.icon(
+              onPressed: onRetry,
+              icon: const Icon(
+                Icons.refresh_rounded,
+                size: AppDimensions.iconSizeSmall,
+              ),
+              label: const Text('Try Again'),
+              style: OutlinedButton.styleFrom(
+                foregroundColor: AppColors.primary,
+                side: const BorderSide(color: AppColors.primary),
+                padding: const EdgeInsets.symmetric(
+                  horizontal: AppDimensions.paddingLarge,
+                  vertical: AppDimensions.paddingSmall,
+                ),
+                shape: RoundedRectangleBorder(
+                  borderRadius:
+                      BorderRadius.circular(AppDimensions.borderRadius),
+                ),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
   }
 }

@@ -11,6 +11,7 @@ import '../../route/route_names.dart';
 import '../../theme/app_colors.dart';
 import '../../theme/app_dimensions.dart';
 import '../../theme/app_text_styles.dart';
+import '../../widgets/shared/search_bar_onclick.dart';
 import 'widgets/treatment_card.dart';
 import 'widgets/treatment_empty_state.dart';
 import '../../widgets/shared/hold_to_delete_dialog.dart';
@@ -24,6 +25,7 @@ class TreatmentsPage extends ConsumerStatefulWidget {
 
 class _TreatmentsPageState extends ConsumerState<TreatmentsPage> {
   final _scrollController = ScrollController();
+  String _search = '';
 
   @override
   void initState() {
@@ -51,6 +53,18 @@ class _TreatmentsPageState extends ConsumerState<TreatmentsPage> {
     }
   }
 
+  // ── Filter ──
+  List<dynamic> _filterTreatments(List<dynamic> treatments) {
+    if (_search.isEmpty) return treatments;
+    final query = _search.toLowerCase();
+    return treatments.where((t) {
+      final name = t.name.toString().toLowerCase();
+      final description = (t.description ?? '').toString().toLowerCase();
+      return name.contains(query) || description.contains(query);
+    }).toList();
+  }
+
+  // ── Delete ──
   Future<void> _delete(int id, String name) async {
     final auth = ref.read(authStateProvider);
     if (!auth.hasPermission(Perm.treatmentDelete)) {
@@ -86,7 +100,10 @@ class _TreatmentsPageState extends ConsumerState<TreatmentsPage> {
   void _showSnack(String msg, Color color) {
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(
-        content: Text(msg, style: AppTextStyles.bodySmall.copyWith(color: Colors.white)),
+        content: Text(
+          msg,
+          style: AppTextStyles.bodySmall.copyWith(color: Colors.white),
+        ),
         backgroundColor: color,
         behavior: SnackBarBehavior.floating,
         shape: RoundedRectangleBorder(
@@ -108,7 +125,23 @@ class _TreatmentsPageState extends ConsumerState<TreatmentsPage> {
     return Scaffold(
       backgroundColor: AppColors.surface,
       appBar: _buildAppBar(),
-      body: _buildBody(state, canDelete),
+      body: Column(
+        children: [
+          Padding(
+            padding: const EdgeInsets.only(
+              left: AppDimensions.paddingMedium,
+              right: AppDimensions.paddingMedium,
+              top: AppDimensions.paddingMedium,
+            ),
+            child: SearchBarOnClick(
+              hintText: 'Search treatments...',
+              onChanged: (v) => setState(() => _search = v),
+              onClear: () => setState(() => _search = ''),
+            ),
+          ),
+          Expanded(child: _buildBody(state, canDelete)),
+        ],
+      ),
       floatingActionButton: canCreate ? _buildFAB() : null,
     );
   }
@@ -158,7 +191,10 @@ class _TreatmentsPageState extends ConsumerState<TreatmentsPage> {
       foregroundColor: AppColors.textOnPrimary,
       elevation: 2,
       icon: const Icon(Icons.add_rounded),
-      label: Text('New Treatment', style: AppTextStyles.labelLarge.copyWith(color: Colors.white)),
+      label: Text(
+        'New Treatment',
+        style: AppTextStyles.labelLarge.copyWith(color: Colors.white),
+      ),
     );
   }
 
@@ -180,6 +216,30 @@ class _TreatmentsPageState extends ConsumerState<TreatmentsPage> {
       );
     }
 
+    final filtered = _filterTreatments(state.treatments);
+
+    if (filtered.isEmpty) {
+      return Center(
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            const Icon(
+              Icons.search_off_rounded,
+              size: 64,
+              color: AppColors.textTertiary,
+            ),
+            const SizedBox(height: 12),
+            Text(
+              'No treatments match "$_search"',
+              style: AppTextStyles.bodyMedium.copyWith(
+                color: AppColors.textSecondary,
+              ),
+            ),
+          ],
+        ),
+      );
+    }
+
     return RefreshIndicator(
       color: AppColors.primary,
       backgroundColor: AppColors.background,
@@ -190,12 +250,12 @@ class _TreatmentsPageState extends ConsumerState<TreatmentsPage> {
           horizontal: AppDimensions.paddingMedium,
           vertical: AppDimensions.paddingMedium,
         ),
-        itemCount: state.treatments.length + (state.isLoadingMore ? 1 : 0),
+        itemCount: filtered.length + (state.isLoadingMore ? 1 : 0),
         itemBuilder: (context, index) {
-          if (index == state.treatments.length) {
+          if (index == filtered.length) {
             return const _LoadMoreIndicator();
           }
-          final t = state.treatments[index];
+          final t = filtered[index];
           return Padding(
             padding: const EdgeInsets.only(bottom: AppDimensions.paddingSmall),
             child: TreatmentCard(
@@ -265,7 +325,8 @@ class _LoadingView extends StatelessWidget {
           const SizedBox(height: AppDimensions.paddingMedium),
           Text(
             'Loading treatments...',
-            style: AppTextStyles.bodySmall.copyWith(color: AppColors.textMuted),
+            style:
+                AppTextStyles.bodySmall.copyWith(color: AppColors.textMuted),
           ),
         ],
       ),
@@ -292,7 +353,9 @@ class _ErrorView extends StatelessWidget {
               height: 72,
               decoration: BoxDecoration(
                 color: AppColors.error.withValues(alpha: 0.08),
-                borderRadius: BorderRadius.circular(AppDimensions.borderRadiusLarge),
+                borderRadius: BorderRadius.circular(
+                  AppDimensions.borderRadiusLarge,
+                ),
               ),
               child: const Icon(
                 Icons.error_outline_rounded,
@@ -309,13 +372,18 @@ class _ErrorView extends StatelessWidget {
             const SizedBox(height: AppDimensions.paddingXS),
             Text(
               message,
-              style: AppTextStyles.bodySmall.copyWith(color: AppColors.textMuted),
+              style: AppTextStyles.bodySmall.copyWith(
+                color: AppColors.textMuted,
+              ),
               textAlign: TextAlign.center,
             ),
             const SizedBox(height: AppDimensions.paddingLarge),
             OutlinedButton.icon(
               onPressed: onRetry,
-              icon: const Icon(Icons.refresh_rounded, size: AppDimensions.iconSizeSmall),
+              icon: const Icon(
+                Icons.refresh_rounded,
+                size: AppDimensions.iconSizeSmall,
+              ),
               label: const Text('Try Again'),
               style: OutlinedButton.styleFrom(
                 foregroundColor: AppColors.primary,
@@ -325,7 +393,9 @@ class _ErrorView extends StatelessWidget {
                   vertical: AppDimensions.paddingSmall,
                 ),
                 shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(AppDimensions.borderRadius),
+                  borderRadius: BorderRadius.circular(
+                    AppDimensions.borderRadius,
+                  ),
                 ),
               ),
             ),
@@ -342,7 +412,8 @@ class _LoadMoreIndicator extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Padding(
-      padding: const EdgeInsets.symmetric(vertical: AppDimensions.paddingLarge),
+      padding:
+          const EdgeInsets.symmetric(vertical: AppDimensions.paddingLarge),
       child: Center(
         child: Row(
           mainAxisSize: MainAxisSize.min,
@@ -358,7 +429,9 @@ class _LoadMoreIndicator extends StatelessWidget {
             const SizedBox(width: AppDimensions.paddingSmall),
             Text(
               'Loading more...',
-              style: AppTextStyles.labelSmall.copyWith(color: AppColors.textMuted),
+              style: AppTextStyles.labelSmall.copyWith(
+                color: AppColors.textMuted,
+              ),
             ),
           ],
         ),

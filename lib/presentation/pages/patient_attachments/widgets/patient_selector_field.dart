@@ -8,6 +8,7 @@ import '/presentation/providers/patient_attachment/patients_provider.dart';
 import '/presentation/theme/app_colors.dart';
 import '/presentation/theme/app_dimensions.dart';
 import '/presentation/theme/app_text_styles.dart';
+import '../../../widgets/shared/search_bar_onclick.dart';
 
 /// Reusable searchable patient selector.
 ///
@@ -49,9 +50,10 @@ class PatientSelectorField extends ConsumerWidget {
           children: [
             Text(label, style: AppTextStyles.labelLarge),
             if (required)
-              Text(' *',
-                  style: AppTextStyles.labelLarge
-                      .copyWith(color: AppColors.error)),
+              Text(
+                ' *',
+                style: AppTextStyles.labelLarge.copyWith(color: AppColors.error),
+              ),
           ],
         ),
         const SizedBox(height: AppDimensions.paddingSmall),
@@ -81,8 +83,11 @@ class PatientSelectorField extends ConsumerWidget {
                 if (!readOnly)
                   const Icon(Icons.arrow_drop_down, color: AppColors.textMuted),
                 if (readOnly)
-                  const Icon(Icons.lock_outline,
-                      color: AppColors.textMuted, size: 16),
+                  const Icon(
+                    Icons.lock_outline,
+                    color: AppColors.textMuted,
+                    size: 16,
+                  ),
               ],
             ),
           ),
@@ -141,8 +146,11 @@ class PatientSelectorField extends ConsumerWidget {
                 onTap: () => onChanged(null),
                 child: const Padding(
                   padding: EdgeInsets.only(left: 8),
-                  child:
-                      Icon(Icons.clear, size: 18, color: AppColors.textMuted),
+                  child: Icon(
+                    Icons.clear,
+                    size: 18,
+                    color: AppColors.textMuted,
+                  ),
                 ),
               ),
           ],
@@ -194,6 +202,16 @@ class _PatientPickerSheetState extends ConsumerState<_PatientPickerSheet> {
     super.dispose();
   }
 
+  // ── Search ──
+  void _onSearch(String value) {
+    setState(() => _search = value.toLowerCase());
+  }
+
+  void _onClearSearch() {
+    _searchController.clear();
+    setState(() => _search = '');
+  }
+
   @override
   Widget build(BuildContext context) {
     final patientsAsync = ref.watch(allPatientsProvider);
@@ -238,45 +256,14 @@ class _PatientPickerSheetState extends ConsumerState<_PatientPickerSheet> {
               ),
             ),
 
-            // ── Search ──
+            // ── Search Bar (onClick) ──
             Padding(
               padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 8),
-              child: TextField(
+              child: SearchBarOnClick(
                 controller: _searchController,
-                onChanged: (v) => setState(() => _search = v.toLowerCase()),
-                decoration: InputDecoration(
-                  hintText: 'Search by name or email...',
-                  prefixIcon: const Icon(Icons.search),
-                  suffixIcon: _search.isNotEmpty
-                      ? IconButton(
-                          icon: const Icon(Icons.clear, size: 18),
-                          onPressed: () {
-                            _searchController.clear();
-                            setState(() => _search = '');
-                          },
-                        )
-                      : null,
-                  filled: true,
-                  fillColor: AppColors.surface,
-                  border: OutlineInputBorder(
-                    borderRadius:
-                        BorderRadius.circular(AppDimensions.borderRadius),
-                    borderSide: BorderSide(color: AppColors.border),
-                  ),
-                  enabledBorder: OutlineInputBorder(
-                    borderRadius:
-                        BorderRadius.circular(AppDimensions.borderRadius),
-                    borderSide: BorderSide(color: AppColors.border),
-                  ),
-                  focusedBorder: OutlineInputBorder(
-                    borderRadius:
-                        BorderRadius.circular(AppDimensions.borderRadius),
-                    borderSide:
-                        const BorderSide(color: AppColors.primary, width: 1.5),
-                  ),
-                  contentPadding:
-                      const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
-                ),
+                hintText: 'Search by name or email...',
+                onChanged: _onSearch,
+                onClear: _onClearSearch,
               ),
             ),
             const SizedBox(height: 4),
@@ -299,7 +286,7 @@ class _PatientPickerSheetState extends ConsumerState<_PatientPickerSheet> {
                   ),
                 );
               },
-              loading: () => const SizedBox.shrink(), 
+              loading: () => const SizedBox.shrink(),
               error: (_, __) => const SizedBox.shrink(),
             ),
             const SizedBox(height: 8),
@@ -326,7 +313,8 @@ class _PatientPickerSheetState extends ConsumerState<_PatientPickerSheet> {
                         child: ListTile(
                           shape: RoundedRectangleBorder(
                             borderRadius: BorderRadius.circular(
-                                AppDimensions.borderRadius),
+                              AppDimensions.borderRadius,
+                            ),
                           ),
                           tileColor: isSelected
                               ? AppColors.primary.withValues(alpha: 0.08)
@@ -355,15 +343,19 @@ class _PatientPickerSheetState extends ConsumerState<_PatientPickerSheet> {
                             ),
                           ),
                           subtitle: patient.email.isNotEmpty
-                              ? Text(patient.email,
+                              ? Text(
+                                  patient.email,
                                   style: AppTextStyles.labelSmall.copyWith(
                                     color: AppColors.textMuted,
                                     fontSize: 12,
-                                  ))
+                                  ),
+                                )
                               : null,
                           trailing: isSelected
-                              ? const Icon(Icons.check_circle,
-                                  color: AppColors.primary)
+                              ? const Icon(
+                                  Icons.check_circle,
+                                  color: AppColors.primary,
+                                )
                               : patient.attachmentCount > 0
                                   ? Text(
                                       '${patient.attachmentCount} files',
@@ -378,7 +370,8 @@ class _PatientPickerSheetState extends ConsumerState<_PatientPickerSheet> {
                     },
                   );
                 },
-                loading: () => const Center(child: CircularProgressIndicator()),
+                loading: () =>
+                    const Center(child: CircularProgressIndicator()),
                 error: (e, _) => _ErrorState(
                   error: e.toString(),
                   onRetry: () => ref.invalidate(allPatientsProvider),
@@ -417,9 +410,10 @@ class _EmptyState extends StatelessWidget {
           const SizedBox(height: 12),
           Text('No patients found', style: AppTextStyles.titleSmall),
           const SizedBox(height: 4),
-          Text('Try a different search',
-              style:
-                  AppTextStyles.bodySmall.copyWith(color: AppColors.textMuted)),
+          Text(
+            'Try a different search',
+            style: AppTextStyles.bodySmall.copyWith(color: AppColors.textMuted),
+          ),
         ],
       ),
     );
@@ -447,11 +441,12 @@ class _ErrorState extends StatelessWidget {
             const SizedBox(height: 12),
             Text('Failed to load patients', style: AppTextStyles.titleSmall),
             const SizedBox(height: 4),
-            Text(error,
-                style: AppTextStyles.bodySmall
-                    .copyWith(color: AppColors.textMuted),
-                textAlign: TextAlign.center,
-                maxLines: 3),
+            Text(
+              error,
+              style: AppTextStyles.bodySmall.copyWith(color: AppColors.textMuted),
+              textAlign: TextAlign.center,
+              maxLines: 3,
+            ),
             const SizedBox(height: 16),
             TextButton.icon(
               onPressed: onRetry,

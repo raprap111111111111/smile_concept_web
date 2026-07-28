@@ -8,7 +8,8 @@ import '../../theme/app_dimensions.dart';
 import '../../theme/app_text_styles.dart';
 import 'widgets/doctor_card.dart';
 import 'widgets/doctor_form_dialog.dart';
-import '../../widgets/shared/hold_to_delete_dialog.dart';   
+import '../../widgets/shared/hold_to_delete_dialog.dart';
+import '../../widgets/shared/search_bar_onclick.dart';
 
 class DoctorsPage extends ConsumerStatefulWidget {
   const DoctorsPage({super.key});
@@ -32,8 +33,10 @@ class _DoctorsPageState extends ConsumerState<DoctorsPage> {
         children: [
           _Header(onAdd: () => _openDialog()),
           const SizedBox(height: AppDimensions.paddingLarge),
-          _SearchBar(
+          SearchBarOnClick(
+            hintText: 'Search by name or specialization...',
             onChanged: (v) => setState(() => _search = v),
+            onClear: () => setState(() => _search = ''),
           ),
           const SizedBox(height: AppDimensions.paddingLarge),
           Expanded(
@@ -177,40 +180,6 @@ class _Header extends StatelessWidget {
   }
 }
 
-// ── Search Bar ────────────────────────────────────────────────
-class _SearchBar extends StatelessWidget {
-  final ValueChanged<String> onChanged;
-  const _SearchBar({required this.onChanged});
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      decoration: BoxDecoration(
-        color: AppColors.surface,
-        borderRadius: BorderRadius.circular(AppDimensions.borderRadiusLarge),
-        border: Border.all(color: AppColors.border),
-      ),
-      child: TextField(
-        style: AppTextStyles.bodyMedium.copyWith(color: AppColors.ink),
-        onChanged: onChanged,
-        decoration: InputDecoration(
-          hintText: 'Search by name or specialization...',
-          hintStyle: AppTextStyles.bodyMedium.copyWith(
-            color: AppColors.textTertiary,
-          ),
-          prefixIcon: const Icon(Icons.search, color: AppColors.textSecondary),
-          border: InputBorder.none,
-          enabledBorder: InputBorder.none,
-          focusedBorder: InputBorder.none,
-          contentPadding: const EdgeInsets.symmetric(
-            horizontal: 16,
-            vertical: 16,
-          ),
-        ),
-      ),
-    );
-  }
-}
 
 // ── Doctor Grid ───────────────────────────────────────────────
 class _DoctorGrid extends StatelessWidget {
