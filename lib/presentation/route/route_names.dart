@@ -49,9 +49,13 @@ class RouteNames {
   static const String dentalChartDetail = 'dentalChartDetail';
   static const String dentalChartCreate = 'dentalChartCreate';
 
-  static const String labCases = 'labCases';
+  // ── Add to lib/presentation/route/route_names.dart ───────────────────────────
+
+  static const String labCases = 'lab-cases';
+  static const String labCaseCreate = 'lab-cases-create';
+  static const String labCaseEdit = 'lab-cases-edit';
+  static const String labCaseView = 'lab-cases-view';
   static const String labCaseDetail = 'labCaseDetail';
-  static const String labCaseCreate = 'labCaseCreate';
 
   // ── Patient Attachments (global list) ─────────────────────
   static const String patientAttachments = 'patientAttachments';
@@ -63,7 +67,8 @@ class RouteNames {
   static const String patientFolderDetail = 'patient-folder-detail'; // ✅ NEW
 
   // ⚠️ DEPRECATED — keep for backwards compat only
-  static const String patientAttachmentsByPatient = 'patient-attachments-by-patient';
+  static const String patientAttachmentsByPatient =
+      'patient-attachments-by-patient';
 
   static const String consents = 'consents';
   static const String consentSign = 'consentSign';

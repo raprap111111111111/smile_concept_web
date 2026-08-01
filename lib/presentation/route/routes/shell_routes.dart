@@ -2,6 +2,7 @@
 // ✅ Already correct once patientAttachmentRoutes is a List
 
 import 'package:go_router/go_router.dart';
+import 'package:smile_concept_web/presentation/route/routes/protected_routes/lab_case_routes.dart';
 import '../../layouts/main_layout.dart';
 import 'protected_routes/dashboard_routes.dart';
 import 'protected_routes/patient_routes.dart';
@@ -25,5 +26,6 @@ final shellRoutes = ShellRoute(
     ...inventoryRoutes,
     ...miscRoutes,
     ...patientAttachmentRoutes, 
+    ...labCaseRoutes,
   ],
 );
