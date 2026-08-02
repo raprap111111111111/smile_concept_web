@@ -504,4 +504,13 @@ class Perm {
   static const String backupRestore = 'backup.restore';
   static const String backupDownload = 'backup.download';
   static const String backupDelete = 'backup.delete';
+
+  // 📦 ITEMS (catalog)
+  static const String itemViewAny = 'item.viewAny';
+  static const String itemView = 'item.view';
+  static const String itemCreate = 'item.create';
+  static const String itemUpdate = 'item.update';
+  static const String itemDelete = 'item.delete';
+  static const String itemRestore = 'item.restore';
+  static const String itemForceDelete = 'item.forceDelete';
 }
