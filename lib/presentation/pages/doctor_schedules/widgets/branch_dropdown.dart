@@ -2,7 +2,8 @@
 
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import '../../../providers/doctor_schedule/schedule_form_providers.dart'; 
+import '../../../../core/errors/error_message.dart';
+import '../../../providers/doctor_schedule/schedule_form_providers.dart';
 import 'dropdown_states.dart';
 
 class BranchDropdown extends ConsumerWidget {
@@ -21,7 +22,14 @@ class BranchDropdown extends ConsumerWidget {
 
     return branchesAsync.when(
       loading: () => const DropdownSkeleton(label: 'Loading branches...'),
-      error: (e, _) => const DropdownError(message: 'Failed to load branches'),
+      error: (e, _) => DropdownError(
+        message: 'Failed to load branches',
+        detail: describeError(e),
+        // A 403 is settled server-side; retrying only repeats it.
+        onRetry: isPermissionError(e)
+            ? null
+            : () => ref.invalidate(branchesListProvider),
+      ),
       data: (branches) {
         return DropdownButtonFormField<int>(
           initialValue: value,

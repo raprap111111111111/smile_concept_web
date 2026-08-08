@@ -3,6 +3,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../../../../core/errors/error_message.dart';
 import '../../../providers/inventory/inventory_form_providers.dart';
 import '../../../theme/app_colors.dart';
 import '../../../theme/app_text_styles.dart';
@@ -27,7 +28,11 @@ class BranchDropdown extends ConsumerWidget {
           const DropdownSkeleton(label: 'Loading branches...'),
       error: (e, _) => DropdownError(
         message: 'Failed to load branches',
-        onRetry: () => ref.invalidate(branchesSimpleListProvider),
+        detail: describeError(e),
+        // A 403 is settled server-side; retrying only repeats it.
+        onRetry: isPermissionError(e)
+            ? null
+            : () => ref.invalidate(branchesSimpleListProvider),
       ),
       data: (branches) {
         if (branches.isEmpty) {
