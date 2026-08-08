@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_dotenv/flutter_dotenv.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'core/config/api_config.dart';
+import 'presentation/providers/realtime/realtime_bridge.dart';
 import 'presentation/route/app_router.dart';
 
 Future<void> main() async {
@@ -35,6 +36,11 @@ class MyApp extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final router = ref.watch(routerProvider);
+
+    // Construct and keep alive. The bridge gates itself on authStateProvider,
+    // so it stays idle until someone is logged in and tears the socket down on
+    // logout — nothing to coordinate here.
+    ref.watch(realtimeBridgeProvider);
 
     return MaterialApp.router(
       debugShowCheckedModeBanner: false,

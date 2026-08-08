@@ -5,6 +5,7 @@ import 'package:flutter/material.dart';
 import '../../../theme/app_colors.dart';
 import '../../../theme/app_text_styles.dart';
 import '../../../widgets/common/notification_bell.dart';
+import '../../../widgets/common/realtime_status_dot.dart';
 import 'page_title.dart';
 import 'topbar_user_info.dart';
 
@@ -51,6 +52,8 @@ class Topbar extends StatelessWidget {
           Row(
             mainAxisSize: MainAxisSize.min,
             children: [
+              // Invisible unless live updates are degraded.
+              const RealtimeStatusDot(),
               const NotificationBell(),
               const SizedBox(width: 12),
 
