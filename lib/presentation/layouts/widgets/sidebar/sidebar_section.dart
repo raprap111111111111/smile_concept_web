@@ -6,6 +6,10 @@ import '../../../theme/app_colors.dart';
 class SidebarSection extends StatefulWidget {
   final String title;
   final bool initiallyExpanded;
+
+  /// Icon-rail mode: the section header has nowhere to render, so it is
+  /// dropped and the items show unconditionally.
+  final bool collapsed;
   final List<Widget> children;
 
   const SidebarSection({
@@ -13,6 +17,7 @@ class SidebarSection extends StatefulWidget {
     required this.title,
     required this.children,
     this.initiallyExpanded = false,
+    this.collapsed = false,
   });
 
   @override
@@ -59,6 +64,16 @@ class _SidebarSectionState extends State<SidebarSection>
 
   @override
   Widget build(BuildContext context) {
+    // Rail mode. Hiding the header would leave a section with no way to open
+    // it, so the items are always visible here. The expand/collapse state is
+    // left untouched and comes back with the labels.
+    if (widget.collapsed) {
+      return Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: widget.children,
+      );
+    }
+
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [

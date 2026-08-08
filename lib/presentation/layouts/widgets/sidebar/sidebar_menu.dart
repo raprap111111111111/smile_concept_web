@@ -10,7 +10,10 @@ import 'sidebar_nav_config.dart';
 import 'sidebar_section.dart';
 
 class SidebarMenu extends ConsumerWidget {
-  const SidebarMenu({super.key});
+  /// Icon-rail mode: section titles disappear and items shrink to their icons.
+  final bool collapsed;
+
+  const SidebarMenu({super.key, this.collapsed = false});
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
@@ -43,6 +46,7 @@ class SidebarMenu extends ConsumerWidget {
       children.add(
         SidebarSection(
           title: s.section.title,
+          collapsed: collapsed,
           children: s.items
               .map(
                 (item) => SidebarMenuItem(
@@ -51,6 +55,7 @@ class SidebarMenu extends ConsumerWidget {
                   routeName: item.routeName,
                   // ✅ Pass through so active detection works
                   activeRouteNames: item.activeRouteNames,
+                  collapsed: collapsed,
                 ),
               )
               .toList(),

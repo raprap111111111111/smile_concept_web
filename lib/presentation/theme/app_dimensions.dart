@@ -30,6 +30,12 @@ class AppDimensions {
   static const double navLogoSize = 44.0;
   static const double navVerticalPadding = 16.0;
 
+  // Sidebar
+  static const double sidebarWidth = 290.0;
+  // Fits the 34px icon tile plus the menu's 12px side padding and the item's
+  // own 8px padding, with a couple of pixels to spare.
+  static const double sidebarCollapsedWidth = 84.0;
+
   // Hero
   static const double heroTopPadding = 56.0;
   static const double heroBottomPadding = 40.0;

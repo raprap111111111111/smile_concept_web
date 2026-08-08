@@ -6,15 +6,25 @@ import '../../../theme/app_dimensions.dart';
 import '../../../theme/app_text_styles.dart';
 
 class SidebarHeader extends StatelessWidget {
-  const SidebarHeader({super.key});
+  /// Icon-rail mode: the wordmark is dropped, only the logo tile stays.
+  final bool collapsed;
+
+  const SidebarHeader({super.key, this.collapsed = false});
 
   @override
   Widget build(BuildContext context) {
     return Column(
       children: [
         Padding(
-          padding: const EdgeInsets.fromLTRB(22, 24, 22, 20),
+          padding: EdgeInsets.fromLTRB(
+            collapsed ? 16 : 22,
+            24,
+            collapsed ? 16 : 22,
+            20,
+          ),
           child: Row(
+            mainAxisAlignment:
+                collapsed ? MainAxisAlignment.center : MainAxisAlignment.start,
             children: [
               Container(
                 width: 48,
@@ -36,25 +46,27 @@ class SidebarHeader extends StatelessWidget {
                   ),
                 ),
               ),
-              const SizedBox(width: 12),
-              Expanded(
-                child: Text(
-                  'SmileConcept',
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                  style: AppTextStyles.titleLarge.copyWith(
-                    color: AppColors.primaryDark,
-                    fontWeight: FontWeight.w800,
-                    letterSpacing: 0.2,
+              if (!collapsed) ...[
+                const SizedBox(width: 12),
+                Expanded(
+                  child: Text(
+                    'SmileConcept',
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: AppTextStyles.titleLarge.copyWith(
+                      color: AppColors.primaryDark,
+                      fontWeight: FontWeight.w800,
+                      letterSpacing: 0.2,
+                    ),
                   ),
                 ),
-              ),
+              ],
             ],
           ),
         ),
-        const Padding(
-          padding: EdgeInsets.symmetric(horizontal: 16),
-          child: Divider(
+        Padding(
+          padding: EdgeInsets.symmetric(horizontal: collapsed ? 12 : 16),
+          child: const Divider(
             color: AppColors.line,
             height: 1,
           ),

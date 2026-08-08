@@ -12,12 +12,16 @@ class SidebarMenuItem extends StatefulWidget {
   final String routeName;
   final List<String> activeRouteNames;
 
+  /// Icon-rail mode: the label is dropped and moves into a hover tooltip.
+  final bool collapsed;
+
   const SidebarMenuItem({
     super.key,
     required this.icon,
     required this.title,
     required this.routeName,
     this.activeRouteNames = const [],
+    this.collapsed = false,
   });
 
   @override
@@ -90,7 +94,23 @@ class _SidebarMenuItemState extends State<SidebarMenuItem>
     const inactiveTextColor = AppColors.ink;
     const inactiveIconColor = AppColors.textSecondary;
 
-    return MouseRegion(
+    final iconBox = Container(
+      width: 34,
+      height: 34,
+      decoration: BoxDecoration(
+        color: isActive
+            ? AppColors.accentWithOpacity(0.35)
+            : AppColors.surface,
+        borderRadius: BorderRadius.circular(8),
+      ),
+      child: Icon(
+        widget.icon,
+        color: isActive ? activeColor : inactiveIconColor,
+        size: 19,
+      ),
+    );
+
+    final item = MouseRegion(
       cursor: SystemMouseCursors.click,
       onEnter: _onEnter,
       onExit: _onExit,
@@ -128,66 +148,78 @@ class _SidebarMenuItemState extends State<SidebarMenuItem>
             highlightColor: Colors.transparent,
             hoverColor: Colors.transparent,
             child: Padding(
-              padding: const EdgeInsets.symmetric(
-                horizontal: 14,
+              padding: EdgeInsets.symmetric(
+                horizontal: widget.collapsed ? 8 : 14,
                 vertical: 8,
               ),
-              child: Row(
-                children: [
-                  // ── Icon container ──────────────────────────
-                  Container(
-                    width: 34,
-                    height: 34,
-                    decoration: BoxDecoration(
-                      color: isActive
-                          ? AppColors.accentWithOpacity(0.35)
-                          : AppColors.surface,
-                      borderRadius: BorderRadius.circular(8),
-                    ),
-                    child: Icon(
-                      widget.icon,
-                      color:
-                          isActive ? activeColor : inactiveIconColor,
-                      size: 19,
-                    ),
-                  ),
-                  const SizedBox(width: 12),
+              child: widget.collapsed
+                  // Rail: icon only. The active pill is dropped — the tinted
+                  // background and border already carry the active state and
+                  // there is no width left for it.
+                  ? Center(child: iconBox)
+                  : Row(
+                      children: [
+                        // ── Icon container ──────────────────────────
+                        iconBox,
+                        const SizedBox(width: 12),
 
-                  // ── Label ───────────────────────────────────
-                  Expanded(
-                    child: Text(
-                      widget.title,
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
-                      style: TextStyle(
-                        color:
-                            isActive ? activeColor : inactiveTextColor,
-                        fontWeight: isActive
-                            ? FontWeight.w800
-                            : FontWeight.w600,
-                        fontSize: 14,
-                      ),
-                    ),
-                  ),
+                        // ── Label ───────────────────────────────────
+                        Expanded(
+                          child: Text(
+                            widget.title,
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                            style: TextStyle(
+                              color: isActive
+                                  ? activeColor
+                                  : inactiveTextColor,
+                              fontWeight: isActive
+                                  ? FontWeight.w800
+                                  : FontWeight.w600,
+                              fontSize: 14,
+                            ),
+                          ),
+                        ),
 
-                  // ── Active pill ─────────────────────────────
-                  if (isActive) ...[
-                    const SizedBox(width: 8),
-                    Container(
-                      width: 4,
-                      height: 26,
-                      decoration: BoxDecoration(
-                        color: AppColors.primary,
-                        borderRadius: BorderRadius.circular(999),
-                      ),
+                        // ── Active pill ─────────────────────────────
+                        if (isActive) ...[
+                          const SizedBox(width: 8),
+                          Container(
+                            width: 4,
+                            height: 26,
+                            decoration: BoxDecoration(
+                              color: AppColors.primary,
+                              borderRadius: BorderRadius.circular(999),
+                            ),
+                          ),
+                        ],
+                      ],
                     ),
-                  ],
-                ],
-              ),
             ),
           ),
         ),
       ),
+    );
+
+    if (!widget.collapsed) return item;
+
+    // The label is the only thing identifying the item in rail mode, so it
+    // has to be reachable on hover. Styled explicitly because the app runs on
+    // ThemeData.dark() while these surfaces are light.
+    return Tooltip(
+      message: widget.title,
+      waitDuration: const Duration(milliseconds: 250),
+      decoration: BoxDecoration(
+        color: AppColors.ink,
+        borderRadius:
+            BorderRadius.circular(AppDimensions.borderRadiusSmall),
+      ),
+      textStyle: const TextStyle(
+        color: AppColors.textOnDark,
+        fontSize: 12,
+        fontWeight: FontWeight.w600,
+      ),
+      child: item,
     );
   }
 }
