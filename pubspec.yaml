@@ -24,6 +24,10 @@ dependencies:
   dio: ^5.7.0
   retrofit: ^4.3.0
 
+  # Real-time. Transport only — the Pusher protocol Reverb speaks is
+  # hand-implemented on top of it in lib/core/network/websocket/.
+  web_socket_channel: ^3.0.3
+
   # Networking & Caching
   dio_cache_interceptor: ^3.5.0
   cached_network_image: ^3.4.1

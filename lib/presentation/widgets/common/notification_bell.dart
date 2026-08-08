@@ -62,12 +62,9 @@ class _NotificationBellState extends ConsumerState<NotificationBell> {
 
   @override
   Widget build(BuildContext context) {
-    final countAsync = ref.watch(unreadNotificationCountProvider);
-
-    final unreadCount = countAsync.maybeWhen(
-      data: (count) => count,
-      orElse: () => 0,
-    );
+    // Plain int now, not an AsyncValue: the count is push-updated by the
+    // socket, so there is no per-event loading state to unwrap.
+    final unreadCount = ref.watch(unreadNotificationCountProvider);
 
     final hasUnread = unreadCount > 0;
 

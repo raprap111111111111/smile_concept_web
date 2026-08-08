@@ -93,12 +93,12 @@ class _HeroCopy extends StatelessWidget {
               label: 'Book an appointment',
               onTap: onBook,
             ),
-            OutlinedButton.icon(
-              onPressed: () => context.goNamed(RouteNames.login),
-              icon: const Icon(Icons.lock_outline,
-                  size: AppDimensions.iconSizeSmall),
-              label: const Text('Patient login'),
-            ),
+            // OutlinedButton.icon(
+            //   onPressed: () => context.goNamed(RouteNames.login),
+            //   icon: const Icon(Icons.lock_outline,
+            //       size: AppDimensions.iconSizeSmall),
+            //   label: const Text('Patient login'),
+            // ),
           ],
         ),
       ],
