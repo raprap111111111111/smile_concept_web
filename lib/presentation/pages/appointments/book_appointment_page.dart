@@ -17,6 +17,7 @@ import '../../providers/doctor_schedule/schedule_form_providers.dart';
 import '../../theme/app_colors.dart';
 import '../../theme/app_dimensions.dart';
 import '../../theme/app_text_styles.dart';
+import '../../theme/app_theme.dart';
 import '../doctor_schedules/widgets/dropdown_states.dart';
 import 'widgets/patient_search_field.dart';
 import 'widgets/time_slot_picker.dart';
@@ -206,6 +207,16 @@ class _BookAppointmentPageState extends ConsumerState<BookAppointmentPage> {
 
   @override
   Widget build(BuildContext context) {
+    // main.dart still runs ThemeData.dark(); this page is designed light, so it
+    // pins the intended light theme rather than inheriting dark input styles —
+    // otherwise field text renders near-white on the white form card.
+    return Theme(
+      data: AppTheme.lightTheme,
+      child: _buildScaffold(context),
+    );
+  }
+
+  Widget _buildScaffold(BuildContext context) {
     final availState = ref.watch(availabilityNotifierProvider);
     final selectedDate = ref.watch(selectedDateProvider);
     final selectedSlot = availState.selectedSlot;
@@ -338,6 +349,7 @@ class _BookAppointmentPageState extends ConsumerState<BookAppointmentPage> {
             _fieldLabel('Full Name', required: true),
             TextFormField(
               controller: _fullNameController,
+              style: AppTextStyles.inputText,
               textInputAction: TextInputAction.next,
               validator: (value) => Validators.validateName(
                 value,
@@ -353,6 +365,7 @@ class _BookAppointmentPageState extends ConsumerState<BookAppointmentPage> {
             _fieldLabel('Mobile Number', required: true),
             TextFormField(
               controller: _mobileController,
+              style: AppTextStyles.inputText,
               keyboardType: TextInputType.phone,
               textInputAction: TextInputAction.next,
               validator: (value) {
@@ -373,6 +386,7 @@ class _BookAppointmentPageState extends ConsumerState<BookAppointmentPage> {
             _fieldLabel('Email', required: true),
             TextFormField(
               controller: _emailController,
+              style: AppTextStyles.inputText,
               keyboardType: TextInputType.emailAddress,
               textInputAction: TextInputAction.next,
               validator: Validators.validateEmail,
@@ -460,6 +474,7 @@ class _BookAppointmentPageState extends ConsumerState<BookAppointmentPage> {
             _fieldLabel('Purpose of Visit', required: true),
             TextFormField(
               controller: _reasonController,
+              style: AppTextStyles.inputText,
               maxLines: 3,
               maxLength: 500,
               validator: (value) => Validators.required(
@@ -477,6 +492,7 @@ class _BookAppointmentPageState extends ConsumerState<BookAppointmentPage> {
             _fieldLabel('Additional Notes'),
             TextFormField(
               controller: _notesController,
+              style: AppTextStyles.inputText,
               maxLines: 3,
               maxLength: 1000,
               decoration: const InputDecoration(
@@ -595,6 +611,9 @@ class _BookAppointmentPageState extends ConsumerState<BookAppointmentPage> {
       ),
       data: (doctors) => DropdownButtonFormField<int>(
         initialValue: selected,
+        style: AppTextStyles.inputText,
+        dropdownColor: AppColors.background,
+        iconEnabledColor: AppColors.textSecondary,
         isExpanded: true,
         decoration: const InputDecoration(
           hintText: 'Select Doctor',
@@ -629,6 +648,9 @@ class _BookAppointmentPageState extends ConsumerState<BookAppointmentPage> {
       ),
       data: (branches) => DropdownButtonFormField<int>(
         initialValue: selected,
+        style: AppTextStyles.inputText,
+        dropdownColor: AppColors.background,
+        iconEnabledColor: AppColors.textSecondary,
         isExpanded: true,
         decoration: const InputDecoration(
           hintText: 'Select Branch',

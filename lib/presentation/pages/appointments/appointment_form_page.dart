@@ -17,6 +17,7 @@ import '../../providers/branch/branch_provider.dart';
 import '../../theme/app_colors.dart';
 import '../../theme/app_dimensions.dart';
 import '../../theme/app_text_styles.dart';
+import '../../theme/app_theme.dart';
 import 'widgets/patient_search_field.dart';
 import 'widgets/time_slot_picker.dart';
 
@@ -227,6 +228,16 @@ class _AppointmentFormPageState extends ConsumerState<AppointmentFormPage> {
 
   @override
   Widget build(BuildContext context) {
+    // main.dart still runs ThemeData.dark(); this page is designed light, so it
+    // pins the intended light theme rather than inheriting dark input styles —
+    // otherwise field text renders near-white on the white form card.
+    return Theme(
+      data: AppTheme.lightTheme,
+      child: _buildScaffold(context),
+    );
+  }
+
+  Widget _buildScaffold(BuildContext context) {
     final availState = ref.watch(availabilityNotifierProvider);
     final doctorsAsync = ref.watch(doctorsProvider);
     final branchesAsync = ref.watch(branchesProvider);
@@ -387,6 +398,9 @@ class _AppointmentFormPageState extends ConsumerState<AppointmentFormPage> {
               ),
               data: (doctors) => DropdownButtonFormField<int>(
                 initialValue: _doctorId,
+                style: AppTextStyles.inputText,
+                dropdownColor: AppColors.background,
+                iconEnabledColor: AppColors.textSecondary,
                 isExpanded: true,
                 decoration: const InputDecoration(
                   hintText: 'Select Doctor',
@@ -427,6 +441,9 @@ class _AppointmentFormPageState extends ConsumerState<AppointmentFormPage> {
               ),
               data: (branches) => DropdownButtonFormField<int>(
                 initialValue: _branchId,
+                style: AppTextStyles.inputText,
+                dropdownColor: AppColors.background,
+                iconEnabledColor: AppColors.textSecondary,
                 isExpanded: true,
                 decoration: const InputDecoration(
                   hintText: 'Select Branch',
@@ -510,6 +527,7 @@ class _AppointmentFormPageState extends ConsumerState<AppointmentFormPage> {
             _fieldLabel('Reason for Visit'),
             TextFormField(
               controller: _reasonController,
+              style: AppTextStyles.inputText,
               maxLines: 3,
               maxLength: 500,
               decoration: const InputDecoration(
@@ -588,6 +606,9 @@ class _AppointmentFormPageState extends ConsumerState<AppointmentFormPage> {
               _fieldLabel('Appointment Status'),
               DropdownButtonFormField<String>(
                 initialValue: _status,
+                style: AppTextStyles.inputText,
+                dropdownColor: AppColors.background,
+                iconEnabledColor: AppColors.textSecondary,
                 isExpanded: true,
                 decoration: const InputDecoration(
                   hintText: 'Status',

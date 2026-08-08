@@ -5,6 +5,8 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../../data/models/patient/patient_model.dart';
 import '../../../providers/patient/patient_search_provider.dart';
+import '../../../theme/app_colors.dart';
+import '../../../theme/app_text_styles.dart';
 
 class PatientSearchField extends ConsumerStatefulWidget {
   final int? selectedPatientId;
@@ -84,7 +86,7 @@ class _PatientSearchFieldState extends ConsumerState<PatientSearchField> {
           child: Material(
             elevation: 8,
             borderRadius: BorderRadius.circular(10),
-            color: const Color(0xFF1E293B),
+            color: AppColors.background,
             child: ConstrainedBox(
               constraints: const BoxConstraints(maxHeight: 300),
               child: Consumer(
@@ -108,7 +110,7 @@ class _PatientSearchFieldState extends ConsumerState<PatientSearchField> {
                       padding: const EdgeInsets.all(16),
                       child: Text(
                         'Error: $e',
-                        style: const TextStyle(color: Colors.red),
+                        style: const TextStyle(color: AppColors.error),
                       ),
                     ),
                     data: (patients) {
@@ -117,7 +119,7 @@ class _PatientSearchFieldState extends ConsumerState<PatientSearchField> {
                           padding: EdgeInsets.all(16),
                           child: Text(
                             'No patients found',
-                            style: TextStyle(color: Colors.white54),
+                            style: TextStyle(color: AppColors.textSecondary),
                           ),
                         );
                       }
@@ -126,9 +128,9 @@ class _PatientSearchFieldState extends ConsumerState<PatientSearchField> {
                         shrinkWrap: true,
                         padding: EdgeInsets.zero,
                         itemCount: patients.length,
-                        separatorBuilder: (_, __) => Divider(
+                        separatorBuilder: (_, __) => const Divider(
                           height: 1,
-                          color: Colors.white.withValues(alpha:0.05),
+                          color: AppColors.divider,
                         ),
                         itemBuilder: (context, index) {
                           final patient = patients[index];
@@ -174,6 +176,7 @@ class _PatientSearchFieldState extends ConsumerState<PatientSearchField> {
       child: TextField(
         controller: _searchController,
         focusNode: _focusNode,
+        style: AppTextStyles.inputText,
         onChanged: (v) {
           _debounce?.cancel();
           _debounce = Timer(const Duration(milliseconds: 400), () {
@@ -232,8 +235,7 @@ class _PatientListItem extends StatelessWidget {
             // ── Avatar ─────────────────────────────────────────
             CircleAvatar(
               radius: 18,
-              backgroundColor:
-                  const Color(0xFF6366F1).withValues(alpha: 0.2),
+              backgroundColor: AppColors.primary.withValues(alpha: 0.12),
               backgroundImage: patient.profilePhotoUrl != null &&
                       patient.profilePhotoUrl!.isNotEmpty
                   ? NetworkImage(patient.profilePhotoUrl!)
@@ -245,7 +247,7 @@ class _PatientListItem extends StatelessWidget {
                           ? patient.name[0].toUpperCase()
                           : '?',
                       style: const TextStyle(
-                        color: Color(0xFF6366F1),
+                        color: AppColors.primaryDark,
                         fontWeight: FontWeight.bold,
                       ),
                     )
@@ -262,7 +264,7 @@ class _PatientListItem extends StatelessWidget {
                   Text(
                     patient.name,
                     style: const TextStyle(
-                      color: Colors.white,
+                      color: AppColors.ink,
                       fontWeight: FontWeight.w600,
                       fontSize: 14,
                     ),
@@ -274,7 +276,7 @@ class _PatientListItem extends StatelessWidget {
                       child: Text(
                         subtitle,
                         style: const TextStyle(
-                          color: Colors.white54,
+                          color: AppColors.textSecondary,
                           fontSize: 12,
                         ),
                         overflow: TextOverflow.ellipsis,
