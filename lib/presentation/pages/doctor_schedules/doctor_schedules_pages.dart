@@ -13,6 +13,7 @@ import '../../theme/app_dimensions.dart';
 import '../../theme/app_text_styles.dart';
 import '../../widgets/shared/hold_to_delete_dialog.dart';
 import 'doctor_schedule_form_page.dart';
+import 'widgets/branch_filter_row.dart';
 import 'widgets/day_filter_row.dart';
 import 'widgets/schedule_card.dart';
 
@@ -43,6 +44,16 @@ class _DoctorSchedulePageState extends ConsumerState<DoctorSchedulePage> {
   bool _hasNextPage = false;
 
   int? _filterDayOfWeek;
+  int? _filterBranchId;
+
+  /// A page opened for one branch (via [DoctorSchedulePage.branchId]) is locked
+  /// to it — the filter row would otherwise let the user escape that scope.
+  bool get _isBranchLocked => widget.branchId != null;
+
+  int? get _effectiveBranchId => widget.branchId ?? _filterBranchId;
+
+  bool get _hasActiveFilter =>
+      _filterDayOfWeek != null || _filterBranchId != null;
 
   DoctorScheduleRepository get _repository =>
       ref.read(doctorScheduleRepositoryProvider);
@@ -92,23 +103,20 @@ class _DoctorSchedulePageState extends ConsumerState<DoctorSchedulePage> {
       final result = await _repository.getSchedules(
         page: _currentPage,
         doctorId: widget.doctorId,
-        branchId: widget.branchId,
+        branchId: _effectiveBranchId,
         dayOfWeek: _filterDayOfWeek,
       );
 
-      final filteredRecords = _filterDayOfWeek == null
-          ? result.data
-          : result.data
-              .where((schedule) => schedule.dayOfWeek == _filterDayOfWeek)
-              .toList();
-
+      // The endpoint filters for real now, so the records arrive already
+      // narrowed. Re-filtering here would only drop rows the server counted,
+      // desyncing the list from `hasNextPage`.
       if (!mounted) return;
 
       setState(() {
         if (reset) {
-          _schedules = filteredRecords;
+          _schedules = result.data;
         } else {
-          _schedules = [..._schedules, ...filteredRecords];
+          _schedules = [..._schedules, ...result.data];
         }
         _hasNextPage = result.hasNextPage;
         _isLoading = false;
@@ -239,6 +247,19 @@ class _DoctorSchedulePageState extends ConsumerState<DoctorSchedulePage> {
     _loadSchedules(reset: true);
   }
 
+  void _onBranchFilterChanged(int? branchId) {
+    setState(() => _filterBranchId = branchId);
+    _loadSchedules(reset: true);
+  }
+
+  void _clearFilters() {
+    setState(() {
+      _filterDayOfWeek = null;
+      _filterBranchId = null;
+    });
+    _loadSchedules(reset: true);
+  }
+
   @override
   Widget build(BuildContext context) {
     // `doctor-schedule.viewAny` opens this page, but dentist and receptionist
@@ -273,8 +294,8 @@ class _DoctorSchedulePageState extends ConsumerState<DoctorSchedulePage> {
             _buildHeader(),
             const SizedBox(height: AppDimensions.paddingMedium),
 
-            // ── Day Filter ──────────────────────────
-            _buildDayFilterCard(),
+            // ── Filters ─────────────────────────────
+            _buildFiltersCard(),
             const SizedBox(height: AppDimensions.paddingMedium),
 
             // ── Body ────────────────────────────────
@@ -371,9 +392,9 @@ class _DoctorSchedulePageState extends ConsumerState<DoctorSchedulePage> {
   }
 
   // ─────────────────────────────────────────────────────────
-  // DAY FILTER CARD
+  // FILTERS CARD
   // ─────────────────────────────────────────────────────────
-  Widget _buildDayFilterCard() {
+  Widget _buildFiltersCard() {
     return Container(
       padding: const EdgeInsets.symmetric(
         horizontal: AppDimensions.paddingMedium,
@@ -384,9 +405,38 @@ class _DoctorSchedulePageState extends ConsumerState<DoctorSchedulePage> {
         borderRadius: BorderRadius.circular(AppDimensions.borderRadiusLarge),
         border: Border.all(color: AppColors.border),
       ),
-      child: DayFilterRow(
-        selectedDay: _filterDayOfWeek,
-        onChanged: _onDayFilterChanged,
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          _FilterLabel(
+            icon: Icons.calendar_view_week_rounded,
+            label: 'Day',
+            // Clearing lives on the first row so it has one fixed home
+            // regardless of which filter is active.
+            onClear: _hasActiveFilter ? _clearFilters : null,
+          ),
+          DayFilterRow(
+            selectedDay: _filterDayOfWeek,
+            onChanged: _onDayFilterChanged,
+          ),
+
+          const SizedBox(height: AppDimensions.paddingSmall),
+          const Divider(height: 1, color: AppColors.border),
+          const SizedBox(height: AppDimensions.paddingSmall),
+
+          _FilterLabel(
+            icon: Icons.apartment_rounded,
+            label: _isBranchLocked ? 'Branch (locked)' : 'Branch',
+          ),
+          if (_isBranchLocked)
+            const _LockedBranchNotice()
+          else
+            BranchFilterRow(
+              selectedBranchId: _filterBranchId,
+              onChanged: _onBranchFilterChanged,
+            ),
+        ],
       ),
     );
   }
@@ -507,18 +557,26 @@ class _DoctorSchedulePageState extends ConsumerState<DoctorSchedulePage> {
   // ─────────────────────────────────────────────────────────
   // EMPTY STATE
   // ─────────────────────────────────────────────────────────
+  /// An empty list means something different once a filter is on: nothing
+  /// matched, not "nothing exists". Saying "add one" there sends the user to
+  /// create a duplicate of a schedule the filter is hiding.
+  String _emptyStateTitle() {
+    if (_hasActiveFilter) return 'No schedules match these filters';
+    return 'No schedules yet';
+  }
+
   /// Read-only roles get no "add one" nudge — the button that would follow it
   /// isn't there for them.
   String _emptyStateHint({required bool canCreate}) {
-    if (!canCreate) {
-      return _filterDayOfWeek == null
-          ? 'No doctor schedules have been set up yet'
-          : 'No schedules on this day — try a different one';
+    if (_hasActiveFilter) {
+      return 'Clear or change the filters to see more schedules';
     }
 
-    return _filterDayOfWeek == null
-        ? 'Start by adding a new doctor schedule'
-        : 'Try a different day or add a schedule';
+    if (!canCreate) {
+      return 'No doctor schedules have been set up yet';
+    }
+
+    return 'Start by adding a new doctor schedule';
   }
 
   Widget _buildEmptyState({required bool canCreate}) {
@@ -550,10 +608,9 @@ class _DoctorSchedulePageState extends ConsumerState<DoctorSchedulePage> {
             ),
             const SizedBox(height: AppDimensions.paddingMedium),
             Text(
-              _filterDayOfWeek == null
-                  ? 'No schedules yet'
-                  : 'No schedules for this day',
+              _emptyStateTitle(),
               style: AppTextStyles.titleMedium,
+              textAlign: TextAlign.center,
             ),
             const SizedBox(height: 8),
             Text(
@@ -561,7 +618,25 @@ class _DoctorSchedulePageState extends ConsumerState<DoctorSchedulePage> {
               textAlign: TextAlign.center,
               style: AppTextStyles.bodySmall,
             ),
-            if (canCreate) ...[
+            // With filters on, clearing them is the useful action; creating a
+            // schedule is not, since the list is hiding rows rather than
+            // lacking them.
+            if (_hasActiveFilter) ...[
+              const SizedBox(height: AppDimensions.paddingLarge),
+              OutlinedButton.icon(
+                onPressed: _clearFilters,
+                style: OutlinedButton.styleFrom(
+                  foregroundColor: AppColors.primary,
+                  side: const BorderSide(color: AppColors.border),
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: AppDimensions.paddingLarge,
+                    vertical: AppDimensions.paddingSmall,
+                  ),
+                ),
+                icon: const Icon(Icons.filter_alt_off_outlined, size: 18),
+                label: const Text('Clear filters'),
+              ),
+            ] else if (canCreate) ...[
               const SizedBox(height: AppDimensions.paddingLarge),
               FilledButton.icon(
                 onPressed: _openCreateForm,
@@ -579,6 +654,92 @@ class _DoctorSchedulePageState extends ConsumerState<DoctorSchedulePage> {
             ],
           ],
         ),
+      ),
+    );
+  }
+}
+
+// ─────────────────────────────────────────────────────────
+// FILTER SECTION LABEL
+// ─────────────────────────────────────────────────────────
+class _FilterLabel extends StatelessWidget {
+  final IconData icon;
+  final String label;
+  final VoidCallback? onClear;
+
+  const _FilterLabel({
+    required this.icon,
+    required this.label,
+    this.onClear,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Padding(
+      padding: const EdgeInsets.only(left: 4, bottom: 4),
+      child: Row(
+        children: [
+          Icon(icon, size: 14, color: AppColors.textMuted),
+          const SizedBox(width: 6),
+          Text(
+            label.toUpperCase(),
+            style: const TextStyle(
+              fontSize: 11,
+              fontWeight: FontWeight.w800,
+              letterSpacing: 0.8,
+              color: AppColors.textMuted,
+            ),
+          ),
+          const Spacer(),
+          if (onClear != null)
+            TextButton.icon(
+              onPressed: onClear,
+              style: TextButton.styleFrom(
+                foregroundColor: AppColors.primary,
+                padding: const EdgeInsets.symmetric(horizontal: 8),
+                minimumSize: const Size(0, 28),
+                tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+              ),
+              icon: const Icon(Icons.filter_alt_off_outlined, size: 15),
+              label: const Text(
+                'Clear filters',
+                style: TextStyle(fontSize: 12, fontWeight: FontWeight.w700),
+              ),
+            ),
+        ],
+      ),
+    );
+  }
+}
+
+// ─────────────────────────────────────────────────────────
+// LOCKED BRANCH NOTICE
+// ─────────────────────────────────────────────────────────
+/// Shown instead of the branch pills when the page was opened scoped to a
+/// single branch, so the scope is visible rather than silently applied.
+class _LockedBranchNotice extends StatelessWidget {
+  const _LockedBranchNotice();
+
+  @override
+  Widget build(BuildContext context) {
+    return SizedBox(
+      height: 44,
+      child: Row(
+        children: [
+          const SizedBox(width: 4),
+          const Icon(Icons.lock_outline_rounded,
+              size: 15, color: AppColors.textMuted),
+          const SizedBox(width: 8),
+          Expanded(
+            child: Text(
+              'Showing one branch only',
+              style: AppTextStyles.bodySmall.copyWith(
+                fontSize: 13,
+                color: AppColors.textMuted,
+              ),
+            ),
+          ),
+        ],
       ),
     );
   }

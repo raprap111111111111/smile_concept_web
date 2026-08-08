@@ -24,8 +24,11 @@ class DoctorScheduleRepository {
       final response = await _dio.get(
         '/doctor-schedules',
         queryParameters: {
-          'page': page,
-          'per_page': perPage,
+          // The endpoint paginates on `offset`/`limit` and drops `page` /
+          // `per_page` at validation, so sending those returned page 1 for
+          // every request and infinite scroll re-appended the same rows.
+          'offset': (page - 1) * perPage,
+          'limit': perPage,
           if (doctorId != null) 'doctor_id': doctorId,
           if (branchId != null) 'branch_id': branchId,
           if (dayOfWeek != null) 'day_of_week': dayOfWeek,
