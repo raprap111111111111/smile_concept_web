@@ -15,6 +15,7 @@ import '../../providers/auth/permission_provider.dart';
 import '../../theme/app_colors.dart';
 import '../../theme/app_dimensions.dart';
 import '../../theme/app_text_styles.dart';
+import '../../theme/app_theme.dart';
 import 'appointment_form_page.dart';
 import 'book_appointment_page.dart';
 import 'widgets/appointment_calendar_card.dart';
@@ -236,62 +237,70 @@ class _AppointmentsPageState extends ConsumerState<AppointmentsPage> {
 
     final result = await showDialog<String>(
       context: context,
-      builder: (context) => AlertDialog(
-        backgroundColor: AppColors.background,
-        shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(AppDimensions.borderRadiusLarge),
-        ),
-        title: Row(
-          children: [
-            Container(
-              padding: const EdgeInsets.all(8),
-              decoration: BoxDecoration(
-                color: AppColors.error.withValues(alpha: 0.10),
-                borderRadius: BorderRadius.circular(10),
+      // Dialogs build off the root navigator, so they miss any Theme a page
+      // wraps itself in — pin the light theme here too, or the reason field
+      // draws near-white text on the white dialog.
+      builder: (context) => Theme(
+        data: AppTheme.lightTheme,
+        child: AlertDialog(
+          backgroundColor: AppColors.background,
+          shape: RoundedRectangleBorder(
+            borderRadius:
+                BorderRadius.circular(AppDimensions.borderRadiusLarge),
+          ),
+          title: Row(
+            children: [
+              Container(
+                padding: const EdgeInsets.all(8),
+                decoration: BoxDecoration(
+                  color: AppColors.error.withValues(alpha: 0.10),
+                  borderRadius: BorderRadius.circular(10),
+                ),
+                child: const Icon(
+                  Icons.warning_amber_rounded,
+                  color: AppColors.error,
+                  size: 20,
+                ),
               ),
-              child: const Icon(
-                Icons.warning_amber_rounded,
-                color: AppColors.error,
-                size: 20,
+              const SizedBox(width: AppDimensions.paddingSmall),
+              Text('Cancel Appointment', style: AppTextStyles.titleMedium),
+            ],
+          ),
+          content: Form(
+            key: formKey,
+            child: TextFormField(
+              controller: reasonController,
+              style: AppTextStyles.inputText,
+              decoration: const InputDecoration(
+                labelText: 'Reason for cancellation *',
+                hintText: 'e.g., Schedule conflict, sick',
               ),
+              maxLines: 3,
+              maxLength: 500,
+              validator: (value) {
+                if (value == null || value.trim().isEmpty) {
+                  return 'Reason is required';
+                }
+                return null;
+              },
             ),
-            const SizedBox(width: AppDimensions.paddingSmall),
-            Text('Cancel Appointment', style: AppTextStyles.titleMedium),
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(context),
+              child: const Text('Keep'),
+            ),
+            FilledButton(
+              style: FilledButton.styleFrom(backgroundColor: AppColors.error),
+              onPressed: () {
+                if (formKey.currentState!.validate()) {
+                  Navigator.pop(context, reasonController.text.trim());
+                }
+              },
+              child: const Text('Cancel Appointment'),
+            ),
           ],
         ),
-        content: Form(
-          key: formKey,
-          child: TextFormField(
-            controller: reasonController,
-            decoration: const InputDecoration(
-              labelText: 'Reason for cancellation *',
-              hintText: 'e.g., Schedule conflict, sick',
-            ),
-            maxLines: 3,
-            maxLength: 500,
-            validator: (value) {
-              if (value == null || value.trim().isEmpty) {
-                return 'Reason is required';
-              }
-              return null;
-            },
-          ),
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context),
-            child: const Text('Keep'),
-          ),
-          FilledButton(
-            style: FilledButton.styleFrom(backgroundColor: AppColors.error),
-            onPressed: () {
-              if (formKey.currentState!.validate()) {
-                Navigator.pop(context, reasonController.text.trim());
-              }
-            },
-            child: const Text('Cancel Appointment'),
-          ),
-        ],
       ),
     );
 

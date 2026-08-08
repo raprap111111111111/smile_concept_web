@@ -33,10 +33,7 @@ class _AppointmentFormPatientState
   static const double _formMaxWidth = 720;
 
   /// Typed/selected values read darker than the muted default body text.
-  static final TextStyle _inputTextStyle = AppTextStyles.bodyMedium.copyWith(
-    color: AppColors.ink,
-    fontWeight: FontWeight.w500,
-  );
+  static const TextStyle _inputTextStyle = AppTextStyles.inputText;
 
   final _formKey = GlobalKey<FormState>();
   final _scrollController = ScrollController();

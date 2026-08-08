@@ -91,6 +91,25 @@ class AppTextStyles {
     color: AppColors.textSecondary,
   );
 
+  /// Value typed into — or prefilled in — a form field. Deliberately darker
+  /// than the muted body styles: an entered value has to read as committed
+  /// content, not as the placeholder it replaced.
+  static const inputText = TextStyle(
+    fontSize: 16,
+    fontWeight: FontWeight.w500,
+    height: 1.6,
+    color: AppColors.ink,
+  );
+
+  /// Placeholder sitting in an empty field. Softer than [inputText] so the two
+  /// stay distinguishable at a glance.
+  static const inputHint = TextStyle(
+    fontSize: 16,
+    fontWeight: FontWeight.w400,
+    height: 1.6,
+    color: AppColors.textMuted,
+  );
+
   // Label
   static const labelLarge = TextStyle(
     fontSize: 15,

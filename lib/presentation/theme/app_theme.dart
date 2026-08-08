@@ -92,9 +92,7 @@ class AppTheme {
             width: 2,
           ),
         ),
-        hintStyle: AppTextStyles.bodyMedium.copyWith(
-          color: AppColors.textMuted,
-        ),
+        hintStyle: AppTextStyles.inputHint,
         labelStyle: AppTextStyles.bodySmall.copyWith(
           color: AppColors.textSecondary,
         ),
