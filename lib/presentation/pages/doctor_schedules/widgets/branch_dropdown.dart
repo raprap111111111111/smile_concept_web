@@ -4,6 +4,8 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../../core/errors/error_message.dart';
 import '../../../providers/doctor_schedule/schedule_form_providers.dart';
+import '../../../theme/app_colors.dart';
+import '../../../theme/app_text_styles.dart';
 import 'dropdown_states.dart';
 
 class BranchDropdown extends ConsumerWidget {
@@ -34,12 +36,14 @@ class BranchDropdown extends ConsumerWidget {
         return DropdownButtonFormField<int>(
           initialValue: value,
           isExpanded: true,
+          style: AppTextStyles.inputText,
+          dropdownColor: AppColors.background,
           decoration: const InputDecoration(
             labelText: 'Branch',
             prefixIcon: Icon(Icons.location_on_outlined),
             border: OutlineInputBorder(),
           ),
-          hint: const Text('Select a branch'),
+          hint: Text('Select a branch', style: AppTextStyles.inputHint),
           items: branches
               .map((br) => DropdownMenuItem<int>(
                     value: br.id,

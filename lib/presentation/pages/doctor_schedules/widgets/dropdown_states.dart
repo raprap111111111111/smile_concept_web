@@ -1,5 +1,8 @@
 import 'package:flutter/material.dart';
 
+import '../../../theme/app_colors.dart';
+import '../../../theme/app_text_styles.dart';
+
 // Example skeleton widget
 class DropdownSkeleton extends StatelessWidget {
   final String label;
@@ -9,9 +12,14 @@ class DropdownSkeleton extends StatelessWidget {
   Widget build(BuildContext context) {
     return TextFormField(
       enabled: false,
+      style: AppTextStyles.inputHint,
       decoration: InputDecoration(
         labelText: label,
-        prefixIcon: const Icon(Icons.hourglass_empty),
+        labelStyle: AppTextStyles.inputHint,
+        prefixIcon: const Icon(
+          Icons.hourglass_empty,
+          color: AppColors.textMuted,
+        ),
         border: const OutlineInputBorder(),
       ),
     );
@@ -43,9 +51,14 @@ class DropdownError extends StatelessWidget {
       children: [
         TextFormField(
           enabled: false,
+          style: AppTextStyles.inputText,
           decoration: InputDecoration(
             labelText: 'Error',
-            prefixIcon: const Icon(Icons.error_outline, color: Colors.red),
+            labelStyle: const TextStyle(color: AppColors.error),
+            prefixIcon: const Icon(
+              Icons.error_outline,
+              color: AppColors.error,
+            ),
             errorText: message,
             border: const OutlineInputBorder(),
           ),
@@ -55,9 +68,10 @@ class DropdownError extends StatelessWidget {
             padding: const EdgeInsets.only(top: 6, left: 12, right: 12),
             child: Text(
               detail!,
-              style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                    color: Theme.of(context).colorScheme.error,
-                  ),
+              style: AppTextStyles.bodySmall.copyWith(
+                fontSize: 12,
+                color: AppColors.error,
+              ),
             ),
           ),
         if (onRetry != null)
@@ -65,6 +79,9 @@ class DropdownError extends StatelessWidget {
             alignment: Alignment.centerLeft,
             child: TextButton.icon(
               onPressed: onRetry,
+              style: TextButton.styleFrom(
+                foregroundColor: AppColors.primary,
+              ),
               icon: const Icon(Icons.refresh, size: 18),
               label: const Text('Retry'),
             ),

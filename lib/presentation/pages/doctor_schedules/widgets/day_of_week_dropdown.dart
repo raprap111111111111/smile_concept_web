@@ -1,6 +1,8 @@
 // lib/presentation/pages/doctor_schedules/widgets/day_of_week_dropdown.dart
 
 import 'package:flutter/material.dart';
+import '../../../theme/app_colors.dart';
+import '../../../theme/app_text_styles.dart';
 import '../constants.dart';
 
 class DayOfWeekDropdown extends StatelessWidget {
@@ -17,6 +19,8 @@ class DayOfWeekDropdown extends StatelessWidget {
   Widget build(BuildContext context) {
     return DropdownButtonFormField<int>(
       initialValue: value,
+      style: AppTextStyles.inputText,
+      dropdownColor: AppColors.background,
       decoration: const InputDecoration(
         labelText: 'Day of Week',
         prefixIcon: Icon(Icons.calendar_today_outlined),
