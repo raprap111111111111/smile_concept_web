@@ -4,6 +4,8 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../../core/errors/error_message.dart';
 import '../../../providers/doctor_schedule/schedule_form_providers.dart';
+import '../../../theme/app_colors.dart';
+import '../../../theme/app_text_styles.dart';
 import 'dropdown_states.dart';
 
 class DoctorDropdown extends ConsumerWidget {
@@ -33,12 +35,14 @@ class DoctorDropdown extends ConsumerWidget {
         return DropdownButtonFormField<int>(
           initialValue: value,
           isExpanded: true,
+          style: AppTextStyles.inputText,
+          dropdownColor: AppColors.background,
           decoration: const InputDecoration(
             labelText: 'Doctor',
             prefixIcon: Icon(Icons.person_outline),
             border: OutlineInputBorder(),
           ),
-          hint: const Text('Select a doctor'),
+          hint: Text('Select a doctor', style: AppTextStyles.inputHint),
           items: doctors
               .map((doc) => DropdownMenuItem<int>(
                     value: doc.id,

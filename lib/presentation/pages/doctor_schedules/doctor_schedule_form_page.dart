@@ -9,6 +9,7 @@ import '../../providers/doctor_schedule/doctor_schedule_provider.dart';
 import '../../theme/app_colors.dart';
 import '../../theme/app_dimensions.dart';
 import '../../theme/app_text_styles.dart';
+import '../../theme/app_theme.dart';
 import 'widgets/branch_dropdown.dart';
 import 'widgets/days_checkbox_list.dart';
 import 'widgets/day_of_week_dropdown.dart';
@@ -165,6 +166,16 @@ class _DoctorScheduleFormPageState
 
   @override
   Widget build(BuildContext context) {
+    // main.dart still runs ThemeData.dark(); this page is designed light, so it
+    // pins the intended light theme rather than inheriting dark input styles —
+    // otherwise field text renders near-white on the white form cards.
+    return Theme(
+      data: AppTheme.lightTheme,
+      child: _buildScaffold(context),
+    );
+  }
+
+  Widget _buildScaffold(BuildContext context) {
     return Scaffold(
       backgroundColor: AppColors.surface,
       appBar: AppBar(

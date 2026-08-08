@@ -2,6 +2,9 @@
 
 import 'package:flutter/material.dart';
 
+import '../../../theme/app_colors.dart';
+import '../../../theme/app_text_styles.dart';
+
 class TimePickerField extends StatelessWidget {
   final TextEditingController controller;
   final String label;
@@ -33,6 +36,22 @@ class TimePickerField extends StatelessWidget {
     final picked = await showTimePicker(
       context: context,
       initialTime: initial,
+      // The dialog is pushed on the root navigator, so it is pinned light here
+      // the same way the form page pins itself — otherwise the clock face
+      // inherits the app's dark theme and clashes with the light form.
+      builder: (context, child) {
+        return Theme(
+          data: Theme.of(context).copyWith(
+            colorScheme: const ColorScheme.light(
+              primary: AppColors.primary,
+              onPrimary: AppColors.textOnPrimary,
+              surface: AppColors.background,
+              onSurface: AppColors.ink,
+            ),
+          ),
+          child: child!,
+        );
+      },
     );
 
     if (picked != null) {
@@ -47,6 +66,7 @@ class TimePickerField extends StatelessWidget {
       controller: controller,
       readOnly: true,
       onTap: () => _pickTime(context),
+      style: AppTextStyles.inputText,
       decoration: InputDecoration(
         labelText: label,
         prefixIcon: Icon(icon),
