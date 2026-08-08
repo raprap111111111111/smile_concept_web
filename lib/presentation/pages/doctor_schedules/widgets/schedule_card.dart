@@ -9,14 +9,17 @@ import '../../../theme/app_text_styles.dart';
 
 class ScheduleCard extends StatelessWidget {
   final DoctorScheduleModel schedule;
-  final VoidCallback onEdit;
-  final VoidCallback onDelete;
+
+  /// Null hides the button — the caller passes null when the signed-in role
+  /// lacks `doctor-schedule.update` / `.delete`.
+  final VoidCallback? onEdit;
+  final VoidCallback? onDelete;
 
   const ScheduleCard({
     super.key,
     required this.schedule,
-    required this.onEdit,
-    required this.onDelete,
+    this.onEdit,
+    this.onDelete,
   });
 
   String _formatTime(String time) =>
@@ -151,19 +154,22 @@ class ScheduleCard extends StatelessWidget {
                       const SizedBox(width: 4),
 
                       // Action buttons
-                      _ActionButton(
-                        icon: Icons.edit_outlined,
-                        color: AppColors.primary,
-                        tooltip: 'Edit',
-                        onTap: onEdit,
-                      ),
-                      const SizedBox(width: 4),
-                      _ActionButton(
-                        icon: Icons.delete_outline_rounded,
-                        color: AppColors.error,
-                        tooltip: 'Delete',
-                        onTap: onDelete,
-                      ),
+                      if (onEdit != null) ...[
+                        _ActionButton(
+                          icon: Icons.edit_outlined,
+                          color: AppColors.primary,
+                          tooltip: 'Edit',
+                          onTap: onEdit!,
+                        ),
+                        const SizedBox(width: 4),
+                      ],
+                      if (onDelete != null)
+                        _ActionButton(
+                          icon: Icons.delete_outline_rounded,
+                          color: AppColors.error,
+                          tooltip: 'Delete',
+                          onTap: onDelete!,
+                        ),
                     ],
                   ),
 

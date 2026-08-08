@@ -3,8 +3,10 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../../../core/permissions/app_permissions.dart';
 import '../../../data/models/doctor_schedule/doctor_schedule_model.dart';
 import '../../../data/repositories/doctor_schedule_repository.dart';
+import '../../providers/auth/permission_provider.dart';
 import '../../providers/doctor_schedule/doctor_schedule_provider.dart';
 import '../../theme/app_colors.dart';
 import '../../theme/app_dimensions.dart';
@@ -239,18 +241,29 @@ class _DoctorSchedulePageState extends ConsumerState<DoctorSchedulePage> {
 
   @override
   Widget build(BuildContext context) {
+    // `doctor-schedule.viewAny` opens this page, but dentist and receptionist
+    // stop there — they hold no `.create`/`.update`/`.delete`. Showing them the
+    // buttons anyway sends them into a form whose branch picker 403s and whose
+    // save would 403 too.
+    final permissions = ref.watch(permissionServiceProvider);
+    final canCreate = permissions.can(Perm.doctorScheduleCreate);
+    final canUpdate = permissions.can(Perm.doctorScheduleUpdate);
+    final canDelete = permissions.can(Perm.doctorScheduleDelete);
+
     return Scaffold(
       backgroundColor: AppColors.surface,
-      floatingActionButton: FloatingActionButton.extended(
-        onPressed: _openCreateForm,
-        backgroundColor: AppColors.primary,
-        foregroundColor: AppColors.textOnPrimary,
-        icon: const Icon(Icons.add_rounded),
-        label: const Text(
-          'Add Schedule',
-          style: TextStyle(fontWeight: FontWeight.w700),
-        ),
-      ),
+      floatingActionButton: canCreate
+          ? FloatingActionButton.extended(
+              onPressed: _openCreateForm,
+              backgroundColor: AppColors.primary,
+              foregroundColor: AppColors.textOnPrimary,
+              icon: const Icon(Icons.add_rounded),
+              label: const Text(
+                'Add Schedule',
+                style: TextStyle(fontWeight: FontWeight.w700),
+              ),
+            )
+          : null,
       body: Padding(
         padding: const EdgeInsets.all(AppDimensions.paddingLarge),
         child: Column(
@@ -265,7 +278,13 @@ class _DoctorSchedulePageState extends ConsumerState<DoctorSchedulePage> {
             const SizedBox(height: AppDimensions.paddingMedium),
 
             // ── Body ────────────────────────────────
-            Expanded(child: _buildBody()),
+            Expanded(
+              child: _buildBody(
+                canCreate: canCreate,
+                canUpdate: canUpdate,
+                canDelete: canDelete,
+              ),
+            ),
           ],
         ),
       ),
@@ -375,7 +394,11 @@ class _DoctorSchedulePageState extends ConsumerState<DoctorSchedulePage> {
   // ─────────────────────────────────────────────────────────
   // BODY
   // ─────────────────────────────────────────────────────────
-  Widget _buildBody() {
+  Widget _buildBody({
+    required bool canCreate,
+    required bool canUpdate,
+    required bool canDelete,
+  }) {
     if (_isLoading) {
       return const Center(
         child: CircularProgressIndicator(color: AppColors.primary),
@@ -387,7 +410,7 @@ class _DoctorSchedulePageState extends ConsumerState<DoctorSchedulePage> {
     }
 
     if (_schedules.isEmpty) {
-      return _buildEmptyState();
+      return _buildEmptyState(canCreate: canCreate);
     }
 
     return RefreshIndicator(
@@ -413,8 +436,8 @@ class _DoctorSchedulePageState extends ConsumerState<DoctorSchedulePage> {
                 const EdgeInsets.only(bottom: AppDimensions.paddingSmall),
             child: ScheduleCard(
               schedule: schedule,
-              onEdit: () => _openEditForm(schedule),
-              onDelete: () => _deleteSchedule(schedule),
+              onEdit: canUpdate ? () => _openEditForm(schedule) : null,
+              onDelete: canDelete ? () => _deleteSchedule(schedule) : null,
             ),
           );
         },
@@ -484,7 +507,21 @@ class _DoctorSchedulePageState extends ConsumerState<DoctorSchedulePage> {
   // ─────────────────────────────────────────────────────────
   // EMPTY STATE
   // ─────────────────────────────────────────────────────────
-  Widget _buildEmptyState() {
+  /// Read-only roles get no "add one" nudge — the button that would follow it
+  /// isn't there for them.
+  String _emptyStateHint({required bool canCreate}) {
+    if (!canCreate) {
+      return _filterDayOfWeek == null
+          ? 'No doctor schedules have been set up yet'
+          : 'No schedules on this day — try a different one';
+    }
+
+    return _filterDayOfWeek == null
+        ? 'Start by adding a new doctor schedule'
+        : 'Try a different day or add a schedule';
+  }
+
+  Widget _buildEmptyState({required bool canCreate}) {
     return Center(
       child: Container(
         margin: const EdgeInsets.all(AppDimensions.paddingLarge),
@@ -520,26 +557,26 @@ class _DoctorSchedulePageState extends ConsumerState<DoctorSchedulePage> {
             ),
             const SizedBox(height: 8),
             Text(
-              _filterDayOfWeek == null
-                  ? 'Start by adding a new doctor schedule'
-                  : 'Try a different day or add a schedule',
+              _emptyStateHint(canCreate: canCreate),
               textAlign: TextAlign.center,
               style: AppTextStyles.bodySmall,
             ),
-            const SizedBox(height: AppDimensions.paddingLarge),
-            FilledButton.icon(
-              onPressed: _openCreateForm,
-              style: FilledButton.styleFrom(
-                backgroundColor: AppColors.primary,
-                foregroundColor: AppColors.textOnPrimary,
-                padding: const EdgeInsets.symmetric(
-                  horizontal: AppDimensions.paddingLarge,
-                  vertical: AppDimensions.paddingSmall,
+            if (canCreate) ...[
+              const SizedBox(height: AppDimensions.paddingLarge),
+              FilledButton.icon(
+                onPressed: _openCreateForm,
+                style: FilledButton.styleFrom(
+                  backgroundColor: AppColors.primary,
+                  foregroundColor: AppColors.textOnPrimary,
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: AppDimensions.paddingLarge,
+                    vertical: AppDimensions.paddingSmall,
+                  ),
                 ),
+                icon: const Icon(Icons.add_rounded),
+                label: const Text('Add Schedule'),
               ),
-              icon: const Icon(Icons.add_rounded),
-              label: const Text('Add Schedule'),
-            ),
+            ],
           ],
         ),
       ),

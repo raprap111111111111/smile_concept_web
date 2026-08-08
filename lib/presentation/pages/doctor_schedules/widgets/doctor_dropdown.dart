@@ -2,6 +2,7 @@
 
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import '../../../../core/errors/error_message.dart';
 import '../../../providers/doctor_schedule/schedule_form_providers.dart';
 import 'dropdown_states.dart';
 
@@ -21,7 +22,13 @@ class DoctorDropdown extends ConsumerWidget {
 
     return doctorsAsync.when(
       loading: () => const DropdownSkeleton(label: 'Loading doctors...'),
-      error: (e, _) => const DropdownError(message: 'Failed to load doctors'),
+      error: (e, _) => DropdownError(
+        message: 'Failed to load doctors',
+        detail: describeError(e),
+        onRetry: isPermissionError(e)
+            ? null
+            : () => ref.invalidate(doctorsListProvider),
+      ),
       data: (doctors) {
         return DropdownButtonFormField<int>(
           initialValue: value,

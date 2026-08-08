@@ -49,11 +49,18 @@ class DropdownSkeleton extends StatelessWidget {
 // ── Error State ───────────────────────────────────────────────
 class DropdownError extends StatelessWidget {
   final String message;
+
+  /// Why the load failed — a 403, a dead API port, a parse error. Without it
+  /// `message` alone ("Failed to load branches") names the symptom and hides
+  /// every cause behind one string.
+  final String? detail;
+
   final VoidCallback? onRetry;
 
   const DropdownError({
     super.key,
     required this.message,
+    this.detail,
     this.onRetry,
   });
 
@@ -73,11 +80,27 @@ class DropdownError extends StatelessWidget {
               size: AppDimensions.iconSizeMedium),
           const SizedBox(width: AppDimensions.paddingXS),
           Expanded(
-            child: Text(
-              message,
-              style: AppTextStyles.bodySmall.copyWith(
-                color: AppColors.error,
-              ),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Text(
+                  message,
+                  style: AppTextStyles.bodySmall.copyWith(
+                    color: AppColors.error,
+                  ),
+                ),
+                if (detail != null)
+                  Padding(
+                    padding: const EdgeInsets.only(top: 2),
+                    child: Text(
+                      detail!,
+                      style: AppTextStyles.bodySmall.copyWith(
+                        color: AppColors.error.withValues(alpha: 0.8),
+                      ),
+                    ),
+                  ),
+              ],
             ),
           ),
           if (onRetry != null)
