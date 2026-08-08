@@ -1,19 +1,23 @@
 // lib/presentation/layouts/widgets/topbar/topbar.dart
 
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../../../providers/layout/sidebar_provider.dart';
 import '../../../theme/app_colors.dart';
+import '../../../theme/app_dimensions.dart';
 import '../../../theme/app_text_styles.dart';
 import '../../../widgets/common/notification_bell.dart';
 import '../../../widgets/common/realtime_status_dot.dart';
 import 'page_title.dart';
 import 'topbar_user_info.dart';
 
-class Topbar extends StatelessWidget {
+class Topbar extends ConsumerWidget {
   const Topbar({super.key});
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
+    final collapsed = ref.watch(sidebarCollapsedProvider);
     return Container(
       height: 72,
       padding: const EdgeInsets.symmetric(horizontal: 26),
@@ -33,6 +37,16 @@ class Topbar extends StatelessWidget {
       child: Row(
         mainAxisAlignment: MainAxisAlignment.spaceBetween,
         children: [
+          // ── Sidebar toggle ────────────────────────────────
+          // Lives here rather than inside the sidebar so it stays put in both
+          // states instead of moving with the panel edge.
+          _SidebarToggle(
+            collapsed: collapsed,
+            onPressed: () =>
+                ref.read(sidebarCollapsedProvider.notifier).toggle(),
+          ),
+          const SizedBox(width: 8),
+
           // ── Page Title (flexible, ellipsis if too long) ───
           Expanded(
             child: Text(
@@ -71,6 +85,40 @@ class Topbar extends StatelessWidget {
             ],
           ),
         ],
+      ),
+    );
+  }
+}
+
+class _SidebarToggle extends StatelessWidget {
+  final bool collapsed;
+  final VoidCallback onPressed;
+
+  const _SidebarToggle({required this.collapsed, required this.onPressed});
+
+  @override
+  Widget build(BuildContext context) {
+    return Tooltip(
+      message: collapsed ? 'Expand sidebar' : 'Collapse sidebar',
+      waitDuration: const Duration(milliseconds: 250),
+      decoration: BoxDecoration(
+        color: AppColors.ink,
+        borderRadius: BorderRadius.circular(AppDimensions.borderRadiusSmall),
+      ),
+      textStyle: const TextStyle(
+        color: AppColors.textOnDark,
+        fontSize: 12,
+        fontWeight: FontWeight.w600,
+      ),
+      child: IconButton(
+        onPressed: onPressed,
+        splashRadius: 22,
+        hoverColor: AppColors.surface,
+        icon: Icon(
+          collapsed ? Icons.menu_rounded : Icons.menu_open_rounded,
+          color: AppColors.textSecondary,
+          size: 22,
+        ),
       ),
     );
   }
