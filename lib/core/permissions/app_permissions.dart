@@ -205,6 +205,7 @@ class Perm {
   static const String treatmentPlanForceDelete = 'treatment-plan.forceDelete';
   static const String treatmentPlanAccept = 'treatment-plan.accept';
   static const String treatmentPlanReject = 'treatment-plan.reject';
+  static const String treatmentPlanViewOwn = 'treatment-plan.viewOwn';
   static const String treatmentPlanSendToPatient =
       'treatment-plan.send-to-patient';
   static const String treatmentPlanMarkCompleted =
@@ -225,6 +226,7 @@ class Perm {
   static const String prescriptionForceDelete = 'prescription.forceDelete';
   static const String prescriptionPrint = 'prescription.print';
   static const String prescriptionSend = 'prescription.send';
+  static const String prescriptionViewOwn = 'prescription.viewOwn';
 
   // ═══════════════════════════════════════════════════════════
   // 📎 ATTACHMENTS

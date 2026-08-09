@@ -65,11 +65,11 @@ class RoutePermissions {
     '/doctors': [Perm.doctorViewAny],
     '/doctor-schedules': [Perm.doctorScheduleViewAny],
     '/prescriptions/new': [Perm.prescriptionCreate],
-    '/prescriptions': [Perm.prescriptionViewAny, Perm.prescriptionView],
+    '/prescriptions': [Perm.prescriptionViewAny, Perm.prescriptionView, Perm.prescriptionViewOwn,],
     '/treatments/new': [Perm.treatmentCreate],
     '/treatments': [Perm.treatmentViewAny, Perm.treatmentView],
     '/treatment-plans/new': [Perm.treatmentPlanCreate],
-    '/treatment-plans': [Perm.treatmentPlanViewAny, Perm.treatmentPlanView],
+    '/treatment-plans': [Perm.treatmentPlanViewAny, Perm.treatmentPlanView, Perm.treatmentPlanViewOwn,],
     '/lab-cases': [Perm.labCaseViewAny],
     '/patient-attachments/upload': [
       Perm.patientAttachmentCreate,

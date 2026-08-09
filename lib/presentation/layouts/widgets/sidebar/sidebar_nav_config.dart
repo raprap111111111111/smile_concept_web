@@ -66,13 +66,17 @@ class SidebarNavConfig {
             icon: Icons.medication_outlined,
             title: 'My Prescriptions',
             routeName: RouteNames.prescriptions,
-            permissions: [Perm.prescriptionView],
+            permissions: [
+              Perm.prescriptionViewOwn, // ✅ patient
+              Perm.prescriptionViewAny, // ✅ staff (if they ever use this section)
+              // optional: Perm.prescriptionView,
+            ],
           ),
           const NavItem(
             icon: Icons.assignment_outlined,
             title: 'My Treatment Plans',
             routeName: RouteNames.treatmentPlans,
-            permissions: [Perm.treatmentPlanView],
+            permissions: [Perm.treatmentPlanView, Perm.treatmentPlanViewOwn],
           ),
         ],
       ),
