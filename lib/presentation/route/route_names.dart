@@ -116,4 +116,5 @@ class RouteNames {
   static const String myProfile = 'my-profile';
   static const String myAppointments = 'my-appointments';
   static const String myInvoices = 'my-invoices';
+
 }

@@ -497,7 +497,7 @@ class _ActiveToggle extends StatelessWidget {
           Switch(
             value: value,
             onChanged: onChanged,
-            activeColor: AppColors.success,
+            activeThumbColor: AppColors.success,
             inactiveThumbColor: AppColors.error,
             inactiveTrackColor: AppColors.error.withValues(alpha: 0.2),
           ),

@@ -421,11 +421,9 @@ class _DoctorSchedulePageState extends ConsumerState<DoctorSchedulePage> {
             selectedDay: _filterDayOfWeek,
             onChanged: _onDayFilterChanged,
           ),
-
           const SizedBox(height: AppDimensions.paddingSmall),
           const Divider(height: 1, color: AppColors.border),
           const SizedBox(height: AppDimensions.paddingSmall),
-
           _FilterLabel(
             icon: Icons.apartment_rounded,
             label: _isBranchLocked ? 'Branch (locked)' : 'Branch',
@@ -483,8 +481,7 @@ class _DoctorSchedulePageState extends ConsumerState<DoctorSchedulePage> {
 
           final schedule = _schedules[index];
           return Padding(
-            padding:
-                const EdgeInsets.only(bottom: AppDimensions.paddingSmall),
+            padding: const EdgeInsets.only(bottom: AppDimensions.paddingSmall),
             child: ScheduleCard(
               schedule: schedule,
               onEdit: canUpdate ? () => _openEditForm(schedule) : null,
@@ -500,58 +497,70 @@ class _DoctorSchedulePageState extends ConsumerState<DoctorSchedulePage> {
   // ERROR STATE
   // ─────────────────────────────────────────────────────────
   Widget _buildErrorState() {
-    return Center(
-      child: Container(
-        margin: const EdgeInsets.all(AppDimensions.paddingLarge),
-        padding: const EdgeInsets.all(AppDimensions.paddingXL),
-        decoration: BoxDecoration(
-          color: AppColors.background,
-          borderRadius: BorderRadius.circular(AppDimensions.borderRadiusLarge),
-          border: Border.all(
-            color: AppColors.error.withValues(alpha: 0.25),
-          ),
-        ),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Container(
-              width: 72,
-              height: 72,
-              decoration: BoxDecoration(
-                color: AppColors.error.withValues(alpha: 0.10),
-                shape: BoxShape.circle,
-              ),
-              child: const Icon(
-                Icons.error_outline_rounded,
-                size: 36,
-                color: AppColors.error,
-              ),
-            ),
-            const SizedBox(height: AppDimensions.paddingMedium),
-            Text('Something went wrong', style: AppTextStyles.titleMedium),
-            const SizedBox(height: 8),
-            Text(
-              _error!,
-              textAlign: TextAlign.center,
-              style: AppTextStyles.bodySmall,
-            ),
-            const SizedBox(height: AppDimensions.paddingLarge),
-            FilledButton.icon(
-              onPressed: _refresh,
-              style: FilledButton.styleFrom(
-                backgroundColor: AppColors.primary,
-                foregroundColor: AppColors.textOnPrimary,
-                padding: const EdgeInsets.symmetric(
-                  horizontal: AppDimensions.paddingLarge,
-                  vertical: AppDimensions.paddingSmall,
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        return SingleChildScrollView(
+          physics: const AlwaysScrollableScrollPhysics(),
+          child: ConstrainedBox(
+            constraints: BoxConstraints(minHeight: constraints.maxHeight),
+            child: Center(
+              child: Container(
+                margin: const EdgeInsets.all(AppDimensions.paddingLarge),
+                padding: const EdgeInsets.all(AppDimensions.paddingXL),
+                decoration: BoxDecoration(
+                  color: AppColors.background,
+                  borderRadius:
+                      BorderRadius.circular(AppDimensions.borderRadiusLarge),
+                  border: Border.all(
+                    color: AppColors.error.withValues(alpha: 0.25),
+                  ),
+                ),
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Container(
+                      width: 72,
+                      height: 72,
+                      decoration: BoxDecoration(
+                        color: AppColors.error.withValues(alpha: 0.10),
+                        shape: BoxShape.circle,
+                      ),
+                      child: const Icon(
+                        Icons.error_outline_rounded,
+                        size: 36,
+                        color: AppColors.error,
+                      ),
+                    ),
+                    const SizedBox(height: AppDimensions.paddingMedium),
+                    Text('Something went wrong',
+                        style: AppTextStyles.titleMedium),
+                    const SizedBox(height: 8),
+                    Text(
+                      _error!,
+                      textAlign: TextAlign.center,
+                      style: AppTextStyles.bodySmall,
+                    ),
+                    const SizedBox(height: AppDimensions.paddingLarge),
+                    FilledButton.icon(
+                      onPressed: _refresh,
+                      style: FilledButton.styleFrom(
+                        backgroundColor: AppColors.primary,
+                        foregroundColor: AppColors.textOnPrimary,
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: AppDimensions.paddingLarge,
+                          vertical: AppDimensions.paddingSmall,
+                        ),
+                      ),
+                      icon: const Icon(Icons.refresh_rounded),
+                      label: const Text('Try again'),
+                    ),
+                  ],
                 ),
               ),
-              icon: const Icon(Icons.refresh_rounded),
-              label: const Text('Try again'),
             ),
-          ],
-        ),
-      ),
+          ),
+        );
+      },
     );
   }
 
@@ -581,81 +590,93 @@ class _DoctorSchedulePageState extends ConsumerState<DoctorSchedulePage> {
   }
 
   Widget _buildEmptyState({required bool canCreate}) {
-    return Center(
-      child: Container(
-        margin: const EdgeInsets.all(AppDimensions.paddingLarge),
-        padding: const EdgeInsets.all(AppDimensions.paddingXL),
-        decoration: BoxDecoration(
-          color: AppColors.background,
-          borderRadius: BorderRadius.circular(AppDimensions.borderRadiusLarge),
-          border: Border.all(color: AppColors.border),
-        ),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Container(
-              width: 80,
-              height: 80,
-              decoration: BoxDecoration(
-                color: AppColors.accentLight,
-                shape: BoxShape.circle,
-                border: Border.all(color: AppColors.border),
-              ),
-              child: const Icon(
-                Icons.event_available_rounded,
-                color: AppColors.primary,
-                size: 36,
-              ),
-            ),
-            const SizedBox(height: AppDimensions.paddingMedium),
-            Text(
-              _emptyStateTitle(),
-              style: AppTextStyles.titleMedium,
-              textAlign: TextAlign.center,
-            ),
-            const SizedBox(height: 8),
-            Text(
-              _emptyStateHint(canCreate: canCreate),
-              textAlign: TextAlign.center,
-              style: AppTextStyles.bodySmall,
-            ),
-            // With filters on, clearing them is the useful action; creating a
-            // schedule is not, since the list is hiding rows rather than
-            // lacking them.
-            if (_hasActiveFilter) ...[
-              const SizedBox(height: AppDimensions.paddingLarge),
-              OutlinedButton.icon(
-                onPressed: _clearFilters,
-                style: OutlinedButton.styleFrom(
-                  foregroundColor: AppColors.primary,
-                  side: const BorderSide(color: AppColors.border),
-                  padding: const EdgeInsets.symmetric(
-                    horizontal: AppDimensions.paddingLarge,
-                    vertical: AppDimensions.paddingSmall,
-                  ),
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        return SingleChildScrollView(
+          physics: const AlwaysScrollableScrollPhysics(),
+          child: ConstrainedBox(
+            constraints: BoxConstraints(minHeight: constraints.maxHeight),
+            child: Center(
+              child: Container(
+                margin: const EdgeInsets.all(AppDimensions.paddingLarge),
+                padding: const EdgeInsets.all(AppDimensions.paddingXL),
+                decoration: BoxDecoration(
+                  color: AppColors.background,
+                  borderRadius:
+                      BorderRadius.circular(AppDimensions.borderRadiusLarge),
+                  border: Border.all(color: AppColors.border),
                 ),
-                icon: const Icon(Icons.filter_alt_off_outlined, size: 18),
-                label: const Text('Clear filters'),
-              ),
-            ] else if (canCreate) ...[
-              const SizedBox(height: AppDimensions.paddingLarge),
-              FilledButton.icon(
-                onPressed: _openCreateForm,
-                style: FilledButton.styleFrom(
-                  backgroundColor: AppColors.primary,
-                  foregroundColor: AppColors.textOnPrimary,
-                  padding: const EdgeInsets.symmetric(
-                    horizontal: AppDimensions.paddingLarge,
-                    vertical: AppDimensions.paddingSmall,
-                  ),
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Container(
+                      width: 80,
+                      height: 80,
+                      decoration: BoxDecoration(
+                        color: AppColors.accentLight,
+                        shape: BoxShape.circle,
+                        border: Border.all(color: AppColors.border),
+                      ),
+                      child: const Icon(
+                        Icons.event_available_rounded,
+                        color: AppColors.primary,
+                        size: 36,
+                      ),
+                    ),
+                    const SizedBox(height: AppDimensions.paddingMedium),
+                    Text(
+                      _emptyStateTitle(),
+                      style: AppTextStyles.titleMedium,
+                      textAlign: TextAlign.center,
+                    ),
+                    const SizedBox(height: 8),
+                    Text(
+                      _emptyStateHint(canCreate: canCreate),
+                      textAlign: TextAlign.center,
+                      style: AppTextStyles.bodySmall,
+                    ),
+                    // With filters on, clearing them is the useful action; creating a
+                    // schedule is not, since the list is hiding rows rather than
+                    // lacking them.
+                    if (_hasActiveFilter) ...[
+                      const SizedBox(height: AppDimensions.paddingLarge),
+                      OutlinedButton.icon(
+                        onPressed: _clearFilters,
+                        style: OutlinedButton.styleFrom(
+                          foregroundColor: AppColors.primary,
+                          side: const BorderSide(color: AppColors.border),
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: AppDimensions.paddingLarge,
+                            vertical: AppDimensions.paddingSmall,
+                          ),
+                        ),
+                        icon:
+                            const Icon(Icons.filter_alt_off_outlined, size: 18),
+                        label: const Text('Clear filters'),
+                      ),
+                    ] else if (canCreate) ...[
+                      const SizedBox(height: AppDimensions.paddingLarge),
+                      FilledButton.icon(
+                        onPressed: _openCreateForm,
+                        style: FilledButton.styleFrom(
+                          backgroundColor: AppColors.primary,
+                          foregroundColor: AppColors.textOnPrimary,
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: AppDimensions.paddingLarge,
+                            vertical: AppDimensions.paddingSmall,
+                          ),
+                        ),
+                        icon: const Icon(Icons.add_rounded),
+                        label: const Text('Add Schedule'),
+                      ),
+                    ],
+                  ],
                 ),
-                icon: const Icon(Icons.add_rounded),
-                label: const Text('Add Schedule'),
               ),
-            ],
-          ],
-        ),
-      ),
+            ),
+          ),
+        );
+      },
     );
   }
 }

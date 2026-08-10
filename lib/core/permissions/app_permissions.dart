@@ -246,6 +246,7 @@ class Perm {
   // ═══════════════════════════════════════════════════════════
   static const String consentFormViewAny = 'consent-form.viewAny';
   static const String consentFormView = 'consent-form.view';
+  static const String consentFormViewOwn = 'consent-form.viewOwn'; 
   static const String consentFormCreate = 'consent-form.create';
   static const String consentFormUpdate = 'consent-form.update';
   static const String consentFormDelete = 'consent-form.delete';

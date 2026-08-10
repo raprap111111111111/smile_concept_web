@@ -116,7 +116,6 @@ class _LabCasesPageState extends ConsumerState<LabCasesPage> {
                     _CircleIconButton(
                       icon: Icons.filter_alt_outlined,
                       onTap: () {
-                        // TODO: show filter drawer if you want
                       },
                     ),
                     const SizedBox(width: 8),

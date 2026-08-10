@@ -1,7 +1,5 @@
 import 'package:flutter/material.dart';
-import 'package:go_router/go_router.dart';
 
-import '../../../route/route_names.dart';
 import '/presentation/theme/app_colors.dart';
 import '/presentation/theme/app_dimensions.dart';
 import '/presentation/theme/app_text_styles.dart';

@@ -204,7 +204,7 @@ class _PatientAttachmentCreatePageState
           Switch(
             value: _isXray,
             onChanged: (v) => setState(() => _isXray = v),
-            activeColor: AppColors.info,
+            activeThumbColor: AppColors.info,
           ),
         ],
       ),

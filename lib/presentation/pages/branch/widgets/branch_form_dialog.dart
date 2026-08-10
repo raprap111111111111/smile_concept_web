@@ -220,7 +220,7 @@ class _BranchFormDialogState extends State<BranchFormDialog> {
           ),
         ),
         value: _isActive,
-        activeColor: AppColors.primary,
+        activeThumbColor: AppColors.primary,
         onChanged: (value) => setState(() => _isActive = value),
       ),
     );

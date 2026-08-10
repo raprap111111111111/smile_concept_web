@@ -65,7 +65,7 @@ dependencies:
   printing: ^5.13.0
   file_picker: ^8.1.5  
 
-  url_launcher: ^6.3.0   # ✅ ADD THIS
+  url_launcher: ^6.3.2  
 
   # Images
   image_picker: ^1.1.2
@@ -74,6 +74,8 @@ dependencies:
   # Biometrics
   local_auth: ^2.3.0
   fl_chart: ^1.2.0
+  signature: ^6.4.0
+  path_provider: ^2.1.6
 
 dev_dependencies:
   flutter_test:

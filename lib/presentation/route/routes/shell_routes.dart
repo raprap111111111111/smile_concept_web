@@ -1,5 +1,4 @@
 // lib/presentation/route/routes/shell_routes.dart
-// ✅ Already correct once patientAttachmentRoutes is a List
 
 import 'package:go_router/go_router.dart';
 import 'package:smile_concept_web/presentation/route/routes/protected_routes/lab_case_routes.dart';
@@ -13,6 +12,7 @@ import 'protected_routes/invoice_routes.dart';
 import 'protected_routes/misc_routes.dart';
 import 'protected_routes/inventory_routes.dart';
 import 'protected_routes/patient_attachment_routes.dart';
+import 'protected_routes/consent_routes.dart'; 
 
 final shellRoutes = ShellRoute(
   builder: (context, state, child) => MainLayout(child: child),
@@ -25,7 +25,8 @@ final shellRoutes = ShellRoute(
     ...invoiceRoutes,
     ...inventoryRoutes,
     ...miscRoutes,
-    ...patientAttachmentRoutes, 
+    ...patientAttachmentRoutes,
     ...labCaseRoutes,
+    ...consentRoutes,  
   ],
 );

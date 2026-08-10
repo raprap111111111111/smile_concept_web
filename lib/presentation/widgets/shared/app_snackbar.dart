@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
-import '/presentation/theme/app_colors.dart';
-import '/presentation/theme/app_text_styles.dart';
+
+import 'package:smile_concept_web/presentation/theme/app_colors.dart';
+import 'package:smile_concept_web/presentation/theme/app_text_styles.dart';
 
 class AppSnackbar {
   AppSnackbar._();
