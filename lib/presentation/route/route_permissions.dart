@@ -65,11 +65,19 @@ class RoutePermissions {
     '/doctors': [Perm.doctorViewAny],
     '/doctor-schedules': [Perm.doctorScheduleViewAny],
     '/prescriptions/new': [Perm.prescriptionCreate],
-    '/prescriptions': [Perm.prescriptionViewAny, Perm.prescriptionView, Perm.prescriptionViewOwn,],
+    '/prescriptions': [
+      Perm.prescriptionViewAny,
+      Perm.prescriptionView,
+      Perm.prescriptionViewOwn,
+    ],
     '/treatments/new': [Perm.treatmentCreate],
     '/treatments': [Perm.treatmentViewAny, Perm.treatmentView],
     '/treatment-plans/new': [Perm.treatmentPlanCreate],
-    '/treatment-plans': [Perm.treatmentPlanViewAny, Perm.treatmentPlanView, Perm.treatmentPlanViewOwn,],
+    '/treatment-plans': [
+      Perm.treatmentPlanViewAny,
+      Perm.treatmentPlanView,
+      Perm.treatmentPlanViewOwn,
+    ],
     '/lab-cases': [Perm.labCaseViewAny],
     '/patient-attachments/upload': [
       Perm.patientAttachmentCreate,
@@ -100,6 +108,11 @@ class RoutePermissions {
     '/activity-logs': [Perm.activityLogViewAny],
     '/settings': [Perm.settingView],
     '/notifications': [Perm.notificationViewAny, Perm.notificationView],
+
+    '/consents': [
+      Perm.consentFormViewAny,
+      Perm.consentFormViewOwn,
+    ],
   };
 
   /// Prefixes sorted most-specific-first. Segment count leads, since a

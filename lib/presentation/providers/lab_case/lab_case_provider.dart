@@ -173,7 +173,7 @@ class LabCaseNotifier extends StateNotifier<LabCaseState> {
   Future<bool> createLabCase(Map<String, dynamic> body) async {
     state = state.copyWith(isSubmitting: true, clearError: true);
     try {
-      final created = await _repository.create(body);
+      await _repository.create(body);
       state = state.copyWith(isSubmitting: false);
       // Optimistically prepend then re-fetch for correct ordering
       await fetchLabCases();

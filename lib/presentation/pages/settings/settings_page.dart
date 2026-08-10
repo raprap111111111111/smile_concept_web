@@ -701,7 +701,7 @@ class _BooleanToggle extends StatelessWidget {
           Switch(
             value: value,
             onChanged: onChanged,
-            activeColor: AppColors.success,
+            activeThumbColor: AppColors.success,
             inactiveThumbColor: AppColors.textTertiary,
             inactiveTrackColor: AppColors.textTertiary.withValues(alpha: 0.2),
           ),

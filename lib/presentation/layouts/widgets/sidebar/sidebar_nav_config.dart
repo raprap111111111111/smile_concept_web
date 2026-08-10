@@ -10,7 +10,6 @@ class NavItem {
   final String title;
   final String routeName;
   final List<String> permissions;
-  // Optional: extra route prefixes that should also mark this item as active
   final List<String> activeRouteNames;
 
   const NavItem({
@@ -59,24 +58,35 @@ class SidebarNavConfig {
       ),
 
       // ═══ MY HEALTH (patient only) ════════════════════════════
-      NavSection(
+      const NavSection(
         title: 'MY HEALTH',
         items: [
-          const NavItem(
+          NavItem(
             icon: Icons.medication_outlined,
             title: 'My Prescriptions',
             routeName: RouteNames.prescriptions,
             permissions: [
-              Perm.prescriptionViewOwn, // ✅ patient
-              Perm.prescriptionViewAny, // ✅ staff (if they ever use this section)
-              // optional: Perm.prescriptionView,
+              Perm.prescriptionViewOwn,
+              Perm.prescriptionViewAny,
             ],
           ),
-          const NavItem(
+          NavItem(
             icon: Icons.assignment_outlined,
             title: 'My Treatment Plans',
             routeName: RouteNames.treatmentPlans,
-            permissions: [Perm.treatmentPlanView, Perm.treatmentPlanViewOwn],
+            permissions: [
+              Perm.treatmentPlanView,
+              Perm.treatmentPlanViewOwn,
+            ],
+          ),
+          NavItem(
+            icon: Icons.fact_check_outlined,
+            title: 'My Consent Forms',
+            routeName: RouteNames.consents,
+            permissions: [
+              Perm.consentFormViewOwn,
+              Perm.consentFormViewAny,
+            ],
           ),
         ],
       ),
@@ -116,7 +126,6 @@ class SidebarNavConfig {
             icon: Icons.folder_shared_outlined,
             title: isPatient ? 'My Records' : 'Clinical Records',
             routeName: RouteNames.clinicalRecords,
-            // Also highlight when on dental chart or clinical note sub-routes
             activeRouteNames: const [
               RouteNames.clinicalRecords,
             ],

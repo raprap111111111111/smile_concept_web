@@ -18,9 +18,10 @@ class Topbar extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final collapsed = ref.watch(sidebarCollapsedProvider);
+
     return Container(
       height: 72,
-      padding: const EdgeInsets.symmetric(horizontal: 26),
+      padding: const EdgeInsets.symmetric(horizontal: 16),
       decoration: BoxDecoration(
         color: AppColors.background,
         border: const Border(
@@ -35,11 +36,8 @@ class Topbar extends ConsumerWidget {
         ],
       ),
       child: Row(
-        mainAxisAlignment: MainAxisAlignment.spaceBetween,
         children: [
           // ── Sidebar toggle ────────────────────────────────
-          // Lives here rather than inside the sidebar so it stays put in both
-          // states instead of moving with the panel edge.
           _SidebarToggle(
             collapsed: collapsed,
             onPressed: () =>
@@ -47,7 +45,7 @@ class Topbar extends ConsumerWidget {
           ),
           const SizedBox(width: 8),
 
-          // ── Page Title (flexible, ellipsis if too long) ───
+          // ── Page title (takes remaining space, ellipsizes) ─
           Expanded(
             child: Text(
               PageTitleResolver.resolve(context),
@@ -60,29 +58,27 @@ class Topbar extends ConsumerWidget {
             ),
           ),
 
-          const SizedBox(width: 12),
+          const SizedBox(width: 8),
 
-          // ── Right Actions (fixed width, doesn't shrink) ───
-          Row(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              // Invisible unless live updates are degraded.
-              const RealtimeStatusDot(),
-              const NotificationBell(),
-              const SizedBox(width: 12),
-
-              // Vertical divider
-              Container(
-                width: 1,
-                height: 28,
-                color: AppColors.line,
-              ),
-              const SizedBox(width: 12),
-
-              const Flexible(
-                child: TopbarUserInfo(),
-              ),
-            ],
+          // ── Right actions (may shrink on narrow widths) ───
+          Flexible(
+            child: Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                const RealtimeStatusDot(),
+                const NotificationBell(),
+                const SizedBox(width: 8),
+                Container(
+                  width: 1,
+                  height: 28,
+                  color: AppColors.line,
+                ),
+                const SizedBox(width: 8),
+                const Flexible(
+                  child: TopbarUserInfo(),
+                ),
+              ],
+            ),
           ),
         ],
       ),
@@ -94,7 +90,10 @@ class _SidebarToggle extends StatelessWidget {
   final bool collapsed;
   final VoidCallback onPressed;
 
-  const _SidebarToggle({required this.collapsed, required this.onPressed});
+  const _SidebarToggle({
+    required this.collapsed,
+    required this.onPressed,
+  });
 
   @override
   Widget build(BuildContext context) {

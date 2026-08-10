@@ -122,7 +122,7 @@ class _SidebarSectionState extends State<SidebarSection>
         // Use SizeTransition for smooth, GPU-accelerated expansion
         SizeTransition(
           sizeFactor: _expandAnimation,
-          axisAlignment: -1.0,
+          alignment: Alignment.center,
           child: Column(children: widget.children),
         ),
       ],

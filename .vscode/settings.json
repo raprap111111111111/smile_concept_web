@@ -1,0 +1,10 @@
+{
+    "dart.flutterHotReloadOnSave": "never",
+    "dart.flutterHotRestartOnSave": false,
+    "dart.openDevTools": "never",
+    "dart.debugExternalPackageLibraries": false,
+    "dart.debugSdkLibraries": false,
+    "dart.showInspectorNotificationsForWidgetErrors": false,
+    "files.autoSave": "off",
+    "editor.formatOnSave": false
+}
