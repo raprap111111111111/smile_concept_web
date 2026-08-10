@@ -12,6 +12,7 @@ import '../../widgets/shared/search_bar_onclick.dart';
 import 'widgets/permissions_dialog.dart';
 import 'widgets/role_card.dart';
 import 'widgets/role_form_dialog.dart';
+import 'package:smile_concept_web/core/errors/error_message.dart';
 
 class RolesPermissionsPage extends ConsumerStatefulWidget {
   const RolesPermissionsPage({super.key});
@@ -110,7 +111,7 @@ class _RolesPermissionsPageState extends ConsumerState<RolesPermissionsPage> {
                       ),
                       error: (error, _) => Center(
                         child: Text(
-                          'Error: $error',
+                          describeError(error),
                           style: AppTextStyles.bodyMedium
                               .copyWith(color: AppColors.error),
                         ),
@@ -142,7 +143,7 @@ class _RolesPermissionsPageState extends ConsumerState<RolesPermissionsPage> {
       if (updatedRole != null) ref.invalidate(rolesProvider);
     } catch (error) {
       if (!mounted) return;
-      _showSnack('Failed to load role permissions: $error', isError: true);
+      _showSnack(describeError(error, fallback: 'Failed to load role permissions'), isError: true);
     }
   }
 
@@ -170,7 +171,7 @@ class _RolesPermissionsPageState extends ConsumerState<RolesPermissionsPage> {
       _showSnack(isEdit ? 'Role updated' : 'Role created', isError: false);
     } catch (error) {
       if (!mounted) return;
-      _showSnack('Error: $error', isError: true);
+      _showSnack(describeError(error), isError: true);
     }
   }
 
@@ -210,7 +211,7 @@ class _RolesPermissionsPageState extends ConsumerState<RolesPermissionsPage> {
       _showSnack('"$displayName" role deleted', isError: false);
     } catch (error) {
       if (!mounted) return;
-      _showSnack('Error: $error', isError: true);
+      _showSnack(describeError(error), isError: true);
     }
   }
 

@@ -20,6 +20,7 @@ import '../../theme/app_text_styles.dart';
 import '../../theme/app_theme.dart';
 import 'widgets/patient_search_field.dart';
 import 'widgets/time_slot_picker.dart';
+import 'package:smile_concept_web/core/errors/error_message.dart';
 
 class AppointmentFormPage extends ConsumerStatefulWidget {
   final AppointmentModel? existingAppointment;
@@ -208,7 +209,7 @@ class _AppointmentFormPageState extends ConsumerState<AppointmentFormPage> {
     } catch (error) {
       if (mounted) {
         setState(() => _isSubmitting = false);
-        _showError(error.toString());
+        _showError(describeError(error));
       }
     }
   }
@@ -393,7 +394,7 @@ class _AppointmentFormPageState extends ConsumerState<AppointmentFormPage> {
             doctorsAsync.when(
               loading: () => const LinearProgressIndicator(color: AppColors.primary),
               error: (error, _) => Text(
-                'Failed to load doctors: $error',
+                describeError(error, fallback: 'Failed to load doctors'),
                 style: const TextStyle(color: AppColors.error),
               ),
               data: (doctors) => DropdownButtonFormField<int>(
@@ -436,7 +437,7 @@ class _AppointmentFormPageState extends ConsumerState<AppointmentFormPage> {
             branchesAsync.when(
               loading: () => const LinearProgressIndicator(color: AppColors.primary),
               error: (error, _) => Text(
-                'Failed to load branches: $error',
+                describeError(error, fallback: 'Failed to load branches'),
                 style: const TextStyle(color: AppColors.error),
               ),
               data: (branches) => DropdownButtonFormField<int>(

@@ -4,6 +4,7 @@ import 'package:dio/dio.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../data/repositories/auth_repository.dart';
 import '../../../data/models/auth/user_model.dart';
+import 'package:smile_concept_web/core/errors/error_message.dart';
 
 // ─── Auth Status ──────────────────────────────────────────────
 enum AuthStatus {
@@ -153,11 +154,9 @@ class AuthStateNotifier extends StateNotifier<AuthState> {
     } catch (e) {
       print('⚠️ Profile fetch error: $e');
 
-      final errorStr = e.toString().toLowerCase();
-      final isUnauthorized =
-          errorStr.contains('401') || errorStr.contains('unauthorized');
-
-      if (isUnauthorized) {
+      // Read the status code rather than sniffing the message: the text the
+      // user sees is now plain language and no longer contains "401".
+      if (isSessionExpired(e)) {
         print('🚨 401 → clearing session');
         await _authRepository.clearSession();
         state = state.toUnauthenticated();
@@ -273,5 +272,5 @@ class AuthStateNotifier extends StateNotifier<AuthState> {
 
   // ─── Helper ─────────────────────────────────────────────────
   String _parseError(Object e) =>
-      e.toString().replaceAll('Exception: ', '').replaceAll('ApiFailure: ', '');
+      describeError(e);
 }

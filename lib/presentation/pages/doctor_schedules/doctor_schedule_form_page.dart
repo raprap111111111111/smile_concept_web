@@ -15,6 +15,7 @@ import 'widgets/days_checkbox_list.dart';
 import 'widgets/day_of_week_dropdown.dart';
 import 'widgets/doctor_dropdown.dart';
 import 'widgets/time_picker_field.dart';
+import 'package:smile_concept_web/core/errors/error_message.dart';
 
 class DoctorScheduleFormPage extends ConsumerStatefulWidget {
   final DoctorScheduleModel? existingSchedule;
@@ -158,7 +159,7 @@ class _DoctorScheduleFormPageState
       });
     } catch (e) {
       setState(() {
-        _serverError = e.toString();
+        _serverError = describeError(e);
         _isSaving = false;
       });
     }

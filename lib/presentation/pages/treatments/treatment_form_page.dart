@@ -7,6 +7,7 @@ import '../../providers/treatment/treatment_provider.dart';
 import '../../theme/app_colors.dart';
 import '../../theme/app_dimensions.dart';
 import '../../theme/app_text_styles.dart';
+import 'package:smile_concept_web/core/errors/error_message.dart';
 
 class TreatmentFormPage extends ConsumerStatefulWidget {
   final int? treatmentId;
@@ -78,7 +79,7 @@ class _TreatmentFormPageState extends ConsumerState<TreatmentFormPage> {
       }
     } catch (e) {
       if (mounted) {
-        _showSnack('Error: $e', AppColors.error);
+        _showSnack(describeError(e), AppColors.error);
       }
     } finally {
       if (mounted) setState(() => _isSubmitting = false);

@@ -13,6 +13,7 @@ import '../../widgets/shared/search_bar_onclick.dart';
 import 'widgets/user_card.dart';
 import 'widgets/user_filters.dart';
 import 'widgets/user_form_dialog.dart';
+import 'package:smile_concept_web/core/errors/error_message.dart';
 
 class UsersPage extends ConsumerStatefulWidget {
   const UsersPage({super.key});
@@ -119,7 +120,7 @@ class _UsersPageState extends ConsumerState<UsersPage> {
                 loading: () => const Center(
                   child: CircularProgressIndicator(color: AppColors.primary),
                 ),
-                error: (error, _) => _ErrorView(message: error.toString()),
+                error: (error, _) => _ErrorView(message: describeError(error)),
               ),
             ),
           ],
@@ -162,7 +163,7 @@ class _UsersPageState extends ConsumerState<UsersPage> {
       );
     } catch (error) {
       if (!mounted) return;
-      _showSnack('Error: $error', AppColors.error);
+      _showSnack(describeError(error), AppColors.error);
     }
   }
 
@@ -196,7 +197,7 @@ class _UsersPageState extends ConsumerState<UsersPage> {
       _showSnack('"$name" deleted', AppColors.success);
     } catch (error) {
       if (!mounted) return;
-      _showSnack('Error: $error', AppColors.error);
+      _showSnack(describeError(error), AppColors.error);
     }
   }
 

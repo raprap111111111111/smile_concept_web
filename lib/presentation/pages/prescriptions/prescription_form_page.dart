@@ -17,6 +17,7 @@ import 'widgets/form/prescription_form_header.dart';
 import 'widgets/form/prescription_form_section.dart';
 import '/presentation/widgets/shared//access_denied_view.dart';
 import '/presentation/widgets/shared//app_snackbar.dart';       
+import 'package:smile_concept_web/core/errors/error_message.dart';
 
 class PrescriptionFormPage extends ConsumerStatefulWidget {
   final int? patientId;
@@ -91,7 +92,7 @@ class _PrescriptionFormPageState
     } catch (e) {
       AppSnackbar.show(
         context,
-        e.toString().replaceAll('Exception: ', ''),
+        describeError(e),
         isError: true,
       );
     } finally {

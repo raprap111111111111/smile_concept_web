@@ -6,6 +6,7 @@ import '../../../../data/repositories/role_repository.dart';
 import '../../../theme/app_colors.dart';
 import '../../../theme/app_dimensions.dart';
 import '../../../theme/app_text_styles.dart';
+import 'package:smile_concept_web/core/errors/error_message.dart';
 
 class PermissionsDialog extends ConsumerStatefulWidget {
   final Map<String, dynamic> role;
@@ -68,7 +69,7 @@ class _PermissionsDialogState extends ConsumerState<PermissionsDialog> {
                 error: (error, _) => Padding(
                   padding: const EdgeInsets.all(24),
                   child: Text(
-                    'Error: $error',
+                    describeError(error),
                     style: AppTextStyles.bodyMedium
                         .copyWith(color: AppColors.error),
                   ),
@@ -277,7 +278,7 @@ class _PermissionsDialogState extends ConsumerState<PermissionsDialog> {
       setState(() => _isSaving = false);
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
-          content: Text('Error: $error'),
+          content: Text(describeError(error)),
           backgroundColor: AppColors.error,
           behavior: SnackBarBehavior.floating,
         ),

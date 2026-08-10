@@ -21,6 +21,7 @@ import 'book_appointment_page.dart';
 import 'widgets/appointment_calendar_card.dart';
 import 'widgets/appointment_filter_bar.dart';
 import '../../widgets/shared/hold_to_delete_dialog.dart';
+import 'package:smile_concept_web/core/errors/error_message.dart';
 
 class AppointmentsPage extends ConsumerStatefulWidget {
   const AppointmentsPage({super.key});
@@ -184,7 +185,7 @@ class _AppointmentsPageState extends ConsumerState<AppointmentsPage> {
 
       if (mounted) ToastHelper.success(context, 'Appointment deleted');
     } catch (error) {
-      if (mounted) ToastHelper.error(context, error.toString());
+      if (mounted) ToastHelper.error(context, describeError(error));
     }
   }
 

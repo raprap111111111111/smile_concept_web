@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../core/errors/failures.dart';
 import '../../core/network/dio_client.dart';
+import 'package:smile_concept_web/core/errors/error_message.dart';
 
 final settingRepositoryProvider = Provider<SettingRepository>((ref) {
   return SettingRepository(ref.watch(dioProvider));
@@ -56,6 +57,7 @@ class SettingRepository {
       throw ApiFailure(
         message: _extractMessage(e, fallback: 'Failed to load settings'),
         code: 'SETTINGS_FETCH_ERROR',
+        statusCode: errorStatusCode(e),
       );
     }
   }
@@ -72,6 +74,7 @@ class SettingRepository {
       throw ApiFailure(
         message: _extractMessage(e, fallback: 'Failed to load setting'),
         code: 'SETTING_FETCH_ERROR',
+        statusCode: errorStatusCode(e),
       );
     }
   }
@@ -94,6 +97,7 @@ class SettingRepository {
       throw ApiFailure(
         message: _extractMessage(e, fallback: 'Failed to update setting'),
         code: 'SETTING_UPDATE_ERROR',
+        statusCode: errorStatusCode(e),
       );
     }
   }
@@ -123,32 +127,18 @@ class SettingRepository {
       throw ApiFailure(
         message: _extractMessage(e, fallback: 'Failed to update settings'),
         code: 'SETTINGS_BULK_UPDATE_ERROR',
+        statusCode: errorStatusCode(e),
       );
     }
   }
 
+  /// Kept as a thin wrapper so existing call sites read the same; all the
+  /// wording now lives in one place. `describeError` already understands
+  /// Laravel's validation bag and overrides unhelpful server text for codes
+  /// like 403 and 500.
   String _extractMessage(
     DioException e, {
     required String fallback,
-  }) {
-    final data = e.response?.data;
-
-    if (data is Map<String, dynamic>) {
-      final errors = data['errors'];
-
-      if (errors is Map && errors.isNotEmpty) {
-        final first = errors.values.first;
-
-        if (first is List && first.isNotEmpty) {
-          return first.first.toString();
-        }
-
-        return first.toString();
-      }
-
-      return data['message']?.toString() ?? fallback;
-    }
-
-    return e.message ?? fallback;
-  }
+  }) =>
+      describeError(e, fallback: fallback);
 }

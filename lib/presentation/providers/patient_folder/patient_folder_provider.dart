@@ -6,6 +6,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '/core/network/dio_client.dart';
 import '/data/models/patient_attachment/patient_attachment_model.dart';
 import '/data/services/patient_folder_service.dart';
+import 'package:smile_concept_web/core/errors/error_message.dart';
 
 // ═══════════════════════════════════════════════════════════
 // STATE — Dedicated to a single folder view
@@ -183,7 +184,7 @@ class PatientFolderNotifier extends StateNotifier<PatientFolderState> {
     } catch (e, stack) {
       debugPrint('❌ fetch error: $e');
       debugPrint('📍 $stack');
-      state = state.copyWith(isLoading: false, error: e.toString());
+      state = state.copyWith(isLoading: false, error: describeError(e));
     }
   }
 

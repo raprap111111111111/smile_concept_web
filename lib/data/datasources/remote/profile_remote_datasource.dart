@@ -8,6 +8,7 @@ import '../../../core/config/api_config.dart';
 import '../../../core/network/dio_client.dart';
 import '../../models/profile/patient_profile_model.dart';
 import '../../models/profile/profile_model.dart';
+import 'package:smile_concept_web/core/errors/error_message.dart';
 
 final profileRemoteDataSourceProvider =
     Provider<ProfileRemoteDataSource>((ref) {
@@ -120,38 +121,11 @@ class ProfileRemoteDataSource {
   }
 
   // ─── Error Handler ────────────────────────────────────────────────
-  Exception _handleError(DioException e) {
-    final statusCode = e.response?.statusCode;
-
-    // The body is only subscriptable when it parsed as JSON. Indexing a String
-    // body (PHP warning, HTML error page) throws and masks the real failure.
-    final data = e.response?.data;
-    final body = data is Map ? data : null;
-
-    final message = body?['message']?.toString() ??
-        e.message ??
-        (data != null
-            ? 'Server returned an unreadable response: $data'
-            : 'No response from server (status: $statusCode)');
-
-    switch (statusCode) {
-      case 401:
-        return Exception('Unauthorized: $message');
-      case 403:
-        return Exception('Forbidden: $message');
-      case 404:
-        return Exception('Not found: $message');
-      case 422:
-        final errors = body?['errors'];
-        if (errors is Map && errors.isNotEmpty) {
-          final firstError = errors.values.first;
-          return Exception(
-            firstError is List ? firstError.first.toString() : firstError.toString(),
-          );
-        }
-        return Exception(message);
-      default:
-        return Exception(message);
-    }
-  }
+  /// Status handling now lives in `describeError`. It keeps the guard this
+  /// version had — a non-Map body is never indexed — but reports it as a plain
+  /// sentence rather than pasting the HTML or PHP warning into the UI.
+  Exception _handleError(DioException e) => Exception(
+        describeError(e, fallback: "We couldn't update your profile. Please "
+            'try again.'),
+      );
 }

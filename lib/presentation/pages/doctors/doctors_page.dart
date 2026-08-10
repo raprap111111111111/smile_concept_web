@@ -10,6 +10,7 @@ import 'widgets/doctor_card.dart';
 import 'widgets/doctor_form_dialog.dart';
 import '../../widgets/shared/hold_to_delete_dialog.dart';
 import '../../widgets/shared/search_bar_onclick.dart';
+import 'package:smile_concept_web/core/errors/error_message.dart';
 
 class DoctorsPage extends ConsumerStatefulWidget {
   const DoctorsPage({super.key});
@@ -47,7 +48,7 @@ class _DoctorsPageState extends ConsumerState<DoctorsPage> {
                 onDelete: _confirmDelete,
               ),
               loading: () => const Center(child: CircularProgressIndicator()),
-              error: (e, _) => _ErrorView(message: e.toString()),
+              error: (e, _) => _ErrorView(message: describeError(e)),
             ),
           ),
         ],
@@ -113,7 +114,7 @@ class _DoctorsPageState extends ConsumerState<DoctorsPage> {
         SnackBar(
           backgroundColor: AppColors.error,
           content: Text(
-            'Error: $e',
+            describeError(e),
             style: AppTextStyles.bodySmall.copyWith(color: Colors.white),
           ),
         ),

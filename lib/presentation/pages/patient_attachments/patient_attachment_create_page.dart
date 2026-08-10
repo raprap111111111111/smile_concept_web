@@ -10,6 +10,7 @@ import '/presentation/theme/app_colors.dart';
 import '/presentation/theme/app_dimensions.dart';
 import '/presentation/theme/app_text_styles.dart';
 import 'widgets/patient_selector_field.dart'; // ✅ NEW
+import 'package:smile_concept_web/core/errors/error_message.dart';
 
 class PatientAttachmentCreatePage extends ConsumerStatefulWidget {
   /// Optional pre-selected patient (e.g. when uploading from patient's folder)
@@ -333,7 +334,7 @@ class _PatientAttachmentCreatePageState
       }
     } catch (e) {
       if (mounted) {
-        _showError('Failed to pick file: $e');
+        _showError(describeError(e, fallback: 'Failed to pick file'));
       }
     }
   }

@@ -20,6 +20,7 @@ import 'widgets/form_section_card.dart';
 import 'widgets/grand_total_bar.dart';
 import 'widgets/patient_picker_field.dart';
 import 'widgets/plan_item_card.dart';
+import 'package:smile_concept_web/core/errors/error_message.dart';
 
 class TreatmentPlanFormPage extends ConsumerStatefulWidget {
   final int? patientId;
@@ -168,7 +169,7 @@ class _TreatmentPlanFormPageState
     } catch (e) {
       if (mounted) {
         _showSnack(
-          e.toString().replaceAll('Exception: ', ''),
+          describeError(e),
           isError: true,
         );
       }
@@ -280,7 +281,7 @@ class _TreatmentPlanFormPageState
                             const DropdownLoading(label: 'Doctor *'),
                         error: (e, _) => DropdownError(
                           label: 'Doctor *',
-                          error: e.toString(),
+                          error: describeError(e),
                           onRetry: () =>
                               ref.invalidate(doctorSimpleListProvider),
                         ),

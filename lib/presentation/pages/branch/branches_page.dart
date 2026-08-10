@@ -14,6 +14,7 @@ import '../../widgets/shared/search_bar_onclick.dart';
 import 'widgets/branch_card.dart';
 import 'widgets/branch_filters.dart';
 import 'widgets/branch_form_dialog.dart';
+import 'package:smile_concept_web/core/errors/error_message.dart';
 
 class BranchesPage extends ConsumerStatefulWidget {
   const BranchesPage({super.key});
@@ -126,7 +127,7 @@ class _BranchesPageState extends ConsumerState<BranchesPage> {
                 ),
                 error: (error, _) => Center(
                   child: Text(
-                    'Error: $error',
+                    describeError(error),
                     style: AppTextStyles.bodyMedium.copyWith(
                       color: AppColors.error,
                     ),
@@ -183,7 +184,7 @@ class _BranchesPageState extends ConsumerState<BranchesPage> {
         SnackBar(
           backgroundColor: AppColors.error,
           content: Text(
-            'Error: $error',
+            describeError(error),
             style: AppTextStyles.bodySmall.copyWith(color: Colors.white),
           ),
         ),
@@ -227,7 +228,7 @@ class _BranchesPageState extends ConsumerState<BranchesPage> {
         SnackBar(
           backgroundColor: AppColors.error,
           content: Text(
-            'Error: $error',
+            describeError(error),
             style: AppTextStyles.bodySmall.copyWith(color: Colors.white),
           ),
         ),

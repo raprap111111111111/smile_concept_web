@@ -9,6 +9,7 @@ import '/presentation/theme/app_colors.dart';
 import '/presentation/theme/app_dimensions.dart';
 import '/presentation/theme/app_text_styles.dart';
 import '../../../widgets/shared/search_bar_onclick.dart';
+import 'package:smile_concept_web/core/errors/error_message.dart';
 
 /// Reusable searchable patient selector.
 ///
@@ -373,7 +374,7 @@ class _PatientPickerSheetState extends ConsumerState<_PatientPickerSheet> {
                 loading: () =>
                     const Center(child: CircularProgressIndicator()),
                 error: (e, _) => _ErrorState(
-                  error: e.toString(),
+                  error: describeError(e),
                   onRetry: () => ref.invalidate(allPatientsProvider),
                 ),
               ),

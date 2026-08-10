@@ -2,6 +2,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../data/models/notification/notification_model.dart';
 import '../../../data/repositories/notification_repository.dart';
+import 'package:smile_concept_web/core/errors/error_message.dart';
 
 /// Unread badge count.
 ///
@@ -115,7 +116,7 @@ class NotificationListNotifier extends StateNotifier<NotificationListState> {
     } catch (error) {
       state = state.copyWith(
         isLoading: false,
-        error: error.toString(),
+        error: describeError(error),
       );
     }
   }

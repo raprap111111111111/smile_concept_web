@@ -2,6 +2,7 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../data/models/patient/patient_model.dart';
 import '../../../data/repositories/patient_repository.dart';
+import 'package:smile_concept_web/core/errors/error_message.dart';
 
 // ─── List State ───────────────────────────────────────────────
 class PatientListState {
@@ -113,7 +114,7 @@ class PatientListNotifier extends StateNotifier<PatientListState> {
     } catch (e) {
       state = state.copyWith(
         isLoading: false,
-        errorMessage: e.toString(),
+        errorMessage: describeError(e),
       );
     }
   }
@@ -148,7 +149,7 @@ class PatientListNotifier extends StateNotifier<PatientListState> {
       // Reload current page after delete
       await refresh();
     } catch (e) {
-      state = state.copyWith(errorMessage: e.toString());
+      state = state.copyWith(errorMessage: describeError(e));
     }
   }
 }

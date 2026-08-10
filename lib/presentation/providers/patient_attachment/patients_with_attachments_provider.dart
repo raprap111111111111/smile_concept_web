@@ -2,6 +2,7 @@ import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '/data/models/patient_attachment/patient_with_attachments.dart';
 import 'patient_attachment_provider.dart';
+import 'package:smile_concept_web/core/errors/error_message.dart';
 
 // ═══════════════════════════════════════════════════════════
 // STATE
@@ -94,7 +95,7 @@ class PatientsWithAttachmentsNotifier
     } catch (e, stack) {
       debugPrint('❌ fetch patients error: $e');
       debugPrint('📍 $stack');
-      state = state.copyWith(isLoading: false, error: e.toString());
+      state = state.copyWith(isLoading: false, error: describeError(e));
     }
   }
 

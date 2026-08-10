@@ -2,6 +2,7 @@
 
 import 'package:dio/dio.dart';
 import '../../models/treatment/treatment_model.dart';
+import 'package:smile_concept_web/core/errors/error_message.dart';
 
 class TreatmentRemoteDataSource {
   final Dio dio;
@@ -55,10 +56,7 @@ class TreatmentRemoteDataSource {
           response.data['data'] as Map<String, dynamic>;
       return TreatmentModel.fromJson(data);
     } on DioException catch (e) {
-      throw Exception(
-        e.response?.data?['message'] ??
-            'Failed to create treatment',
-      );
+      throw Exception(describeError(e, fallback: 'Failed to create treatment'));
     }
   }
 
@@ -88,10 +86,7 @@ class TreatmentRemoteDataSource {
           response.data['data'] as Map<String, dynamic>;
       return TreatmentModel.fromJson(data);
     } on DioException catch (e) {
-      throw Exception(
-        e.response?.data?['message'] ??
-            'Failed to update treatment',
-      );
+      throw Exception(describeError(e, fallback: 'Failed to update treatment'));
     }
   }
 
@@ -100,10 +95,7 @@ class TreatmentRemoteDataSource {
     try {
       await dio.delete('/treatments/$id');
     } on DioException catch (e) {
-      throw Exception(
-        e.response?.data?['message'] ??
-            'Failed to delete treatment',
-      );
+      throw Exception(describeError(e, fallback: 'Failed to delete treatment'));
     }
   }
 }

@@ -2,9 +2,17 @@
 
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
+
 import '../../../../data/models/appointment/appointment_model.dart';
+import '../../../theme/app_colors.dart';
+import '../../../theme/app_dimensions.dart';
 import 'appointment_status_badge.dart';
 
+/// One appointment row in the day list: time, patient, doctor, branch, status.
+///
+/// Every colour here is pinned to [AppColors]. The app still boots on
+/// `ThemeData.dark()`, so an unstyled `Card`/`Text` inherits a dark surface and
+/// white text and lands as a dark block on this light page.
 class AppointmentCalendarCard extends StatelessWidget {
   final AppointmentModel appointment;
   final int? currentUserId;
@@ -31,254 +39,438 @@ class AppointmentCalendarCard extends StatelessWidget {
     this.onCancel,
   });
 
+  /// Below this the time block moves above the details instead of beside them.
+  static const double _compactBreakpoint = 520;
+
   bool get isOwnAppointment => appointment.userId == currentUserId;
 
-  Color _statusColor() {
-    switch (appointment.status) {
-      case AppointmentStatus.pending:
-        return Colors.orange;
-      case AppointmentStatus.confirmed:
-        return Colors.blue;
-      case AppointmentStatus.completed:
-        return Colors.green;
-      case AppointmentStatus.cancelled:
-        return Colors.red;
-    }
-  }
+  String _formatTime(DateTime date) => DateFormat('h:mm a').format(date);
 
-  String _formatTime(DateTime d) => DateFormat('hh:mm a').format(d);
+  String get _durationLabel {
+    final minutes =
+        appointment.endTime.difference(appointment.startTime).inMinutes;
+    if (minutes <= 0) return '—';
+    if (minutes < 60) return '$minutes min';
+
+    final hours = minutes ~/ 60;
+    final remainder = minutes % 60;
+    return remainder == 0 ? '${hours}h' : '${hours}h ${remainder}m';
+  }
 
   @override
   Widget build(BuildContext context) {
-    final status = appointment.status;
-    final cancellationReason = appointment.cancellationReason;
+    final palette = AppointmentStatusPalette.of(appointment.status);
+    final reason = appointment.cancellationReason?.trim();
+    final showReason = appointment.status == AppointmentStatus.cancelled &&
+        reason != null &&
+        reason.isNotEmpty;
 
-    return Container(
-      margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
-      child: Row(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          // ── Time column ─────────────────────────────────────────
-          SizedBox(
-            width: 70,
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        final isCompact = constraints.maxWidth < _compactBreakpoint;
+
+        return Container(
+          clipBehavior: Clip.antiAlias,
+          decoration: BoxDecoration(
+            color: AppColors.background,
+            borderRadius:
+                BorderRadius.circular(AppDimensions.borderRadiusLarge),
+            border: Border.all(color: AppColors.border),
+            boxShadow: const [
+              BoxShadow(
+                color: AppColors.cardShadow,
+                blurRadius: 12,
+                offset: Offset(0, 4),
+              ),
+            ],
+          ),
+          child: IntrinsicHeight(
+            child: Row(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
               children: [
-                Text(
-                  _formatTime(appointment.startTime),
-                  style: const TextStyle(
-                    fontWeight: FontWeight.bold,
-                    fontSize: 14,
-                  ),
-                ),
-                Text(
-                  _formatTime(appointment.endTime),
-                  style: TextStyle(
-                    color: Colors.grey.shade600,
-                    fontSize: 12,
+                // Status rail — a second, redundant read of the badge below.
+                Container(width: 5, color: palette.ink),
+                Expanded(
+                  child: Padding(
+                    padding:
+                        const EdgeInsets.all(AppDimensions.paddingMedium),
+                    child: isCompact
+                        ? Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              _buildTimeRow(),
+                              const SizedBox(
+                                height: AppDimensions.paddingSmall,
+                              ),
+                              _buildDetails(showReason: showReason,
+                                  reason: reason),
+                            ],
+                          )
+                        : Row(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              SizedBox(width: 96, child: _buildTimeColumn()),
+                              const SizedBox(
+                                width: AppDimensions.paddingMedium,
+                              ),
+                              Expanded(
+                                child: _buildDetails(
+                                  showReason: showReason,
+                                  reason: reason,
+                                ),
+                              ),
+                            ],
+                          ),
                   ),
                 ),
               ],
             ),
           ),
+        );
+      },
+    );
+  }
 
-          // ── Colored side bar ────────────────────────────────────
-          Container(
-            width: 4,
-            height: 100,
-            margin: const EdgeInsets.only(right: 12),
-            decoration: BoxDecoration(
-              color: _statusColor(),
-              borderRadius: BorderRadius.circular(2),
-            ),
+  // ── TIME ───────────────────────────────────────────────────
+  Widget _buildTimeColumn() {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        Text(
+          _formatTime(appointment.startTime),
+          style: const TextStyle(
+            fontSize: 16,
+            fontWeight: FontWeight.w800,
+            height: 1.2,
+            color: AppColors.ink,
           ),
+        ),
+        const SizedBox(height: 2),
+        Text(
+          _formatTime(appointment.endTime),
+          style: const TextStyle(
+            fontSize: 12,
+            fontWeight: FontWeight.w500,
+            height: 1.2,
+            color: AppColors.textSecondary,
+          ),
+        ),
+        const SizedBox(height: AppDimensions.paddingXS),
+        _DurationPill(label: _durationLabel),
+      ],
+    );
+  }
 
-          // ── Card content ────────────────────────────────────────
-          Expanded(
-            child: Card(
-              elevation: 1,
-              margin: EdgeInsets.zero,
-              shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(10),
-              ),
+  Widget _buildTimeRow() {
+    return Wrap(
+      crossAxisAlignment: WrapCrossAlignment.center,
+      spacing: 6,
+      runSpacing: 4,
+      children: [
+        Text(
+          _formatTime(appointment.startTime),
+          style: const TextStyle(
+            fontSize: 16,
+            fontWeight: FontWeight.w800,
+            height: 1.2,
+            color: AppColors.ink,
+          ),
+        ),
+        Text(
+          '– ${_formatTime(appointment.endTime)}',
+          style: const TextStyle(
+            fontSize: 12,
+            fontWeight: FontWeight.w500,
+            height: 1.2,
+            color: AppColors.textSecondary,
+          ),
+        ),
+        _DurationPill(label: _durationLabel),
+      ],
+    );
+  }
+
+  // ── DETAILS ────────────────────────────────────────────────
+  Widget _buildDetails({required bool showReason, String? reason}) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        Row(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Expanded(
               child: Padding(
-                padding: const EdgeInsets.all(12),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
+                padding: const EdgeInsets.only(top: 1),
+                child: Wrap(
+                  crossAxisAlignment: WrapCrossAlignment.center,
+                  spacing: 6,
+                  runSpacing: 4,
                   children: [
-                    // Patient name + YOURS badge + Clickable Status Badge
-                    Row(
-                      children: [
-                        Expanded(
-                          child: Row(
-                            children: [
-                              Flexible(
-                                child: Text(
-                                  appointment.user?.name ?? 'Unknown Patient',
-                                  style: const TextStyle(
-                                    fontWeight: FontWeight.bold,
-                                    fontSize: 15,
-                                  ),
-                                  overflow: TextOverflow.ellipsis,
-                                ),
-                              ),
-                              if (canViewAll && isOwnAppointment) ...[
-                                const SizedBox(width: 6),
-                                Container(
-                                  padding: const EdgeInsets.symmetric(
-                                    horizontal: 6,
-                                    vertical: 2,
-                                  ),
-                                  decoration: BoxDecoration(
-                                    color: Colors.blue.withValues(alpha:0.15),
-                                    borderRadius: BorderRadius.circular(4),
-                                  ),
-                                  child: const Text(
-                                    'YOURS',
-                                    style: TextStyle(
-                                      fontSize: 9,
-                                      fontWeight: FontWeight.bold,
-                                      color: Colors.blue,
-                                    ),
-                                  ),
-                                ),
-                              ],
-                            ],
-                          ),
-                        ),
-                        // ✅ CLICKABLE STATUS BADGE
-                        AppointmentStatusBadge(
-                          status: status,
-                          canUpdate: canUpdateStatus,
-                          canCancel: canCancel,
-                          onStatusChanged: onStatusChanged,
-                          onCancel: onCancel,
-                        ),
-                      ],
-                    ),
-
-                    const SizedBox(height: 6),
-
-                    // Doctor
-                    Row(
-                      children: [
-                        Icon(Icons.person_outline,
-                            size: 14, color: Colors.grey.shade600),
-                        const SizedBox(width: 4),
-                        Expanded(
-                          child: Text(
-                            appointment.doctor?.name ?? 'No doctor',
-                            style: TextStyle(
-                              color: Colors.grey.shade700,
-                              fontSize: 12,
-                            ),
-                            overflow: TextOverflow.ellipsis,
-                          ),
-                        ),
-                      ],
-                    ),
-
-                    // Branch
-                    Row(
-                      children: [
-                        Icon(Icons.location_on_outlined,
-                            size: 14, color: Colors.grey.shade600),
-                        const SizedBox(width: 4),
-                        Expanded(
-                          child: Text(
-                            appointment.branch?.name ?? 'No branch',
-                            style: TextStyle(
-                              color: Colors.grey.shade700,
-                              fontSize: 12,
-                            ),
-                            overflow: TextOverflow.ellipsis,
-                          ),
-                        ),
-                      ],
-                    ),
-
-                    // Cancellation reason
-                    if (status == AppointmentStatus.cancelled &&
-                        cancellationReason != null &&
-                        cancellationReason.isNotEmpty) ...[
-                      const SizedBox(height: 6),
-                      Container(
-                        padding: const EdgeInsets.all(6),
-                        decoration: BoxDecoration(
-                          color: Colors.red.withValues(alpha:0.08),
-                          borderRadius: BorderRadius.circular(4),
-                        ),
-                        child: Row(
-                          children: [
-                            const Icon(
-                              Icons.info_outline,
-                              size: 12,
-                              color: Colors.red,
-                            ),
-                            const SizedBox(width: 4),
-                            Expanded(
-                              child: Text(
-                                'Reason: $cancellationReason',
-                                style: const TextStyle(
-                                  fontSize: 11,
-                                  color: Colors.red,
-                                ),
-                              ),
-                            ),
-                          ],
-                        ),
+                    Text(
+                      appointment.user?.name ?? 'Unknown Patient',
+                      style: const TextStyle(
+                        fontSize: 16,
+                        fontWeight: FontWeight.w800,
+                        height: 1.25,
+                        color: AppColors.ink,
                       ),
-                    ],
-
-                    // Actions: reschedule + delete (status changes via badge)
-                    if (onEdit != null || onDelete != null) ...[
-                      const SizedBox(height: 8),
-                      Row(
-                        mainAxisAlignment: MainAxisAlignment.end,
-                        children: [
-                          if (onEdit != null)
-                            Tooltip(
-                              message: 'Reschedule',
-                              child: InkWell(
-                                onTap: onEdit,
-                                borderRadius: BorderRadius.circular(6),
-                                child: Padding(
-                                  padding: const EdgeInsets.all(6),
-                                  child: Icon(
-                                    Icons.edit_calendar_outlined,
-                                    size: 18,
-                                    color: Colors.blue.shade400,
-                                  ),
-                                ),
-                              ),
-                            ),
-                          if (onEdit != null && onDelete != null)
-                            const SizedBox(width: 4),
-                          if (onDelete != null)
-                            Tooltip(
-                              message: 'Delete',
-                              child: InkWell(
-                                onTap: onDelete,
-                                borderRadius: BorderRadius.circular(6),
-                                child: Padding(
-                                  padding: const EdgeInsets.all(6),
-                                  child: Icon(
-                                    Icons.delete_outline,
-                                    size: 18,
-                                    color: Colors.red.shade400,
-                                  ),
-                                ),
-                              ),
-                            ),
-                        ],
-                      ),
-                    ],
+                    ),
+                    if (canViewAll && isOwnAppointment) const _YoursChip(),
                   ],
                 ),
               ),
             ),
+            const SizedBox(width: AppDimensions.paddingXS),
+            AppointmentStatusBadge(
+              status: appointment.status,
+              canUpdate: canUpdateStatus,
+              canCancel: canCancel,
+              onStatusChanged: onStatusChanged,
+              onCancel: onCancel,
+            ),
+          ],
+        ),
+        const SizedBox(height: AppDimensions.paddingSmall),
+        Wrap(
+          spacing: AppDimensions.paddingMedium,
+          runSpacing: 6,
+          children: [
+            _MetaItem(
+              icon: Icons.medical_services_outlined,
+              value: appointment.doctor?.name,
+              emptyLabel: 'No doctor assigned',
+            ),
+            _MetaItem(
+              icon: Icons.location_on_outlined,
+              value: appointment.branch?.name,
+              emptyLabel: 'No branch',
+            ),
+          ],
+        ),
+        if (showReason) ...[
+          const SizedBox(height: AppDimensions.paddingSmall),
+          _ReasonStrip(reason: reason!),
+        ],
+        if (onEdit != null || onDelete != null) ...[
+          const SizedBox(height: AppDimensions.paddingSmall),
+          Row(
+            mainAxisAlignment: MainAxisAlignment.end,
+            children: [
+              if (onEdit != null)
+                _CardAction(
+                  tooltip: 'Reschedule',
+                  icon: Icons.edit_calendar_outlined,
+                  color: AppColors.primaryDark,
+                  onTap: onEdit!,
+                ),
+              if (onEdit != null && onDelete != null)
+                const SizedBox(width: AppDimensions.paddingXS),
+              if (onDelete != null)
+                _CardAction(
+                  tooltip: 'Delete',
+                  icon: Icons.delete_outline_rounded,
+                  color: AppColors.statusCancelledInk,
+                  onTap: onDelete!,
+                ),
+            ],
           ),
         ],
+      ],
+    );
+  }
+}
+
+// ── Card parts ──────────────────────────────────────────────
+
+class _DurationPill extends StatelessWidget {
+  final String label;
+
+  const _DurationPill({required this.label});
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+      decoration: BoxDecoration(
+        color: AppColors.surface,
+        borderRadius: BorderRadius.circular(999),
+        border: Border.all(color: AppColors.border),
+      ),
+      child: Text(
+        label,
+        style: const TextStyle(
+          fontSize: 11,
+          fontWeight: FontWeight.w700,
+          height: 1.2,
+          color: AppColors.textSecondary,
+        ),
+      ),
+    );
+  }
+}
+
+class _YoursChip extends StatelessWidget {
+  const _YoursChip();
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 2),
+      decoration: BoxDecoration(
+        color: AppColors.accentLight,
+        borderRadius: BorderRadius.circular(999),
+        border: Border.all(color: AppColors.primary.withValues(alpha: 0.25)),
+      ),
+      child: const Text(
+        'YOURS',
+        style: TextStyle(
+          fontSize: 9,
+          fontWeight: FontWeight.w800,
+          letterSpacing: 0.5,
+          height: 1.4,
+          color: AppColors.primaryDark,
+        ),
+      ),
+    );
+  }
+}
+
+class _MetaItem extends StatelessWidget {
+  final IconData icon;
+  final String? value;
+  final String emptyLabel;
+
+  const _MetaItem({
+    required this.icon,
+    required this.value,
+    required this.emptyLabel,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final text = value?.trim();
+    final isEmpty = text == null || text.isEmpty;
+
+    return Row(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        Icon(
+          icon,
+          size: 15,
+          color: isEmpty ? AppColors.textTertiary : AppColors.textSecondary,
+        ),
+        const SizedBox(width: 6),
+        ConstrainedBox(
+          constraints: const BoxConstraints(maxWidth: 240),
+          child: Text(
+            isEmpty ? emptyLabel : text,
+            overflow: TextOverflow.ellipsis,
+            style: TextStyle(
+              fontSize: 13,
+              fontWeight: isEmpty ? FontWeight.w500 : FontWeight.w600,
+              height: 1.3,
+              fontStyle: isEmpty ? FontStyle.italic : FontStyle.normal,
+              color:
+                  isEmpty ? AppColors.textTertiary : AppColors.textSecondary,
+            ),
+          ),
+        ),
+      ],
+    );
+  }
+}
+
+class _ReasonStrip extends StatelessWidget {
+  final String reason;
+
+  const _ReasonStrip({required this.reason});
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
+      decoration: BoxDecoration(
+        color: AppColors.statusCancelledSoft,
+        borderRadius: BorderRadius.circular(AppDimensions.borderRadius),
+        border: Border.all(
+          color: AppColors.statusCancelledInk.withValues(alpha: 0.18),
+        ),
+      ),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          const Icon(
+            Icons.info_outline_rounded,
+            size: 14,
+            color: AppColors.statusCancelledInk,
+          ),
+          const SizedBox(width: 6),
+          Expanded(
+            child: RichText(
+              text: TextSpan(
+                style: const TextStyle(
+                  fontSize: 12,
+                  height: 1.4,
+                  color: AppColors.statusCancelledInk,
+                ),
+                children: [
+                  const TextSpan(
+                    text: 'Reason: ',
+                    style: TextStyle(fontWeight: FontWeight.w800),
+                  ),
+                  TextSpan(text: reason),
+                ],
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _CardAction extends StatelessWidget {
+  final String tooltip;
+  final IconData icon;
+  final Color color;
+  final VoidCallback onTap;
+
+  const _CardAction({
+    required this.tooltip,
+    required this.icon,
+    required this.color,
+    required this.onTap,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final shape = RoundedRectangleBorder(
+      borderRadius: BorderRadius.circular(AppDimensions.borderRadius),
+      side: const BorderSide(color: AppColors.border),
+    );
+
+    return Tooltip(
+      message: tooltip,
+      child: Material(
+        color: AppColors.surface,
+        shape: shape,
+        child: InkWell(
+          onTap: onTap,
+          customBorder: shape,
+          hoverColor: color.withValues(alpha: 0.10),
+          focusColor: color.withValues(alpha: 0.16),
+          splashColor: color.withValues(alpha: 0.14),
+          // 44x44: the minimum comfortable touch target, and close enough to
+          // the 42px header tiles to read as the same control family.
+          child: SizedBox(
+            width: 44,
+            height: 44,
+            child: Icon(icon, size: 18, color: color),
+          ),
+        ),
       ),
     );
   }
