@@ -7,6 +7,7 @@ import '../../../../data/models/patient/patient_model.dart';
 import '../../../providers/patient/patient_search_provider.dart';
 import '../../../theme/app_colors.dart';
 import '../../../theme/app_text_styles.dart';
+import 'package:smile_concept_web/core/errors/error_message.dart';
 
 class PatientSearchField extends ConsumerStatefulWidget {
   final int? selectedPatientId;
@@ -109,7 +110,7 @@ class _PatientSearchFieldState extends ConsumerState<PatientSearchField> {
                     error: (e, _) => Padding(
                       padding: const EdgeInsets.all(16),
                       child: Text(
-                        'Error: $e',
+                        describeError(e),
                         style: const TextStyle(color: AppColors.error),
                       ),
                     ),

@@ -18,9 +18,12 @@ import '../../theme/app_text_styles.dart';
 import '../../theme/app_theme.dart';
 import 'appointment_form_page.dart';
 import 'book_appointment_page.dart';
+import 'widgets/appointment_agenda_tile.dart';
 import 'widgets/appointment_calendar_card.dart';
+import 'widgets/appointment_detail_page.dart';
 import 'widgets/appointment_filter_bar.dart';
 import '../../widgets/shared/hold_to_delete_dialog.dart';
+import 'package:smile_concept_web/core/errors/error_message.dart';
 
 class AppointmentsPage extends ConsumerStatefulWidget {
   const AppointmentsPage({super.key});
@@ -40,13 +43,25 @@ class _AppointmentsPageState extends ConsumerState<AppointmentsPage> {
 
   bool _isLoadingCounts = false;
 
+  // Patients land on a plain Upcoming/Past agenda list by default — no
+  // calendar-date tap required. Staff always start on the calendar; this
+  // stays false and untouched for them.
+  bool _showAgenda = false;
+
+  bool get _isPatientRole =>
+      ref.read(permissionServiceProvider).role == 'patient';
+
   @override
   void initState() {
     super.initState();
     _selectedDay = null;
+    _showAgenda = _isPatientRole;
 
     WidgetsBinding.instance.addPostFrameCallback((_) {
       _loadCalendarCountsForMonth(_focusedDay);
+      if (_showAgenda) {
+        ref.read(appointmentNotifierProvider.notifier).load(reset: true);
+      }
     });
   }
 
@@ -118,6 +133,42 @@ class _AppointmentsPageState extends ConsumerState<AppointmentsPage> {
     await notifier.loadForDate(day);
   }
 
+  Future<void> _handleViewToggle(bool agenda) async {
+    setState(() => _showAgenda = agenda);
+    // `state.appointments` is shared between calendar-day mode (loadForDate)
+    // and agenda mode (load) — reload the right shape on every flip or the
+    // two modes show stale/mislabeled data.
+    if (agenda) {
+      await ref.read(appointmentNotifierProvider.notifier).load(reset: true);
+    } else if (_selectedDay != null) {
+      await _loadAppointmentsForDay(_selectedDay!);
+    }
+  }
+
+  Future<void> _openDetail(
+    AppointmentModel appointment, {
+    required bool canEdit,
+    required bool canCancel,
+  }) async {
+    await Navigator.of(context).push(
+      MaterialPageRoute(
+        builder: (_) => AppointmentDetailPage(
+          appointment: appointment,
+          canEdit: canEdit,
+          canCancel: canCancel,
+          onCancel: canCancel ? () => _showCancelDialog(appointment) : null,
+        ),
+      ),
+    );
+
+    // The detail page is a point-in-time snapshot with no live provider
+    // binding, so an edit or cancel made inside it won't reflect back here
+    // on its own — refresh once it's popped.
+    if (mounted) {
+      await ref.read(appointmentNotifierProvider.notifier).load(reset: true);
+    }
+  }
+
   Future<void> _openCreate() async {
     final created = await Navigator.of(context).push<AppointmentModel>(
       MaterialPageRoute(builder: (_) => const BookAppointmentPage()),
@@ -126,14 +177,29 @@ class _AppointmentsPageState extends ConsumerState<AppointmentsPage> {
     if (created == null || !mounted) return;
 
     await _loadCalendarCountsForMonth(created.startTime);
-    setState(() {
-      _selectedDay = created.startTime;
-      _focusedDay = created.startTime;
-    });
+    if (!mounted) return;
 
-    await ref
-        .read(appointmentNotifierProvider.notifier)
-        .loadForDate(created.startTime);
+    if (_showAgenda) {
+      // Drop the patient straight into the detail page: unambiguous
+      // confirmation of what was just booked, no hunting through a list.
+      final permissions = ref.read(permissionServiceProvider);
+      await _openDetail(
+        created,
+        canEdit: permissions.can(Perm.appointmentUpdate) ||
+            permissions.can(Perm.appointmentReschedule),
+        canCancel: permissions.can(Perm.appointmentUpdateStatus) ||
+            permissions.can(Perm.appointmentCancel),
+      );
+    } else {
+      setState(() {
+        _selectedDay = created.startTime;
+        _focusedDay = created.startTime;
+      });
+
+      await ref
+          .read(appointmentNotifierProvider.notifier)
+          .loadForDate(created.startTime);
+    }
 
     if (mounted) {
       ToastHelper.success(context, 'Appointment created successfully');
@@ -184,7 +250,7 @@ class _AppointmentsPageState extends ConsumerState<AppointmentsPage> {
 
       if (mounted) ToastHelper.success(context, 'Appointment deleted');
     } catch (error) {
-      if (mounted) ToastHelper.error(context, error.toString());
+      if (mounted) ToastHelper.error(context, describeError(error));
     }
   }
 
@@ -330,6 +396,7 @@ class _AppointmentsPageState extends ConsumerState<AppointmentsPage> {
     final canReschedule = permissions.can(Perm.appointmentReschedule);
     final canCancelPerm = permissions.can(Perm.appointmentCancel);
     final currentUserId = ref.watch(authStateProvider).user?.id;
+    final isPatient = permissions.role == 'patient';
 
     if (!canViewAll && !canView) {
       return _NoAccessView();
@@ -354,7 +421,7 @@ class _AppointmentsPageState extends ConsumerState<AppointmentsPage> {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            _buildHeader(canViewAll),
+            _buildHeader(canViewAll, isPatient: isPatient),
             const SizedBox(height: AppDimensions.paddingMedium),
             AppointmentFilterBar(
               selectedStatus: state.filter.status,
@@ -364,24 +431,40 @@ class _AppointmentsPageState extends ConsumerState<AppointmentsPage> {
                     : state.filter.copyWith(status: status);
 
                 notifier.setFilter(newFilter);
-                await _loadCalendarCountsForMonth(_focusedDay);
-                if (_selectedDay != null) {
-                  await _loadAppointmentsForDay(_selectedDay!);
+                if (isPatient && _showAgenda) {
+                  await ref
+                      .read(appointmentNotifierProvider.notifier)
+                      .load(reset: true);
+                } else {
+                  await _loadCalendarCountsForMonth(_focusedDay);
+                  if (_selectedDay != null) {
+                    await _loadAppointmentsForDay(_selectedDay!);
+                  }
                 }
               },
             ),
             const SizedBox(height: AppDimensions.paddingMedium),
             Expanded(
-              child: _buildBody(
-                state,
-                canViewAll: canViewAll,
-                currentUserId: currentUserId,
-                canDelete: canDelete,
-                canUpdateStatus: canUpdateStatus,
-                canUpdate: canUpdate,
-                canReschedule: canReschedule,
-                canCancelPerm: canCancelPerm,
-              ),
+              child: (isPatient && _showAgenda)
+                  ? _buildAgendaBody(
+                      state,
+                      canViewAll: canViewAll,
+                      currentUserId: currentUserId,
+                      canUpdate: canUpdate,
+                      canUpdateStatus: canUpdateStatus,
+                      canReschedule: canReschedule,
+                      canCancelPerm: canCancelPerm,
+                    )
+                  : _buildBody(
+                      state,
+                      canViewAll: canViewAll,
+                      currentUserId: currentUserId,
+                      canDelete: canDelete,
+                      canUpdateStatus: canUpdateStatus,
+                      canUpdate: canUpdate,
+                      canReschedule: canReschedule,
+                      canCancelPerm: canCancelPerm,
+                    ),
             ),
           ],
         ),
@@ -390,7 +473,32 @@ class _AppointmentsPageState extends ConsumerState<AppointmentsPage> {
   }
 
   // ── HEADER ─────────────────────────────────────────────────
-  Widget _buildHeader(bool canViewAll) {
+  Widget _buildHeader(bool canViewAll, {required bool isPatient}) {
+    // Calendar-format cycling and "jump to today" only mean anything while
+    // the calendar is on screen — hide them in the patient agenda view.
+    final showCalendarControls = !(isPatient && _showAgenda);
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        // The labelled toggle needs room the header does not always have;
+        // below this it falls back to icons (tooltips carry the meaning).
+        final compact = constraints.maxWidth < 620;
+
+        return _buildHeaderCard(
+          canViewAll,
+          isPatient: isPatient,
+          showCalendarControls: showCalendarControls,
+          compact: compact,
+        );
+      },
+    );
+  }
+
+  Widget _buildHeaderCard(
+    bool canViewAll, {
+    required bool isPatient,
+    required bool showCalendarControls,
+    required bool compact,
+  }) {
     return Container(
       padding: const EdgeInsets.all(AppDimensions.paddingLarge),
       decoration: BoxDecoration(
@@ -447,7 +555,9 @@ class _AppointmentsPageState extends ConsumerState<AppointmentsPage> {
                       ),
                       const SizedBox(height: 2),
                       Text(
-                        'Manage patient bookings by date',
+                        isPatient
+                            ? 'Your upcoming and past visits'
+                            : 'Manage patient bookings by date',
                         style: AppTextStyles.bodySmall,
                         overflow: TextOverflow.ellipsis, // ✅ prevent overflow
                         maxLines: 1,
@@ -465,7 +575,15 @@ class _AppointmentsPageState extends ConsumerState<AppointmentsPage> {
           Row(
             mainAxisSize: MainAxisSize.min,
             children: [
-              if (_isLoadingCounts)
+              if (isPatient) ...[
+                _ViewToggle(
+                  showAgenda: _showAgenda,
+                  onChanged: _handleViewToggle,
+                  compact: compact,
+                ),
+                const SizedBox(width: 6),
+              ],
+              if (_isLoadingCounts && showCalendarControls)
                 const Padding(
                   padding: EdgeInsets.only(right: 8),
                   child: SizedBox(
@@ -477,40 +595,174 @@ class _AppointmentsPageState extends ConsumerState<AppointmentsPage> {
                     ),
                   ),
                 ),
-              _IconTile(
-                tooltip: 'Change view',
-                icon: Icons.view_module_outlined,
-                onTap: () {
-                  setState(() {
-                    _calendarFormat = switch (_calendarFormat) {
-                      CalendarFormat.month => CalendarFormat.twoWeeks,
-                      CalendarFormat.twoWeeks => CalendarFormat.week,
-                      CalendarFormat.week => CalendarFormat.month,
-                    };
-                  });
-                },
-              ),
-              const SizedBox(width: 6),
-              _IconTile(
-                tooltip: 'Today',
-                icon: Icons.today_outlined,
-                onTap: () async {
-                  await _loadAppointmentsForDay(DateTime.now());
-                },
-              ),
-              const SizedBox(width: 6),
+              if (showCalendarControls) ...[
+                _IconTile(
+                  tooltip: 'Change view',
+                  icon: Icons.view_module_outlined,
+                  onTap: () {
+                    setState(() {
+                      _calendarFormat = switch (_calendarFormat) {
+                        CalendarFormat.month => CalendarFormat.twoWeeks,
+                        CalendarFormat.twoWeeks => CalendarFormat.week,
+                        CalendarFormat.week => CalendarFormat.month,
+                      };
+                    });
+                  },
+                ),
+                const SizedBox(width: 6),
+                _IconTile(
+                  tooltip: 'Today',
+                  icon: Icons.today_outlined,
+                  onTap: () async {
+                    await _loadAppointmentsForDay(DateTime.now());
+                  },
+                ),
+                const SizedBox(width: 6),
+              ],
               _IconTile(
                 tooltip: 'Refresh',
                 icon: Icons.refresh_rounded,
                 onTap: () async {
-                  await _loadCalendarCountsForMonth(_focusedDay);
-                  if (_selectedDay != null) {
-                    await _loadAppointmentsForDay(_selectedDay!);
+                  if (isPatient && _showAgenda) {
+                    await ref
+                        .read(appointmentNotifierProvider.notifier)
+                        .load(reset: true);
+                  } else {
+                    await _loadCalendarCountsForMonth(_focusedDay);
+                    if (_selectedDay != null) {
+                      await _loadAppointmentsForDay(_selectedDay!);
+                    }
                   }
                 },
               ),
             ],
           ),
+        ],
+      ),
+    );
+  }
+
+  // ── AGENDA (patients) ──────────────────────────────────────
+  Widget _buildAgendaBody(
+    AppointmentListState state, {
+    required bool canViewAll,
+    required int? currentUserId,
+    required bool canUpdate,
+    required bool canUpdateStatus,
+    required bool canReschedule,
+    required bool canCancelPerm,
+  }) {
+    Future<void> refresh() =>
+        ref.read(appointmentNotifierProvider.notifier).load(reset: true);
+
+    if (state.isLoading && state.appointments.isEmpty) {
+      return const Center(
+        child: CircularProgressIndicator(color: AppColors.primary),
+      );
+    }
+
+    if (state.error != null && state.appointments.isEmpty) {
+      return RefreshIndicator(
+        color: AppColors.primary,
+        onRefresh: refresh,
+        child: ListView(
+          physics: const AlwaysScrollableScrollPhysics(),
+          children: [
+            _ErrorCard(error: state.error!, onRetry: refresh),
+            const SizedBox(height: 100),
+          ],
+        ),
+      );
+    }
+
+    var appointments = state.appointments;
+    if (!canViewAll && currentUserId != null) {
+      appointments =
+          appointments.where((apt) => apt.userId == currentUserId).toList();
+    }
+
+    // Bucket by time, not status, so an in-progress visit still reads as
+    // upcoming and a cancelled-but-future one stays visible with its badge.
+    final upcoming = appointments.where((apt) => !apt.isPast).toList()
+      ..sort((a, b) => a.startTime.compareTo(b.startTime));
+    final past = appointments.where((apt) => apt.isPast).toList()
+      ..sort((a, b) => b.startTime.compareTo(a.startTime));
+
+    Widget tileFor(AppointmentModel appointment) {
+      final isOwn = appointment.userId == currentUserId;
+      final isActive = appointment.status == AppointmentStatus.pending ||
+          appointment.status == AppointmentStatus.confirmed;
+
+      return Padding(
+        padding: const EdgeInsets.only(bottom: AppDimensions.paddingSmall),
+        child: AppointmentAgendaTile(
+          appointment: appointment,
+          onTap: () => _openDetail(
+            appointment,
+            canEdit: canUpdate || (canReschedule && isOwn && isActive),
+            canCancel: canUpdateStatus || (canCancelPerm && isOwn && isActive),
+          ),
+        ),
+      );
+    }
+
+    return RefreshIndicator(
+      color: AppColors.primary,
+      onRefresh: refresh,
+      child: ListView(
+        physics: const AlwaysScrollableScrollPhysics(),
+        children: [
+          if (upcoming.isEmpty && past.isEmpty)
+            _EmptyStateCard(
+              icon: Icons.event_available_outlined,
+              title: 'No appointments yet',
+              subtitle: 'Tap "New Appointment" below to book your first visit',
+            )
+          else ...[
+            _AgendaSectionHeader(title: 'Upcoming', count: upcoming.length),
+            if (upcoming.isEmpty)
+              _EmptyStateCard(
+                icon: Icons.event_available_outlined,
+                title: 'No upcoming appointments',
+                subtitle: 'Tap "New Appointment" below to book your next visit',
+              )
+            else
+              ...upcoming.map(tileFor),
+            if (past.isNotEmpty) ...[
+              const SizedBox(height: AppDimensions.paddingMedium),
+              _AgendaSectionHeader(title: 'Past', count: past.length),
+              ...past.map(tileFor),
+              if (state.hasNextPage)
+                Padding(
+                  padding:
+                      const EdgeInsets.only(top: AppDimensions.paddingSmall),
+                  child: Center(
+                    child: TextButton.icon(
+                      onPressed: state.isLoadingMore
+                          ? null
+                          : () => ref
+                              .read(appointmentNotifierProvider.notifier)
+                              .loadMore(),
+                      style: TextButton.styleFrom(
+                        foregroundColor: AppColors.primaryDark,
+                      ),
+                      icon: state.isLoadingMore
+                          ? const SizedBox(
+                              width: 16,
+                              height: 16,
+                              child: CircularProgressIndicator(
+                                strokeWidth: 2,
+                                color: AppColors.primary,
+                              ),
+                            )
+                          : const Icon(Icons.expand_more_rounded, size: 20),
+                      label: const Text('Show older appointments'),
+                    ),
+                  ),
+                ),
+            ],
+          ],
+          const SizedBox(height: 100),
         ],
       ),
     );
@@ -879,6 +1131,151 @@ class _AppointmentsPageState extends ConsumerState<AppointmentsPage> {
 }
 
 // ── Reusable widgets ────────────────────────────────────────
+
+/// List/calendar switch shown to patients only.
+class _ViewToggle extends StatelessWidget {
+  final bool showAgenda;
+  final ValueChanged<bool> onChanged;
+  final bool compact;
+
+  const _ViewToggle({
+    required this.showAgenda,
+    required this.onChanged,
+    this.compact = false,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      height: 42,
+      padding: const EdgeInsets.all(3),
+      decoration: BoxDecoration(
+        color: AppColors.surface,
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: AppColors.border),
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          _ViewToggleSegment(
+            tooltip: 'List view',
+            icon: Icons.view_agenda_outlined,
+            label: compact ? null : 'List',
+            isActive: showAgenda,
+            onTap: () => onChanged(true),
+          ),
+          const SizedBox(width: 3),
+          _ViewToggleSegment(
+            tooltip: 'Calendar view',
+            icon: Icons.calendar_month_outlined,
+            label: compact ? null : 'Calendar',
+            isActive: !showAgenda,
+            onTap: () => onChanged(false),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _ViewToggleSegment extends StatelessWidget {
+  final String tooltip;
+  final IconData icon;
+  final String? label;
+  final bool isActive;
+  final VoidCallback onTap;
+
+  const _ViewToggleSegment({
+    required this.tooltip,
+    required this.icon,
+    required this.label,
+    required this.isActive,
+    required this.onTap,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final shape = RoundedRectangleBorder(
+      borderRadius: BorderRadius.circular(9),
+    );
+
+    return Tooltip(
+      message: tooltip,
+      child: Material(
+        color: isActive ? AppColors.primary : Colors.transparent,
+        shape: shape,
+        child: InkWell(
+          onTap: onTap,
+          customBorder: shape,
+          child: Padding(
+            padding: EdgeInsets.symmetric(horizontal: label == null ? 9 : 12),
+            child: Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Icon(
+                  icon,
+                  size: 17,
+                  color: isActive
+                      ? AppColors.textOnPrimary
+                      : AppColors.textSecondary,
+                ),
+                if (label != null) ...[
+                  const SizedBox(width: 6),
+                  Text(
+                    label!,
+                    style: TextStyle(
+                      fontSize: 12,
+                      fontWeight: FontWeight.w700,
+                      color: isActive
+                          ? AppColors.textOnPrimary
+                          : AppColors.textSecondary,
+                    ),
+                  ),
+                ],
+              ],
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+class _AgendaSectionHeader extends StatelessWidget {
+  final String title;
+  final int count;
+
+  const _AgendaSectionHeader({required this.title, required this.count});
+
+  @override
+  Widget build(BuildContext context) {
+    return Padding(
+      padding: const EdgeInsets.only(bottom: AppDimensions.paddingSmall),
+      child: Row(
+        children: [
+          Text(title, style: AppTextStyles.titleSmall),
+          const SizedBox(width: AppDimensions.paddingXS),
+          Container(
+            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+            decoration: BoxDecoration(
+              color: AppColors.accentLight,
+              borderRadius: BorderRadius.circular(999),
+            ),
+            child: Text(
+              '$count',
+              style: const TextStyle(
+                fontSize: 11,
+                fontWeight: FontWeight.w800,
+                height: 1.4,
+                color: AppColors.primaryDark,
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
 
 class _IconTile extends StatelessWidget {
   final String tooltip;

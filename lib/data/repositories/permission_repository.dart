@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../core/network/dio_client.dart';
 import '../../core/errors/failures.dart';
+import 'package:smile_concept_web/core/errors/error_message.dart';
 
 class PermissionRepository {
   final Dio dio;
@@ -31,9 +32,9 @@ class PermissionRepository {
       });
     } on DioException catch (e) {
       throw ApiFailure(
-        message:
-            e.response?.data?['message'] ?? 'Failed to load permissions',
+        message: describeError(e, fallback: 'Failed to load permissions'),
         code: 'PERMISSIONS_FETCH_ERROR',
+        statusCode: errorStatusCode(e),
       );
     }
   }

@@ -7,6 +7,7 @@ import '../../../data/repositories/setting_repository.dart';
 import '../../theme/app_colors.dart';
 import '../../theme/app_dimensions.dart';
 import '../../theme/app_text_styles.dart';
+import 'package:smile_concept_web/core/errors/error_message.dart';
 
 class SettingsPage extends ConsumerWidget {
   const SettingsPage({super.key});
@@ -46,7 +47,7 @@ class SettingsPage extends ConsumerWidget {
                   );
                 },
                 loading: () => const _LoadingView(),
-                error: (error, _) => _ErrorView(message: error.toString()),
+                error: (error, _) => _ErrorView(message: describeError(error)),
               ),
             ),
           ],
@@ -416,7 +417,7 @@ class _EditSettingDialogState extends State<_EditSettingDialog> {
       _showSnack('Setting updated successfully', AppColors.success);
     } catch (error) {
       if (!mounted) return;
-      _showSnack('Error: $error', AppColors.error);
+      _showSnack(describeError(error), AppColors.error);
     } finally {
       if (mounted) setState(() => _isSaving = false);
     }

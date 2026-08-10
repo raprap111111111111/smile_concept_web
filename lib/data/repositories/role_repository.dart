@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../core/errors/failures.dart';
 import '../../core/network/dio_client.dart';
+import 'package:smile_concept_web/core/errors/error_message.dart';
 
 final roleRepositoryProvider = Provider<RoleRepository>((ref) {
   return RoleRepository(ref.watch(dioProvider));
@@ -55,6 +56,7 @@ class RoleRepository {
       throw ApiFailure(
         message: _extractMessage(e, fallback: 'Failed to load roles'),
         code: 'ROLES_FETCH_ERROR',
+        statusCode: errorStatusCode(e),
       );
     }
   }
@@ -71,6 +73,7 @@ class RoleRepository {
       throw ApiFailure(
         message: _extractMessage(e, fallback: 'Failed to create role'),
         code: 'ROLE_CREATE_ERROR',
+        statusCode: errorStatusCode(e),
       );
     }
   }
@@ -90,6 +93,7 @@ class RoleRepository {
       throw ApiFailure(
         message: _extractMessage(e, fallback: 'Failed to update role'),
         code: 'ROLE_UPDATE_ERROR',
+        statusCode: errorStatusCode(e),
       );
     }
   }
@@ -101,6 +105,7 @@ class RoleRepository {
       throw ApiFailure(
         message: _extractMessage(e, fallback: 'Failed to delete role'),
         code: 'ROLE_DELETE_ERROR',
+        statusCode: errorStatusCode(e),
       );
     }
   }
@@ -122,6 +127,7 @@ class RoleRepository {
       throw ApiFailure(
         message: _extractMessage(e, fallback: 'Failed to sync permissions'),
         code: 'ROLE_SYNC_PERMISSIONS_ERROR',
+        statusCode: errorStatusCode(e),
       );
     }
   }
@@ -133,30 +139,15 @@ class RoleRepository {
     return Map<String, dynamic>.from(rawData as Map);
   }
 
+  /// Kept as a thin wrapper so existing call sites read the same; all the
+  /// wording now lives in one place. `describeError` already understands
+  /// Laravel's validation bag and overrides unhelpful server text for codes
+  /// like 403 and 500.
   String _extractMessage(
     DioException e, {
     required String fallback,
-  }) {
-    final data = e.response?.data;
-
-    if (data is Map<String, dynamic>) {
-      final errors = data['errors'];
-
-      if (errors is Map && errors.isNotEmpty) {
-        final first = errors.values.first;
-
-        if (first is List && first.isNotEmpty) {
-          return first.first.toString();
-        }
-
-        return first.toString();
-      }
-
-      return data['message']?.toString() ?? fallback;
-    }
-
-    return e.message ?? fallback;
-  }
+  }) =>
+      describeError(e, fallback: fallback);
 
   Future<Map<String, dynamic>> getRole(int id) async {
     try {
@@ -170,6 +161,7 @@ class RoleRepository {
       throw ApiFailure(
         message: _extractMessage(e, fallback: 'Failed to load role'),
         code: 'ROLE_FETCH_ERROR',
+        statusCode: errorStatusCode(e),
       );
     }
   }

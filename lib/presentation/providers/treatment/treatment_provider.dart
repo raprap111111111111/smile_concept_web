@@ -5,6 +5,7 @@ import '../../../core/network/dio_client.dart';
 import '../../../data/datasources/remote/treatment_remote_datasource.dart';
 import '../../../data/models/treatment/treatment_model.dart';
 import '../../../data/repositories/treatment_repository.dart';
+import 'package:smile_concept_web/core/errors/error_message.dart';
 
 // ── Data source provider ───────────────────────────────────────
 final treatmentRemoteDataSourceProvider =
@@ -121,7 +122,7 @@ class TreatmentNotifier extends StateNotifier<TreatmentState> {
     } catch (e) {
       state = state.copyWith(
         isListLoading: false,
-        listError: e.toString().replaceAll('Exception: ', ''),
+        listError: describeError(e),
       );
     }
   }
@@ -146,7 +147,7 @@ class TreatmentNotifier extends StateNotifier<TreatmentState> {
     } catch (e) {
       state = state.copyWith(
         isLoadingMore: false,
-        listError: e.toString().replaceAll('Exception: ', ''),
+        listError: describeError(e),
       );
     }
   }
@@ -168,7 +169,7 @@ class TreatmentNotifier extends StateNotifier<TreatmentState> {
     } catch (e) {
       state = state.copyWith(
         isDetailLoading: false,
-        detailError: e.toString().replaceAll('Exception: ', ''),
+        detailError: describeError(e),
       );
     }
   }
@@ -205,7 +206,7 @@ class TreatmentNotifier extends StateNotifier<TreatmentState> {
     } catch (e) {
       state = state.copyWith(
         isSubmitting: false,
-        submitError: e.toString().replaceAll('Exception: ', ''),
+        submitError: describeError(e),
       );
       rethrow;
     }
@@ -248,7 +249,7 @@ class TreatmentNotifier extends StateNotifier<TreatmentState> {
     } catch (e) {
       state = state.copyWith(
         isSubmitting: false,
-        submitError: e.toString().replaceAll('Exception: ', ''),
+        submitError: describeError(e),
       );
       rethrow;
     }
@@ -265,7 +266,7 @@ class TreatmentNotifier extends StateNotifier<TreatmentState> {
       return true;
     } catch (e) {
       state = state.copyWith(
-        listError: e.toString().replaceAll('Exception: ', ''),
+        listError: describeError(e),
       );
       return false;
     }

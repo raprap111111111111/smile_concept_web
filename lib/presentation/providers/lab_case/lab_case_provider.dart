@@ -3,6 +3,7 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:smile_concept_web/data/models/lab_case/lab_case_model.dart';
 import 'package:smile_concept_web/data/repositories/lab_case_repository.dart';
+import 'package:smile_concept_web/core/errors/error_message.dart';
 
 // ─── State ────────────────────────────────────────────────────────────────────
 
@@ -111,7 +112,7 @@ class LabCaseNotifier extends StateNotifier<LabCaseState> {
     } catch (e) {
       state = state.copyWith(
         isLoading: false,
-        error: e.toString().replaceFirst('Exception: ', ''),
+        error: describeError(e),
       );
     }
   }
@@ -181,7 +182,7 @@ class LabCaseNotifier extends StateNotifier<LabCaseState> {
     } catch (e) {
       state = state.copyWith(
         isSubmitting: false,
-        error: e.toString().replaceFirst('Exception: ', ''),
+        error: describeError(e),
       );
       return false;
     }
@@ -200,7 +201,7 @@ class LabCaseNotifier extends StateNotifier<LabCaseState> {
     } catch (e) {
       state = state.copyWith(
         isSubmitting: false,
-        error: e.toString().replaceFirst('Exception: ', ''),
+        error: describeError(e),
       );
       return false;
     }
@@ -221,7 +222,7 @@ class LabCaseNotifier extends StateNotifier<LabCaseState> {
     } catch (e) {
       state = state.copyWith(
         isSubmitting: false,
-        error: e.toString().replaceFirst('Exception: ', ''),
+        error: describeError(e),
       );
       return false;
     }

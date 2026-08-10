@@ -7,6 +7,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../../data/models/patient/patient_model.dart';
 import '../../../providers/patient/patient_search_provider.dart';
+import 'package:smile_concept_web/core/errors/error_message.dart';
 
 /// A tappable field that opens a searchable patient picker dialog.
 /// Server-side search — safe for thousands of patients.
@@ -287,7 +288,7 @@ class _PatientPickerDialogState
                         const Icon(Icons.error_outline,
                             color: Colors.red, size: 40),
                         const SizedBox(height: 12),
-                        Text(e.toString(),
+                        Text(describeError(e),
                             textAlign: TextAlign.center,
                             style:
                                 const TextStyle(color: Colors.red)),

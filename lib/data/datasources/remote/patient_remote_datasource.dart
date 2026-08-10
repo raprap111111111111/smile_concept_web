@@ -2,6 +2,7 @@
 import 'package:dio/dio.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import '../../../core/errors/error_message.dart';
 import '../../../core/network/dio_client.dart';
 import '../../../presentation/providers/patient/patient_list_provider.dart';
 import '../../models/patient/patient_model.dart';
@@ -116,28 +117,12 @@ class PatientRemoteDataSource {
 
   // ─── Helpers ─────────────────────────────────────────────
 
-  String _extractErrorMessage(DioException e) {
-    final response = e.response;
-    if (response?.data is Map) {
-      final map = response!.data as Map;
-
-      // Laravel validation errors
-      if (map['errors'] is Map) {
-        final errors = map['errors'] as Map;
-        final messages = <String>[];
-        errors.forEach((field, msgs) {
-          if (msgs is List && msgs.isNotEmpty) {
-            messages.add(msgs.first.toString());
-          }
-        });
-        if (messages.isNotEmpty) return messages.join('\n');
-      }
-
-      // Generic message
-      if (map['message'] is String) return map['message'] as String;
-    }
-    return e.message ?? 'Unknown network error';
-  }
+  /// Delegates to the app-wide humanizer, which reads Laravel's validation bag
+  /// and replaces unhelpful wording for status codes like 403 and 500. The old
+  /// hand-rolled version returned `e.message` — Dio's internal diagnostics —
+  /// whenever the body wasn't a Map.
+  String _extractErrorMessage(DioException e) =>
+      describeError(e, fallback: "That didn't work. Please try again.");
 
   Map<String, dynamic> _toStringMap(Map source) {
     final result = <String, dynamic>{};

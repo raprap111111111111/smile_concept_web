@@ -21,6 +21,7 @@ import '../../theme/app_theme.dart';
 import '../doctor_schedules/widgets/dropdown_states.dart';
 import 'widgets/patient_search_field.dart';
 import 'widgets/time_slot_picker.dart';
+import 'package:smile_concept_web/core/errors/error_message.dart';
 
 final selectedDoctorProvider = StateProvider<int?>((ref) => null);
 final selectedBranchProvider = StateProvider<int?>((ref) => null);
@@ -175,7 +176,7 @@ class _BookAppointmentPageState extends ConsumerState<BookAppointmentPage> {
     } catch (error) {
       if (!mounted) return;
       setState(() => _isSubmitting = false);
-      _showError('Failed to book: $error');
+      _showError(describeError(error, fallback: 'Failed to book'));
     }
   }
 
@@ -607,7 +608,7 @@ class _BookAppointmentPageState extends ConsumerState<BookAppointmentPage> {
     return doctorsAsync.when(
       loading: () => const DropdownSkeleton(label: 'Loading doctors...'),
       error: (error, _) => DropdownError(
-        message: 'Failed to load doctors: $error',
+        message: describeError(error, fallback: 'Failed to load doctors'),
       ),
       data: (doctors) => DropdownButtonFormField<int>(
         initialValue: selected,
@@ -644,7 +645,7 @@ class _BookAppointmentPageState extends ConsumerState<BookAppointmentPage> {
     return branchesAsync.when(
       loading: () => const DropdownSkeleton(label: 'Loading branches...'),
       error: (error, _) => DropdownError(
-        message: 'Failed to load branches: $error',
+        message: describeError(error, fallback: 'Failed to load branches'),
       ),
       data: (branches) => DropdownButtonFormField<int>(
         initialValue: selected,

@@ -9,6 +9,7 @@ import 'record_payment_page.dart';
 import 'widgets/invoice_status_badge.dart';
 import 'widgets/invoice_item_tile.dart';
 import 'widgets/payment_tile.dart';
+import 'package:smile_concept_web/core/errors/error_message.dart';
 
 class InvoiceDetailPage extends ConsumerWidget {
   final int invoiceId;
@@ -27,7 +28,7 @@ class InvoiceDetailPage extends ConsumerWidget {
       ),
       body: asyncInvoice.when(
         loading: () => const Center(child: CircularProgressIndicator()),
-        error: (e, _) => Center(child: Text('Error: $e')),
+        error: (e, _) => Center(child: Text(describeError(e))),
         data: (invoice) => _buildBody(context, ref, invoice),
       ),
     );

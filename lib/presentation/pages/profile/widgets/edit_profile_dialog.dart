@@ -10,6 +10,7 @@ import '../../../../data/models/profile/profile_model.dart';
 import '../../../providers/auth/auth_provider.dart';
 import '../../../providers/profile/profile_provider.dart';
 import 'profile_theme.dart';
+import 'package:smile_concept_web/core/errors/error_message.dart';
 
 class EditProfileDialog extends ConsumerStatefulWidget {
   final ProfileModel profile;
@@ -101,7 +102,7 @@ class _EditProfileDialogState extends ConsumerState<EditProfileDialog> {
     } catch (e) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Failed to pick image: $e')),
+          SnackBar(content: Text(describeError(e, fallback: 'Failed to pick image'))),
         );
       }
     }

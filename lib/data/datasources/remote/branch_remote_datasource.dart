@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../core/network/dio_client.dart';
 import '../../models/branch/branch_model.dart';
+import 'package:smile_concept_web/core/errors/error_message.dart';
 
 final branchRemoteDataSourceProvider = Provider<BranchRemoteDataSource>((ref) {
   return BranchRemoteDataSource(ref.watch(dioProvider));
@@ -91,39 +92,11 @@ class BranchRemoteDataSource {
     }
   }
 
-  Exception _handleError(DioException e) {
-    final statusCode = e.response?.statusCode;
-    final data = e.response?.data;
-
-    String message = e.message ?? 'Branch request failed';
-
-    if (data is Map<String, dynamic>) {
-      message = data['message']?.toString() ?? message;
-
-      final errors = data['errors'];
-
-      if (errors is Map && errors.isNotEmpty) {
-        final first = errors.values.first;
-
-        if (first is List && first.isNotEmpty) {
-          message = first.first.toString();
-        } else {
-          message = first.toString();
-        }
-      }
-    }
-
-    switch (statusCode) {
-      case 401:
-        return Exception('Unauthorized: $message');
-      case 403:
-        return Exception('Forbidden: $message');
-      case 404:
-        return Exception('Branch not found: $message');
-      case 422:
-        return Exception(message);
-      default:
-        return Exception(message);
-    }
-  }
+  /// Status handling now lives in `describeError`, which turns 401/403/404 into
+  /// sentences instead of the "Unauthorized: <server text>" prefixes this used
+  /// to emit, and reads the whole validation bag rather than one field.
+  Exception _handleError(DioException e) => Exception(
+        describeError(e, fallback: "That branch request didn't go through. "
+            'Please try again.'),
+      );
 }

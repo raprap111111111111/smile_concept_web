@@ -3,6 +3,7 @@
 import 'package:dio/dio.dart';
 import '../../core/errors/failures.dart';
 import '../models/doctor_schedule/doctor_schedule_model.dart';
+import 'package:smile_concept_web/core/errors/error_message.dart';
 
 class DoctorScheduleRepository {
   final Dio _dio;
@@ -54,9 +55,9 @@ class DoctorScheduleRepository {
       );
     } on DioException catch (e) {
       throw ApiFailure(
-        message:
-            e.response?.data?['message'] ?? 'Failed to load schedules',
+        message: describeError(e, fallback: 'Failed to load schedules'),
         code: 'SCHEDULES_FETCH_ERROR',
+        statusCode: errorStatusCode(e),
       );
     }
   }
@@ -71,8 +72,9 @@ class DoctorScheduleRepository {
           body['data'] as Map<String, dynamic>);
     } on DioException catch (e) {
       throw ApiFailure(
-        message: e.response?.data?['message'] ?? 'Failed to load schedule',
+        message: describeError(e, fallback: 'Failed to load schedule'),
         code: 'SCHEDULE_FETCH_ERROR',
+        statusCode: errorStatusCode(e),
       );
     }
   }
@@ -109,9 +111,9 @@ class DoctorScheduleRepository {
         );
       }
       throw ApiFailure(
-        message:
-            e.response?.data?['message'] ?? 'Failed to create schedule',
+        message: describeError(e, fallback: 'Failed to create schedule'),
         code: 'SCHEDULE_CREATE_ERROR',
+        statusCode: errorStatusCode(e),
       );
     }
   }
@@ -144,7 +146,7 @@ class DoctorScheduleRepository {
         errors.add('$dayName: $msg');
       } catch (e) {
         final dayName = _dayName(day);
-        errors.add('$dayName: ${e.toString()}');
+        errors.add('$dayName: ${describeError(e)}');
       }
     }
 
@@ -213,9 +215,9 @@ class DoctorScheduleRepository {
         );
       }
       throw ApiFailure(
-        message:
-            e.response?.data?['message'] ?? 'Failed to update schedule',
+        message: describeError(e, fallback: 'Failed to update schedule'),
         code: 'SCHEDULE_UPDATE_ERROR',
+        statusCode: errorStatusCode(e),
       );
     }
   }
@@ -227,9 +229,9 @@ class DoctorScheduleRepository {
       await _dio.delete('/doctor-schedules/$id');
     } on DioException catch (e) {
       throw ApiFailure(
-        message:
-            e.response?.data?['message'] ?? 'Failed to delete schedule',
+        message: describeError(e, fallback: 'Failed to delete schedule'),
         code: 'SCHEDULE_DELETE_ERROR',
+        statusCode: errorStatusCode(e),
       );
     }
   }

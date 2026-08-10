@@ -7,6 +7,7 @@ import '../../providers/inventory/item_provider.dart';
 import '../../theme/app_colors.dart';
 import '../../theme/app_dimensions.dart';
 import '../../theme/app_text_styles.dart';
+import 'package:smile_concept_web/core/errors/error_message.dart';
 
 class ItemFormPage extends ConsumerStatefulWidget {
   final int? itemId;
@@ -95,7 +96,7 @@ class _ItemFormPageState extends ConsumerState<ItemFormPage> {
         });
       }
     } catch (e) {
-      if (mounted) _showSnack('Failed to load item: $e', AppColors.error);
+      if (mounted) _showSnack(describeError(e, fallback: 'Failed to load item'), AppColors.error);
     } finally {
       if (mounted) setState(() => _isLoading = false);
     }
@@ -140,7 +141,7 @@ class _ItemFormPageState extends ConsumerState<ItemFormPage> {
       }
     } catch (e) {
       if (mounted) {
-        _showSnack('Error: $e', AppColors.error);
+        _showSnack(describeError(e), AppColors.error);
       }
     } finally {
       if (mounted) setState(() => _isSubmitting = false);

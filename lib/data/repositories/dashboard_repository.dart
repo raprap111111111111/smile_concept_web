@@ -3,6 +3,7 @@ import '../../core/errors/failures.dart';
 import '../models/dashboard/dashboard_stats.dart';
 import '../models/dashboard/recent_activity.dart';
 import '../models/dashboard/today_schedule.dart';
+import 'package:smile_concept_web/core/errors/error_message.dart';
 
 class DashboardRepository {
   final Dio dio;
@@ -15,8 +16,9 @@ class DashboardRepository {
       return DashboardStats.fromJson(_unwrap(response));
     } on DioException catch (e) {
       throw ApiFailure(
-        message: e.message ?? 'Failed to load dashboard stats',
+        message: describeError(e, fallback: 'Failed to load dashboard stats'),
         code: 'DASHBOARD_STATS_FAILURE',
+        statusCode: errorStatusCode(e),
       );
     }
   }
@@ -27,8 +29,9 @@ class DashboardRepository {
       return TodaySchedule.fromJson(_unwrap(response));
     } on DioException catch (e) {
       throw ApiFailure(
-        message: e.message ?? 'Failed to load appointments',
+        message: describeError(e, fallback: 'Failed to load appointments'),
         code: 'TODAY_APPOINTMENTS_FAILURE',
+        statusCode: errorStatusCode(e),
       );
     }
   }
@@ -42,8 +45,9 @@ class DashboardRepository {
       return RecentActivityFeed.fromJson(_unwrap(response));
     } on DioException catch (e) {
       throw ApiFailure(
-        message: e.message ?? 'Failed to load activities',
+        message: describeError(e, fallback: 'Failed to load activities'),
         code: 'RECENT_ACTIVITIES_FAILURE',
+        statusCode: errorStatusCode(e),
       );
     }
   }

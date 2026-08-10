@@ -5,6 +5,7 @@ import '../../../data/models/prescription/prescription_model.dart';
 import '../../../data/repositories/prescription_repository.dart';
 import '../../../data/datasources/remote/prescription_remote_datasource.dart';
 import '../../../core/network/dio_client.dart';
+import 'package:smile_concept_web/core/errors/error_message.dart';
 
 final prescriptionRemoteDataSourceProvider =
     Provider<PrescriptionRemoteDataSource>((ref) {
@@ -116,7 +117,7 @@ class PrescriptionNotifier extends StateNotifier<PrescriptionState> {
     } catch (e) {
       state = state.copyWith(
         isListLoading: false,
-        listError: e.toString().replaceAll('Exception: ', ''),
+        listError: describeError(e),
       );
     }
   }
@@ -142,7 +143,7 @@ class PrescriptionNotifier extends StateNotifier<PrescriptionState> {
     } catch (e) {
       state = state.copyWith(
         isLoadingMore: false,
-        listError: e.toString().replaceAll('Exception: ', ''),
+        listError: describeError(e),
       );
     }
   }
@@ -167,7 +168,7 @@ class PrescriptionNotifier extends StateNotifier<PrescriptionState> {
     } catch (e) {
       state = state.copyWith(
         isDetailLoading: false,
-        detailError: e.toString().replaceAll('Exception: ', ''),
+        detailError: describeError(e),
       );
     }
   }
@@ -187,7 +188,7 @@ class PrescriptionNotifier extends StateNotifier<PrescriptionState> {
       return true;
     } catch (e) {
       state = state.copyWith(
-        listError: e.toString().replaceAll('Exception: ', ''),
+        listError: describeError(e),
       );
       return false;
     }

@@ -13,6 +13,7 @@ import '../../theme/app_text_styles.dart';
 import 'widgets/patient_form_field.dart';
 import 'widgets/patient_page_header.dart';
 import 'widgets/patient_section_card.dart';
+import 'package:smile_concept_web/core/errors/error_message.dart';
 
 class PatientFormPage extends ConsumerStatefulWidget {
   final int? patientId;
@@ -98,7 +99,7 @@ class _PatientFormPageState extends ConsumerState<PatientFormPage> {
       _isPregnant = profile.isPregnant;
       _hasBleedingDisorders = profile.hasBleedingDisorders;
     } catch (e) {
-      if (mounted) _showSnackBar('Failed to load patient: $e', isError: true);
+      if (mounted) _showSnackBar(describeError(e, fallback: 'Failed to load patient'), isError: true);
     } finally {
       if (mounted) setState(() => _isLoadingData = false);
     }
@@ -156,7 +157,7 @@ class _PatientFormPageState extends ConsumerState<PatientFormPage> {
         context.goNamed(RouteNames.patients);
       }
     } catch (e) {
-      if (mounted) _showSnackBar('❌ $e', isError: true);
+      if (mounted) _showSnackBar(describeError(e), isError: true);
     } finally {
       if (mounted) setState(() => _isSubmitting = false);
     }

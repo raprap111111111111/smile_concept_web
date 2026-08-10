@@ -14,6 +14,7 @@ import 'widgets/patient_bool_row.dart';
 import 'widgets/patient_info_row.dart';
 import 'widgets/patient_page_header.dart';
 import 'widgets/patient_section_card.dart';
+import 'package:smile_concept_web/core/errors/error_message.dart';
 
 class PatientDetailPage extends ConsumerWidget {
   final int patientId;
@@ -31,7 +32,7 @@ class PatientDetailPage extends ConsumerWidget {
       child: patientAsync.when(
         loading: () => const Center(child: CircularProgressIndicator()),
         error: (e, _) => _ErrorView(
-          message: e.toString(),
+          message: describeError(e),
           onBack: () => context.goNamed(RouteNames.patients),
         ),
         data: (patient) => SingleChildScrollView(

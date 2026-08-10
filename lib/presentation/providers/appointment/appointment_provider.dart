@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../data/models/appointment/appointment_model.dart';
 import '../../../data/models/appointment/availability_model.dart';
 import '../../../data/repositories/appointment_repository.dart';
+import 'package:smile_concept_web/core/errors/error_message.dart';
 
 // ============================================================================
 // FILTER STATE
@@ -148,7 +149,7 @@ class AppointmentNotifier extends StateNotifier<AppointmentListState> {
       );
     } catch (e) {
       state = state.copyWith(
-        error: e.toString(),
+        error: describeError(e),
         isLoading: false,
         isLoadingMore: false,
       );
@@ -237,7 +238,7 @@ class AppointmentNotifier extends StateNotifier<AppointmentListState> {
     } catch (e) {
       state = state.copyWith(
         isLoading: false,
-        error: e.toString(),
+        error: describeError(e),
       );
     }
   }
@@ -280,7 +281,7 @@ class AppointmentNotifier extends StateNotifier<AppointmentListState> {
       return true;
     } catch (e) {
       state = state.copyWith(
-        error: e.toString(),
+        error: describeError(e),
         isUpdatingStatus: false,
       );
 
@@ -360,7 +361,7 @@ class AvailabilityNotifier extends StateNotifier<AvailabilityState> {
       );
     } catch (e) {
       state = state.copyWith(
-        error: e.toString(),
+        error: describeError(e),
         isLoading: false,
       );
     }

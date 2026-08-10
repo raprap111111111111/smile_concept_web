@@ -16,6 +16,7 @@ import '../../widgets/shared/hold_to_delete_dialog.dart';
 import '../../widgets/shared/search_bar_onclick.dart';
 import 'widgets/attachment_card.dart';
 import 'widgets/attachment_filter_bar.dart';
+import 'package:smile_concept_web/core/errors/error_message.dart';
 
 class PatientAttachmentListPage extends ConsumerStatefulWidget {
   final int? filterUserId;
@@ -201,7 +202,7 @@ class _PatientAttachmentListPageState
       _showSnack('"${attachment.fileName}" deleted', AppColors.success);
     } catch (e) {
       if (!mounted) return;
-      _showSnack('Failed to delete: $e', AppColors.error);
+      _showSnack(describeError(e, fallback: 'Failed to delete'), AppColors.error);
     }
   }
 
