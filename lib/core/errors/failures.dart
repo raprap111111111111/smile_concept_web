@@ -3,6 +3,13 @@ abstract class Failure {
   final String code;
 
   Failure({required this.message, required this.code});
+
+  /// Without this, string interpolation of a thrown failure renders
+  /// "Instance of 'ApiFailure'" — which is what users used to see in
+  /// snackbars. Prefer `describeError()` for anything user-facing; this is
+  /// the safety net for the interpolation sites we miss.
+  @override
+  String toString() => message;
 }
 
 class ApiFailure extends Failure {

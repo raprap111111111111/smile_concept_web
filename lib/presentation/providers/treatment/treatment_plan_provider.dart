@@ -3,6 +3,7 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../data/models/treatment/treatment_plan_model.dart';
 import '../../../data/repositories/treatment_plan_repository.dart';
+import 'package:smile_concept_web/core/errors/error_message.dart';
 
 // ── State ──────────────────────────────────────────────────────
 class TreatmentPlanState {
@@ -112,7 +113,7 @@ class TreatmentPlanNotifier
     } catch (e) {
       state = state.copyWith(
         isListLoading: false,
-        listError: e.toString().replaceAll('Exception: ', ''),
+        listError: describeError(e),
       );
     }
   }
@@ -138,7 +139,7 @@ class TreatmentPlanNotifier
     } catch (e) {
       state = state.copyWith(
         isLoadingMore: false,
-        listError: e.toString().replaceAll('Exception: ', ''),
+        listError: describeError(e),
       );
     }
   }
@@ -159,7 +160,7 @@ class TreatmentPlanNotifier
     } catch (e) {
       state = state.copyWith(
         isDetailLoading: false,
-        detailError: e.toString().replaceAll('Exception: ', ''),
+        detailError: describeError(e),
       );
     }
   }
@@ -173,7 +174,7 @@ class TreatmentPlanNotifier
       return true;
     } catch (e) {
       state = state.copyWith(
-        listError: e.toString().replaceAll('Exception: ', ''),
+        listError: describeError(e),
       );
       return false;
     }
@@ -206,7 +207,7 @@ class TreatmentPlanNotifier
       );
       return null;
     } catch (e) {
-      final msg = e.toString().replaceAll('Exception: ', '');
+      final msg = describeError(e);
       state = state.copyWith(listError: msg);
       return msg;
     }

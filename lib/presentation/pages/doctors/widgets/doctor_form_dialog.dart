@@ -7,6 +7,7 @@ import '../../../providers/user/dentist_users_provider.dart';
 import '../../../theme/app_colors.dart';
 import '../../../theme/app_dimensions.dart';
 import '../../../theme/app_text_styles.dart';
+import 'package:smile_concept_web/core/errors/error_message.dart';
 
 class DoctorFormDialog extends ConsumerStatefulWidget {
   final Map<String, dynamic>? doctor;
@@ -75,7 +76,7 @@ class _DoctorFormDialogState extends ConsumerState<DoctorFormDialog> {
       );
     } catch (e) {
       if (!mounted) return;
-      _showSnackbar('Error: $e', isError: true);
+      _showSnackbar(describeError(e), isError: true);
     } finally {
       if (mounted) setState(() => _isSaving = false);
     }
@@ -257,7 +258,7 @@ class _UserDropdown extends ConsumerWidget {
 
     return usersAsync.when(
       loading: () => _loadingBox(),
-      error: (e, _) => _errorBox(context, ref, e.toString()),
+      error: (e, _) => _errorBox(context, ref, describeError(e)),
       data: (users) => _dropdown(users),
     );
   }

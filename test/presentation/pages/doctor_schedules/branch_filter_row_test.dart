@@ -161,7 +161,11 @@ void main() {
       ),
     );
 
-    expect(find.textContaining('Not permitted (403)'), findsOneWidget);
+    // The user is told what to do, not which status code came back; the raw
+    // "This action is unauthorized." is replaced rather than shown.
+    expect(find.textContaining('permission'), findsOneWidget);
+    expect(find.textContaining('403'), findsNothing);
+    expect(find.textContaining('This action is unauthorized'), findsNothing);
     // Retrying an authorization refusal can only fail again.
     expect(find.text('Retry'), findsNothing);
   });

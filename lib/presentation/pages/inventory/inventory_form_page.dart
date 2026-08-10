@@ -9,6 +9,7 @@ import '../../theme/app_dimensions.dart';
 import '../../theme/app_text_styles.dart';
 import 'widgets/branch_dropdown.dart';
 import 'widgets/item_dropdown.dart';
+import 'package:smile_concept_web/core/errors/error_message.dart';
 
 class InventoryFormPage extends ConsumerStatefulWidget {
   final int? inventoryId;
@@ -134,7 +135,7 @@ class _InventoryFormPageState extends ConsumerState<InventoryFormPage> {
       }
     } catch (e) {
       if (mounted) {
-        _showSnack('Error: $e', AppColors.error);
+        _showSnack(describeError(e), AppColors.error);
       }
     } finally {
       if (mounted) setState(() => _isSubmitting = false);

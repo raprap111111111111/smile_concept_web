@@ -4,6 +4,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../core/errors/failures.dart';
 import '../../../core/network/dio_client.dart';
 import '../../models/notification/notification_model.dart';
+import 'package:smile_concept_web/core/errors/error_message.dart';
 
 final notificationRemoteDataSourceProvider =
     Provider<NotificationRemoteDataSource>((ref) {
@@ -53,6 +54,7 @@ class NotificationRemoteDataSource {
       throw ApiFailure(
         message: _extractMessage(e, fallback: 'Failed to load notifications'),
         code: 'NOTIFICATIONS_FETCH_ERROR',
+        statusCode: errorStatusCode(e),
       );
     }
   }
@@ -73,6 +75,7 @@ class NotificationRemoteDataSource {
       throw ApiFailure(
         message: _extractMessage(e, fallback: 'Failed to load unread count'),
         code: 'NOTIFICATION_COUNT_ERROR',
+        statusCode: errorStatusCode(e),
       );
     }
   }
@@ -84,6 +87,7 @@ class NotificationRemoteDataSource {
       throw ApiFailure(
         message: _extractMessage(e, fallback: 'Failed to mark as read'),
         code: 'NOTIFICATION_MARK_READ_ERROR',
+        statusCode: errorStatusCode(e),
       );
     }
   }
@@ -95,6 +99,7 @@ class NotificationRemoteDataSource {
       throw ApiFailure(
         message: _extractMessage(e, fallback: 'Failed to mark all as read'),
         code: 'NOTIFICATION_MARK_ALL_READ_ERROR',
+        statusCode: errorStatusCode(e),
       );
     }
   }
@@ -106,20 +111,18 @@ class NotificationRemoteDataSource {
       throw ApiFailure(
         message: _extractMessage(e, fallback: 'Failed to delete notification'),
         code: 'NOTIFICATION_DELETE_ERROR',
+        statusCode: errorStatusCode(e),
       );
     }
   }
 
+  /// Kept as a thin wrapper so existing call sites read the same; all the
+  /// wording now lives in one place. `describeError` already understands
+  /// Laravel's validation bag and overrides unhelpful server text for codes
+  /// like 403 and 500.
   String _extractMessage(
     DioException e, {
     required String fallback,
-  }) {
-    final data = e.response?.data;
-
-    if (data is Map<String, dynamic>) {
-      return data['message']?.toString() ?? fallback;
-    }
-
-    return e.message ?? fallback;
-  }
+  }) =>
+      describeError(e, fallback: fallback);
 }

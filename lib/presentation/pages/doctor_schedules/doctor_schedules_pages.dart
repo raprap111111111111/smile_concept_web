@@ -16,6 +16,7 @@ import 'doctor_schedule_form_page.dart';
 import 'widgets/branch_filter_row.dart';
 import 'widgets/day_filter_row.dart';
 import 'widgets/schedule_card.dart';
+import 'package:smile_concept_web/core/errors/error_message.dart';
 
 class DoctorSchedulePage extends ConsumerStatefulWidget {
   final int? doctorId;
@@ -125,7 +126,7 @@ class _DoctorSchedulePageState extends ConsumerState<DoctorSchedulePage> {
     } catch (e) {
       if (!mounted) return;
       setState(() {
-        _error = e.toString();
+        _error = describeError(e);
         _isLoading = false;
         _isLoadingMore = false;
       });
@@ -166,7 +167,7 @@ class _DoctorSchedulePageState extends ConsumerState<DoctorSchedulePage> {
       _showSnackBar('Schedule deleted successfully', isError: false);
     } catch (e) {
       if (!mounted) return;
-      _showSnackBar(e.toString(), isError: true);
+      _showSnackBar(describeError(e), isError: true);
     }
   }
 

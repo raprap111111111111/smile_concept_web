@@ -12,6 +12,7 @@ import 'package:smile_concept_web/data/models/lab_case/lab_case_constants.dart';
 import 'package:smile_concept_web/data/models/lab_case/lab_case_model.dart';
 import 'package:smile_concept_web/data/repositories/lab_case_repository.dart';
 import 'package:smile_concept_web/presentation/providers/lab_case/lab_case_provider.dart';
+import 'package:smile_concept_web/core/errors/error_message.dart';
 
 class LabCaseFormPage extends ConsumerStatefulWidget {
   final int? id;
@@ -64,7 +65,7 @@ class _LabCaseFormPageState extends ConsumerState<LabCaseFormPage> {
       _populateForm(labCase);
     } catch (e) {
       if (mounted) {
-        _showSnack('Failed to load lab case: $e', AppColors.error);
+        _showSnack(describeError(e, fallback: 'Failed to load lab case'), AppColors.error);
       }
     } finally {
       if (mounted) setState(() => _isLoadingCase = false);

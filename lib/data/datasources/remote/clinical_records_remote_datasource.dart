@@ -2,6 +2,7 @@
 
 import 'package:dio/dio.dart';
 import '../../models/clinical_records/clinical_summary_model.dart';
+import 'package:smile_concept_web/core/errors/error_message.dart';
 
 class ClinicalRecordsRemoteDataSource {
   final Dio dio;
@@ -14,10 +15,7 @@ class ClinicalRecordsRemoteDataSource {
       final data = response.data['data'] as Map<String, dynamic>;
       return ClinicalSummaryModel.fromJson(data);
     } on DioException catch (e) {
-      throw Exception(
-        e.response?.data?['message'] ??
-            'Failed to load clinical summary',
-      );
+      throw Exception(describeError(e, fallback: 'Failed to load clinical summary'));
     }
   }
 
@@ -28,10 +26,7 @@ class ClinicalRecordsRemoteDataSource {
       final data = response.data['data'] as Map<String, dynamic>;
       return ClinicalStatsModel.fromJson(data);
     } on DioException catch (e) {
-      throw Exception(
-        e.response?.data?['message'] ??
-            'Failed to load clinical stats',
-      );
+      throw Exception(describeError(e, fallback: 'Failed to load clinical stats'));
     }
   }
 }

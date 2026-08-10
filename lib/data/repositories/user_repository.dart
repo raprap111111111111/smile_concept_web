@@ -5,6 +5,7 @@ import '../../core/network/api_response.dart';
 import '../../core/network/dio_client.dart';
 import '../../core/errors/failures.dart';
 import '../models/auth/user_model.dart';
+import 'package:smile_concept_web/core/errors/error_message.dart';
 
 class UserRepository {
   final Dio _dio;
@@ -64,8 +65,9 @@ class UserRepository {
           .toList();
     } on DioException catch (e) {
       throw ApiFailure(
-        message: e.response?.data?['message'] ?? 'Failed to load users',
+        message: describeError(e, fallback: 'Failed to load users'),
         code: 'USERS_FETCH_ERROR',
+        statusCode: errorStatusCode(e),
       );
     }
   }
@@ -79,8 +81,9 @@ class UserRepository {
       return Map<String, dynamic>.from(response.data as Map);
     } on DioException catch (e) {
       throw ApiFailure(
-        message: e.response?.data?['message'] ?? 'Failed to create user',
+        message: describeError(e, fallback: 'Failed to create user'),
         code: 'USER_CREATE_ERROR',
+        statusCode: errorStatusCode(e),
       );
     }
   }
@@ -97,8 +100,9 @@ class UserRepository {
       return Map<String, dynamic>.from(response.data as Map);
     } on DioException catch (e) {
       throw ApiFailure(
-        message: e.response?.data?['message'] ?? 'Failed to update user',
+        message: describeError(e, fallback: 'Failed to update user'),
         code: 'USER_UPDATE_ERROR',
+        statusCode: errorStatusCode(e),
       );
     }
   }
@@ -111,8 +115,9 @@ class UserRepository {
       await _dio.delete('/users/$id');
     } on DioException catch (e) {
       throw ApiFailure(
-        message: e.response?.data?['message'] ?? 'Failed to delete user',
+        message: describeError(e, fallback: 'Failed to delete user'),
         code: 'USER_DELETE_ERROR',
+        statusCode: errorStatusCode(e),
       );
     }
   }

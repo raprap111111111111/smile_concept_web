@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../core/network/dio_client.dart';
 import '../../core/errors/failures.dart';
+import 'package:smile_concept_web/core/errors/error_message.dart';
 
 class DoctorRepository {
   final Dio dio;
@@ -38,8 +39,9 @@ class DoctorRepository {
           .toList();
     } on DioException catch (e) {
       throw ApiFailure(
-        message: e.response?.data?['message'] ?? 'Failed to load doctors',
+        message: describeError(e, fallback: 'Failed to load doctors'),
         code: 'DOCTORS_FETCH_ERROR',
+        statusCode: errorStatusCode(e),
       );
     }
   }
@@ -50,8 +52,9 @@ class DoctorRepository {
       return Map<String, dynamic>.from(response.data as Map);
     } on DioException catch (e) {
       throw ApiFailure(
-        message: e.response?.data?['message'] ?? 'Failed to create doctor',
+        message: describeError(e, fallback: 'Failed to create doctor'),
         code: 'DOCTOR_CREATE_ERROR',
+        statusCode: errorStatusCode(e),
       );
     }
   }
@@ -65,8 +68,9 @@ class DoctorRepository {
       return Map<String, dynamic>.from(response.data as Map);
     } on DioException catch (e) {
       throw ApiFailure(
-        message: e.response?.data?['message'] ?? 'Failed to update doctor',
+        message: describeError(e, fallback: 'Failed to update doctor'),
         code: 'DOCTOR_UPDATE_ERROR',
+        statusCode: errorStatusCode(e),
       );
     }
   }
@@ -76,8 +80,9 @@ class DoctorRepository {
       await dio.delete('/doctors/$id');
     } on DioException catch (e) {
       throw ApiFailure(
-        message: e.response?.data?['message'] ?? 'Failed to delete doctor',
+        message: describeError(e, fallback: 'Failed to delete doctor'),
         code: 'DOCTOR_DELETE_ERROR',
+        statusCode: errorStatusCode(e),
       );
     }
   }

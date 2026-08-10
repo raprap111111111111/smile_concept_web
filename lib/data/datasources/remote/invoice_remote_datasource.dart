@@ -7,6 +7,7 @@ import '../../models/invoice/invoice_model.dart';
 import '../../models/invoice/create_invoice_request.dart';
 import '../../models/invoice/record_payment_request.dart';
 import '../../models/invoice/paginated_invoice_result.dart';
+import 'package:smile_concept_web/core/errors/error_message.dart';
 
 final invoiceRemoteDataSourceProvider = Provider<InvoiceRemoteDataSource>((ref) {
   return InvoiceRemoteDataSource(ref.watch(dioProvider));
@@ -80,22 +81,11 @@ class InvoiceRemoteDataSource {
     }
   }
 
-  Exception _handleError(DioException e) {
-    final code = e.response?.statusCode;
-    final message = e.response?.data?['message'] ?? e.message ?? 'Unknown error';
-
-    switch (code) {
-      case 401: return Exception('Unauthorized: $message');
-      case 403: return Exception('Forbidden: $message');
-      case 404: return Exception('Not found: $message');
-      case 422:
-        final errors = e.response?.data?['errors'];
-        if (errors != null) {
-          final firstError = (errors as Map).values.first;
-          return Exception(firstError is List ? firstError.first : firstError.toString());
-        }
-        return Exception(message);
-      default: return Exception(message);
-    }
-  }
+  /// Status handling now lives in `describeError`, which turns 401/403/404 into
+  /// sentences instead of the "Unauthorized: <server text>" prefixes this used
+  /// to emit, and reads the whole validation bag rather than one field.
+  Exception _handleError(DioException e) => Exception(
+        describeError(e, fallback: "That invoice request didn't go through. "
+            'Please try again.'),
+      );
 }

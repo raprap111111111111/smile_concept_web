@@ -7,6 +7,7 @@ import 'package:file_picker/file_picker.dart';
 import '/data/models/patient_attachment/patient_attachment_model.dart';
 import '/data/services/patient_attachment_service.dart';
 import '/core/network/dio_client.dart';
+import 'package:smile_concept_web/core/errors/error_message.dart';
 
 // ═══════════════════════════════════════════════════════════
 // STATE
@@ -155,7 +156,7 @@ class PatientAttachmentNotifier
     } catch (e, stack) {
       debugPrint('❌ fetchAll error: $e');
       debugPrint('📍 $stack');
-      state = state.copyWith(isLoading: false, error: e.toString());
+      state = state.copyWith(isLoading: false, error: describeError(e));
     }
   }
 
@@ -171,7 +172,7 @@ class PatientAttachmentNotifier
       final attachment = await _service.getById(id);
       state = state.copyWith(selected: attachment, isLoading: false);
     } catch (e) {
-      state = state.copyWith(isLoading: false, error: e.toString());
+      state = state.copyWith(isLoading: false, error: describeError(e));
     }
   }
 
@@ -198,7 +199,7 @@ class PatientAttachmentNotifier
       await fetchAll(refresh: true);
       return true;
     } catch (e) {
-      state = state.copyWith(isLoading: false, error: e.toString());
+      state = state.copyWith(isLoading: false, error: describeError(e));
       return false;
     }
   }
@@ -211,7 +212,7 @@ class PatientAttachmentNotifier
       );
       return true;
     } catch (e) {
-      state = state.copyWith(error: e.toString());
+      state = state.copyWith(error: describeError(e));
       return false;
     }
   }

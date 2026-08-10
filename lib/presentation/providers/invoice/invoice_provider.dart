@@ -5,6 +5,7 @@ import '../../../data/models/invoice/invoice_model.dart';
 import '../../../data/models/invoice/create_invoice_request.dart';
 import '../../../data/models/invoice/record_payment_request.dart';
 import '../../../data/repositories/invoice_repository.dart';
+import 'package:smile_concept_web/core/errors/error_message.dart';
 
 // ─── Filter ─────────────────────────────────────────────────
 class InvoiceFilter {
@@ -102,7 +103,7 @@ class InvoiceNotifier extends StateNotifier<InvoiceListState> {
       );
     } catch (e) {
       state = state.copyWith(
-        error: e.toString(),
+        error: describeError(e),
         isLoading: false,
         isLoadingMore: false,
       );
@@ -140,7 +141,7 @@ class InvoiceNotifier extends StateNotifier<InvoiceListState> {
       addInvoice(invoice);
       return invoice;
     } catch (e) {
-      state = state.copyWith(error: e.toString());
+      state = state.copyWith(error: describeError(e));
       return null;
     }
   }
@@ -151,7 +152,7 @@ class InvoiceNotifier extends StateNotifier<InvoiceListState> {
       updateInvoice(invoice);
       return invoice;
     } catch (e) {
-      state = state.copyWith(error: e.toString());
+      state = state.copyWith(error: describeError(e));
       return null;
     }
   }

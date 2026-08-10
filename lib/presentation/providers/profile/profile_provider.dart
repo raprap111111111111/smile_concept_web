@@ -6,6 +6,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../data/models/profile/patient_profile_model.dart';
 import '../../../data/models/profile/profile_model.dart';
 import '../../../data/repositories/profile_repository.dart';
+import 'package:smile_concept_web/core/errors/error_message.dart';
 
 // ─────────────────────────────────────────────────────────────────────────────
 // State (unchanged)
@@ -61,7 +62,7 @@ class ProfileNotifier extends StateNotifier<ProfileState> {
       );
       state = state.copyWith(isLoading: false, profile: profile);
     } catch (e) {
-      state = state.copyWith(isLoading: false, error: e.toString());
+      state = state.copyWith(isLoading: false, error: describeError(e));
     }
   }
 
@@ -85,7 +86,7 @@ class ProfileNotifier extends StateNotifier<ProfileState> {
       state = state.copyWith(isUpdating: false, profile: updated);
       return true;
     } catch (e) {
-      state = state.copyWith(isUpdating: false, error: e.toString());
+      state = state.copyWith(isUpdating: false, error: describeError(e));
       return false;
     }
   }
@@ -117,7 +118,7 @@ class ProfileNotifier extends StateNotifier<ProfileState> {
       state = state.copyWith(isUpdating: false, profile: updated);
       return true;
     } catch (e) {
-      state = state.copyWith(isUpdating: false, error: e.toString());
+      state = state.copyWith(isUpdating: false, error: describeError(e));
       return false;
     }
   }
@@ -132,7 +133,7 @@ class ProfileNotifier extends StateNotifier<ProfileState> {
       state = state.copyWith(isUpdating: false, profile: profile);
       return true;
     } catch (e) {
-      state = state.copyWith(isUpdating: false, error: e.toString());
+      state = state.copyWith(isUpdating: false, error: describeError(e));
       return false;
     }
   }

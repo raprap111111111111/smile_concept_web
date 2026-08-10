@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:url_launcher/url_launcher.dart';
+import 'package:smile_concept_web/core/errors/error_message.dart';
 
 class FileLauncher {
   static Future<void> openUrl(BuildContext context, String url) async {
@@ -14,7 +15,7 @@ class FileLauncher {
         _showError(context, 'Could not open file');
       }
     } catch (e) {
-      if (context.mounted) _showError(context, 'Error: $e');
+      if (context.mounted) _showError(context, describeError(e));
     }
   }
 

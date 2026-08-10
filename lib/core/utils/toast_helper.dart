@@ -1,9 +1,23 @@
 import 'package:flutter/material.dart';
 
+import '../errors/error_message.dart';
+
 /// Global toast/snackbar helper for the entire app.
 /// Use for showing success, error, warning, and info messages.
 class ToastHelper {
   ToastHelper._();
+
+  /// Show an error toast for a thrown object, translated into plain language.
+  ///
+  /// Prefer this over `error(context, e.toString())` — it is the only form
+  /// that knows how to read HTTP status codes and validation bodies.
+  static void fromError(
+    BuildContext context,
+    Object? error, {
+    String? fallback,
+  }) {
+    ToastHelper.error(context, describeError(error, fallback: fallback));
+  }
 
   /// Show a success toast (green)
   static void success(BuildContext context, String message) {
@@ -19,7 +33,9 @@ class ToastHelper {
   static void error(BuildContext context, String message) {
     _show(
       context: context,
-      message: message,
+      // Last line of defence: a caller that interpolated a raw exception still
+      // gets a readable sentence instead of "Instance of 'ApiFailure'".
+      message: humanizeMessage(message),
       backgroundColor: Colors.red.shade700,
       icon: Icons.error_outline,
     );

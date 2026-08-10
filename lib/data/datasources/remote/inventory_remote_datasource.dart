@@ -2,6 +2,7 @@
 
 import 'package:dio/dio.dart';
 import '../../models/inventory/inventory_model.dart';
+import 'package:smile_concept_web/core/errors/error_message.dart';
 
 class InventoryRemoteDataSource {
   final Dio dio;
@@ -55,10 +56,7 @@ class InventoryRemoteDataSource {
       final data = response.data['data'] as Map<String, dynamic>;
       return InventoryModel.fromJson(data);
     } on DioException catch (e) {
-      throw Exception(
-        e.response?.data?['message'] ??
-            'Failed to create inventory',
-      );
+      throw Exception(describeError(e, fallback: 'Failed to create inventory'));
     }
   }
 
@@ -83,10 +81,7 @@ class InventoryRemoteDataSource {
       final data = response.data['data'] as Map<String, dynamic>;
       return InventoryModel.fromJson(data);
     } on DioException catch (e) {
-      throw Exception(
-        e.response?.data?['message'] ??
-            'Failed to update inventory',
-      );
+      throw Exception(describeError(e, fallback: 'Failed to update inventory'));
     }
   }
 
@@ -95,10 +90,7 @@ class InventoryRemoteDataSource {
     try {
       await dio.delete('/inventories/$id');
     } on DioException catch (e) {
-      throw Exception(
-        e.response?.data?['message'] ??
-            'Failed to delete inventory',
-      );
+      throw Exception(describeError(e, fallback: 'Failed to delete inventory'));
     }
   }
 }

@@ -5,6 +5,7 @@ import '../../../core/network/dio_client.dart';
 import '../../../data/datasources/remote/clinical_records_remote_datasource.dart';
 import '../../../data/models/clinical_records/clinical_summary_model.dart';
 import '../../../data/repositories/clinical_records_repository.dart';
+import 'package:smile_concept_web/core/errors/error_message.dart';
 
 // ── Data source provider ───────────────────────────────────────
 final clinicalRecordsRemoteDataSourceProvider =
@@ -73,7 +74,7 @@ class ClinicalRecordsNotifier extends StateNotifier<ClinicalRecordsState> {
     } catch (e) {
       state = state.copyWith(
         isLoading: false,
-        error: e.toString().replaceAll('Exception: ', ''),
+        error: describeError(e),
       );
     }
   }

@@ -48,6 +48,19 @@ class AppColors {
   static const Color statusNoShow = Color(0xFFFF9800);
   static const Color statusPending = Color(0xFFFFC107);
 
+  // Status tones for light surfaces. The vivid values above are dot/marker
+  // decoration only — amber and green fail 4.5:1 as text on white. `*Soft` is
+  // the tint behind a badge or strip; `*Ink` is the matching text/icon colour,
+  // each verified at 4.5:1 or better against its own soft tint.
+  static const Color statusPendingSoft = Color(0xFFFFF4DB);
+  static const Color statusPendingInk = Color(0xFF8A5A00);
+  static const Color statusBookedSoft = Color(0xFFE3F0FD);
+  static const Color statusBookedInk = Color(0xFF1565C0);
+  static const Color statusCompletedSoft = Color(0xFFE4F4E6);
+  static const Color statusCompletedInk = Color(0xFF1B5E20);
+  static const Color statusCancelledSoft = Color(0xFFFDE7E7);
+  static const Color statusCancelledInk = Color(0xFFC62828);
+
   // Card Shadow
   static const Color cardShadow = Color(0x14000000);
 

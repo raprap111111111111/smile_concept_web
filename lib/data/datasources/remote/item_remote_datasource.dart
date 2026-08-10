@@ -2,6 +2,7 @@
 
 import 'package:dio/dio.dart';
 import '../../models/inventory/item_model.dart';
+import 'package:smile_concept_web/core/errors/error_message.dart';
 
 class ItemRemoteDataSource {
   final Dio dio;
@@ -54,9 +55,7 @@ class ItemRemoteDataSource {
       final data = response.data['data'] as Map<String, dynamic>;
       return ItemModel.fromJson(data);
     } on DioException catch (e) {
-      throw Exception(
-        e.response?.data?['message'] ?? 'Failed to create item',
-      );
+      throw Exception(describeError(e, fallback: 'Failed to create item'));
     }
   }
 
@@ -84,9 +83,7 @@ class ItemRemoteDataSource {
       final data = response.data['data'] as Map<String, dynamic>;
       return ItemModel.fromJson(data);
     } on DioException catch (e) {
-      throw Exception(
-        e.response?.data?['message'] ?? 'Failed to update item',
-      );
+      throw Exception(describeError(e, fallback: 'Failed to update item'));
     }
   }
 
@@ -95,9 +92,7 @@ class ItemRemoteDataSource {
     try {
       await dio.delete('/items/$id');
     } on DioException catch (e) {
-      throw Exception(
-        e.response?.data?['message'] ?? 'Failed to delete item',
-      );
+      throw Exception(describeError(e, fallback: 'Failed to delete item'));
     }
   }
 }

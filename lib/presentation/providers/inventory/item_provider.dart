@@ -5,6 +5,7 @@ import '../../../core/network/dio_client.dart';
 import '../../../data/datasources/remote/item_remote_datasource.dart';
 import '../../../data/models/inventory/item_model.dart';
 import '../../../data/repositories/item_repository.dart';
+import 'package:smile_concept_web/core/errors/error_message.dart';
 
 // ── Data source ────────────────────────────────────────────────
 final itemRemoteDataSourceProvider =
@@ -123,7 +124,7 @@ class ItemNotifier extends StateNotifier<ItemState> {
     } catch (e) {
       state = state.copyWith(
         isListLoading: false,
-        listError: e.toString().replaceAll('Exception: ', ''),
+        listError: describeError(e),
       );
     }
   }
@@ -146,7 +147,7 @@ class ItemNotifier extends StateNotifier<ItemState> {
     } catch (e) {
       state = state.copyWith(
         isLoadingMore: false,
-        listError: e.toString().replaceAll('Exception: ', ''),
+        listError: describeError(e),
       );
     }
   }
@@ -168,7 +169,7 @@ class ItemNotifier extends StateNotifier<ItemState> {
     } catch (e) {
       state = state.copyWith(
         isDetailLoading: false,
-        detailError: e.toString().replaceAll('Exception: ', ''),
+        detailError: describeError(e),
       );
     }
   }
@@ -199,7 +200,7 @@ class ItemNotifier extends StateNotifier<ItemState> {
     } catch (e) {
       state = state.copyWith(
         isSubmitting: false,
-        submitError: e.toString().replaceAll('Exception: ', ''),
+        submitError: describeError(e),
       );
       rethrow;
     }
@@ -233,7 +234,7 @@ class ItemNotifier extends StateNotifier<ItemState> {
     } catch (e) {
       state = state.copyWith(
         isSubmitting: false,
-        submitError: e.toString().replaceAll('Exception: ', ''),
+        submitError: describeError(e),
       );
       rethrow;
     }
@@ -249,7 +250,7 @@ class ItemNotifier extends StateNotifier<ItemState> {
       return true;
     } catch (e) {
       state = state.copyWith(
-        listError: e.toString().replaceAll('Exception: ', ''),
+        listError: describeError(e),
       );
       return false;
     }

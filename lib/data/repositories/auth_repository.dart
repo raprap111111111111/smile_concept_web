@@ -6,6 +6,7 @@ import '../models/auth/login_response.dart';
 import '../models/auth/user_model.dart';
 import '../../core/services/secure_storage_service.dart';
 import '../../core/errors/failures.dart';
+import 'package:smile_concept_web/core/errors/error_message.dart';
 
 final authRepositoryProvider = Provider<AuthRepository>((ref) {
   return AuthRepository(
@@ -51,7 +52,11 @@ class AuthRepository {
       return response;
     } catch (e) {
       print('Login failed: $e');
-      throw ApiFailure(message: e.toString(), code: 'LOGIN_FAILURE');
+      throw ApiFailure(
+        message: describeError(e, fallback: 'Sign-in failed. Please try again.'),
+        code: 'LOGIN_FAILURE',
+        statusCode: errorStatusCode(e),
+      );
     }
   }
 
@@ -82,7 +87,14 @@ class AuthRepository {
 
       return response;
     } catch (e) {
-      throw ApiFailure(message: e.toString(), code: 'REGISTER_FAILURE');
+      throw ApiFailure(
+        message: describeError(
+          e,
+          fallback: "We couldn't create your account. Please try again.",
+        ),
+        code: 'REGISTER_FAILURE',
+        statusCode: errorStatusCode(e),
+      );
     }
   }
 
@@ -103,8 +115,9 @@ class AuthRepository {
     } catch (e) {
       print('getProfile failed: $e');
       throw ApiFailure(
-        message: e.toString(),
+        message: describeError(e),
         code: 'PROFILE_FETCH_FAILURE',
+        statusCode: errorStatusCode(e),
       );
     }
   }
