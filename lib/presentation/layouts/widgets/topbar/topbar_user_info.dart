@@ -1,4 +1,5 @@
 // lib/presentation/layouts/widgets/topbar/topbar_user_info.dart
+
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
@@ -17,71 +18,74 @@ class TopbarUserInfo extends ConsumerStatefulWidget {
 }
 
 class _TopbarUserInfoState extends ConsumerState<TopbarUserInfo> {
-  bool _isHovered = false;
+  bool _hoverUser = false;
+
+  static const double _btn = 40;
 
   @override
   Widget build(BuildContext context) {
     final user = ref.watch(authStateProvider).user;
 
     return Row(
+      mainAxisSize: MainAxisSize.min,
+      crossAxisAlignment: CrossAxisAlignment.center,
       children: [
-        // ─── Clickable user info → profile ─────────────────────────
+        // User → profile
         MouseRegion(
           cursor: SystemMouseCursors.click,
-          onEnter: (_) => setState(() => _isHovered = true),
-          onExit: (_) => setState(() => _isHovered = false),
+          onEnter: (_) => setState(() => _hoverUser = true),
+          onExit: (_) => setState(() => _hoverUser = false),
           child: GestureDetector(
             onTap: () => context.goNamed(RouteNames.profile),
             child: AnimatedContainer(
-              duration: const Duration(milliseconds: 160),
-              padding: const EdgeInsets.symmetric(
-                horizontal: 12,
-                vertical: 8,
-              ),
+              duration: const Duration(milliseconds: 150),
+              height: _btn,
+              padding: const EdgeInsets.only(left: 4, right: 10),
               decoration: BoxDecoration(
-                color: _isHovered ? AppColors.surface : Colors.transparent,
-                borderRadius:
-                    BorderRadius.circular(AppDimensions.borderRadius),
+                color: _hoverUser ? AppColors.surface : Colors.transparent,
+                borderRadius: BorderRadius.circular(12),
                 border: Border.all(
-                  color: _isHovered ? AppColors.line : Colors.transparent,
+                  color: _hoverUser ? AppColors.line : Colors.transparent,
                 ),
               ),
               child: Row(
                 mainAxisSize: MainAxisSize.min,
                 children: [
                   CircleAvatar(
+                    radius: 16,
                     backgroundColor: AppColors.accentWithOpacity(0.35),
-                    radius: 19,
                     backgroundImage: user?.profilePhotoUrl != null
                         ? NetworkImage(user!.profilePhotoUrl!)
                         : null,
                     child: user?.profilePhotoUrl == null
                         ? const Icon(
                             Icons.person,
+                            size: 18,
                             color: AppColors.primaryDark,
-                            size: 20,
                           )
                         : null,
                   ),
-                  const SizedBox(width: 12),
+                  const SizedBox(width: 8),
                   Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
                     mainAxisAlignment: MainAxisAlignment.center,
+                    crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
                       Text(
                         user?.name ?? 'Loading...',
                         style: const TextStyle(
                           color: AppColors.ink,
-                          fontSize: 14,
+                          fontSize: 13,
                           fontWeight: FontWeight.w800,
+                          height: 1.15,
                         ),
                       ),
                       Text(
                         user?.role ?? '',
                         style: const TextStyle(
                           color: AppColors.textSecondary,
-                          fontSize: 12,
+                          fontSize: 11,
                           fontWeight: FontWeight.w600,
+                          height: 1.15,
                         ),
                       ),
                     ],
@@ -94,25 +98,26 @@ class _TopbarUserInfoState extends ConsumerState<TopbarUserInfo> {
 
         const SizedBox(width: 8),
 
-        // ─── Logout button ──────────────────────────────────────────
+        // Logout — same height as bell buttons
         Tooltip(
           message: 'Logout',
           child: Material(
             color: Colors.transparent,
             child: InkWell(
               onTap: () => _confirmLogout(context),
-              borderRadius: BorderRadius.circular(AppDimensions.borderRadius),
+              borderRadius: BorderRadius.circular(12),
               child: Container(
-                padding: const EdgeInsets.all(10),
+                width: _btn,
+                height: _btn,
+                alignment: Alignment.center,
                 decoration: BoxDecoration(
-                  borderRadius:
-                      BorderRadius.circular(AppDimensions.borderRadius),
+                  borderRadius: BorderRadius.circular(12),
                   border: Border.all(color: AppColors.line),
                 ),
                 child: const Icon(
-                  Icons.logout,
+                  Icons.logout_rounded,
+                  size: 18,
                   color: AppColors.primaryDark,
-                  size: 20,
                 ),
               ),
             ),
@@ -122,7 +127,6 @@ class _TopbarUserInfoState extends ConsumerState<TopbarUserInfo> {
     );
   }
 
-  // ─── Confirm logout dialog (light themed) ──────────────────────────
   Future<void> _confirmLogout(BuildContext context) async {
     final confirmed = await showDialog<bool>(
       context: context,
@@ -142,18 +146,12 @@ class _TopbarUserInfoState extends ConsumerState<TopbarUserInfo> {
                 borderRadius:
                     BorderRadius.circular(AppDimensions.borderRadius),
               ),
-              child: const Icon(
-                Icons.logout,
-                color: AppColors.error,
-                size: 22,
-              ),
+              child: const Icon(Icons.logout, color: AppColors.error, size: 22),
             ),
             const SizedBox(width: 12),
             Text(
               'Logout',
-              style: AppTextStyles.titleLarge.copyWith(
-                color: AppColors.ink,
-              ),
+              style: AppTextStyles.titleLarge.copyWith(color: AppColors.ink),
             ),
           ],
         ),
@@ -167,41 +165,14 @@ class _TopbarUserInfoState extends ConsumerState<TopbarUserInfo> {
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(ctx, false),
-            style: TextButton.styleFrom(
-              foregroundColor: AppColors.textSecondary,
-              padding: const EdgeInsets.symmetric(
-                horizontal: 18,
-                vertical: 12,
-              ),
-              shape: RoundedRectangleBorder(
-                borderRadius:
-                    BorderRadius.circular(AppDimensions.borderRadius),
-                side: const BorderSide(color: AppColors.line),
-              ),
-            ),
-            child: const Text(
-              'Cancel',
-              style: TextStyle(fontWeight: FontWeight.w700),
-            ),
+            child: const Text('Cancel',
+                style: TextStyle(fontWeight: FontWeight.w700)),
           ),
           FilledButton(
-            style: FilledButton.styleFrom(
-              backgroundColor: AppColors.error,
-              foregroundColor: Colors.white,
-              padding: const EdgeInsets.symmetric(
-                horizontal: 20,
-                vertical: 12,
-              ),
-              shape: RoundedRectangleBorder(
-                borderRadius:
-                    BorderRadius.circular(AppDimensions.borderRadius),
-              ),
-            ),
+            style: FilledButton.styleFrom(backgroundColor: AppColors.error),
             onPressed: () => Navigator.pop(ctx, true),
-            child: const Text(
-              'Logout',
-              style: TextStyle(fontWeight: FontWeight.w800),
-            ),
+            child: const Text('Logout',
+                style: TextStyle(fontWeight: FontWeight.w800)),
           ),
         ],
       ),

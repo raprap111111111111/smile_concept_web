@@ -1,3 +1,4 @@
+// lib/presentation/providers/consent/patient_consents_provider.dart
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../data/models/consent/paginated_consent_result.dart';
@@ -9,12 +10,18 @@ class PatientConsentsParams {
   final int pageSize;
   final int? userId;
   final int? appointmentId;
+  final int? consentTemplateId;
+  final String? search;
+  final String? status; // 'valid' | 'voided' | null
 
   const PatientConsentsParams({
     this.page = 1,
-    this.pageSize = 10,
+    this.pageSize = 15,
     this.userId,
     this.appointmentId,
+    this.consentTemplateId,
+    this.search,
+    this.status,
   });
 
   PatientConsentsParams copyWith({
@@ -22,12 +29,20 @@ class PatientConsentsParams {
     int? pageSize,
     int? userId,
     int? appointmentId,
+    int? consentTemplateId,
+    String? search,
+    String? status,
+    bool clearSearch = false,
+    bool clearStatus = false,
   }) {
     return PatientConsentsParams(
       page: page ?? this.page,
       pageSize: pageSize ?? this.pageSize,
       userId: userId ?? this.userId,
       appointmentId: appointmentId ?? this.appointmentId,
+      consentTemplateId: consentTemplateId ?? this.consentTemplateId,
+      search: clearSearch ? null : (search ?? this.search),
+      status: clearStatus ? null : (status ?? this.status),
     );
   }
 
@@ -39,13 +54,30 @@ class PatientConsentsParams {
           page == other.page &&
           pageSize == other.pageSize &&
           userId == other.userId &&
-          appointmentId == other.appointmentId;
+          appointmentId == other.appointmentId &&
+          consentTemplateId == other.consentTemplateId &&
+          search == other.search &&
+          status == other.status;
 
   @override
-  int get hashCode => Object.hash(page, pageSize, userId, appointmentId);
+  int get hashCode => Object.hash(
+        page,
+        pageSize,
+        userId,
+        appointmentId,
+        consentTemplateId,
+        search,
+        status,
+      );
 }
 
-/// Backend scopes results by authenticated user's permissions.
+/// Filter state for the consent list page (search + status).
+final consentFilterProvider =
+    StateProvider.autoDispose<PatientConsentsParams>((ref) {
+  return const PatientConsentsParams();
+});
+
+/// Backend-scoped paginated consents.
 final patientConsentsProvider = FutureProvider.autoDispose
     .family<PaginatedConsentResult, PatientConsentsParams>((ref, params) async {
   return ref.watch(consentRepositoryProvider).getSignedConsents(
@@ -53,6 +85,9 @@ final patientConsentsProvider = FutureProvider.autoDispose
         pageSize: params.pageSize,
         userId: params.userId,
         appointmentId: params.appointmentId,
+        consentTemplateId: params.consentTemplateId,
+        search: params.search,
+        status: params.status,
       );
 });
 

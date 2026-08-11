@@ -1,10 +1,12 @@
+// lib/presentation/pages/consents/widgets/consent_filter_bar.dart
 import 'package:flutter/material.dart';
 
 import '../../../theme/app_colors.dart';
 import '../../../theme/app_dimensions.dart';
+import '../../../theme/app_text_styles.dart';
 
 class ConsentFilterBar extends StatelessWidget {
-  final String? selectedStatus;             
+  final String? selectedStatus;
   final ValueChanged<String?> onStatusChanged;
 
   const ConsentFilterBar({
@@ -15,91 +17,64 @@ class ConsentFilterBar extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return SingleChildScrollView(
-      scrollDirection: Axis.horizontal,
-      child: Row(
-        children: [
-          _FilterChip(
-            label:    'All',
-            icon:     Icons.check_rounded,
-            color:    AppColors.primary,
-            selected: selectedStatus == null,
-            onTap:    () => onStatusChanged(null),
-          ),
-          const SizedBox(width: AppDimensions.paddingSmall),
-          _FilterChip(
-            label:    'Valid',
-            icon:     Icons.verified_rounded,
-            color:    AppColors.success,
-            selected: selectedStatus == 'valid',
-            onTap:    () => onStatusChanged('valid'),
-          ),
-          const SizedBox(width: AppDimensions.paddingSmall),
-          _FilterChip(
-            label:    'Voided',
-            icon:     Icons.cancel_rounded,
-            color:    AppColors.error,
-            selected: selectedStatus == 'voided',
-            onTap:    () => onStatusChanged('voided'),
-          ),
-        ],
-      ),
+    return Row(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        _chip(
+          label: 'All',
+          active: selectedStatus == null,
+          onTap: () => onStatusChanged(null),
+          color: AppColors.primary,
+        ),
+        const SizedBox(width: AppDimensions.paddingXS),
+        _chip(
+          label: 'Valid',
+          active: selectedStatus == 'valid',
+          onTap: () => onStatusChanged('valid'),
+          color: AppColors.success,
+        ),
+        const SizedBox(width: AppDimensions.paddingXS),
+        _chip(
+          label: 'Voided',
+          active: selectedStatus == 'voided',
+          onTap: () => onStatusChanged('voided'),
+          color: AppColors.error,
+        ),
+      ],
     );
   }
-}
 
-class _FilterChip extends StatelessWidget {
-  final String       label;
-  final IconData     icon;
-  final Color        color;
-  final bool         selected;
-  final VoidCallback onTap;
-
-  const _FilterChip({
-    required this.label,
-    required this.icon,
-    required this.color,
-    required this.selected,
-    required this.onTap,
-  });
-
-  @override
-  Widget build(BuildContext context) {
+  Widget _chip({
+    required String label,
+    required bool active,
+    required VoidCallback onTap,
+    required Color color,
+  }) {
     return Material(
-      color: Colors.transparent,
+      color: active ? color.withValues(alpha: 0.08) : AppColors.surface,
+      borderRadius: BorderRadius.circular(AppDimensions.borderRadiusLarge),
       child: InkWell(
+        borderRadius: BorderRadius.circular(AppDimensions.borderRadiusLarge),
         onTap: onTap,
-        borderRadius: BorderRadius.circular(999),
-        child: AnimatedContainer(
-          duration: const Duration(milliseconds: 180),
+        child: Container(
           padding: const EdgeInsets.symmetric(
-            horizontal: 14,
-            vertical: 9,
+            horizontal: AppDimensions.paddingMedium,
+            vertical: AppDimensions.paddingSmall,
           ),
           decoration: BoxDecoration(
-            color: selected
-                ? color.withValues(alpha: 0.12)
-                : AppColors.background,
-            borderRadius: BorderRadius.circular(999),
+            borderRadius:
+                BorderRadius.circular(AppDimensions.borderRadiusLarge),
             border: Border.all(
-              color: selected ? color : AppColors.border,
-              width: selected ? 1.5 : 1,
+              color: active ? color : AppColors.border,
+              width: active ? 1.5 : 1,
             ),
           ),
-          child: Row(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              Icon(icon, size: 14, color: color),
-              const SizedBox(width: 6),
-              Text(
-                label,
-                style: TextStyle(
-                  fontSize: 13,
-                  fontWeight: FontWeight.w700,
-                  color: selected ? color : AppColors.textSecondary,
-                ),
-              ),
-            ],
+          child: Text(
+            label,
+            style: AppTextStyles.labelMedium.copyWith(
+              color: active ? color : AppColors.textSecondary,
+              fontWeight: FontWeight.w700,
+            ),
           ),
         ),
       ),

@@ -1,3 +1,6 @@
+// lib/presentation/pages/consent/consent_list_page.dart
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
@@ -5,7 +8,6 @@ import 'package:go_router/go_router.dart';
 import '../../../core/permissions/app_permissions.dart';
 import '../../providers/auth/permission_provider.dart';
 import '../../providers/consent/patient_consents_provider.dart';
-import '../../route/route_names.dart';
 import '../../theme/app_colors.dart';
 import '../../theme/app_dimensions.dart';
 import '../../theme/app_text_styles.dart';
@@ -24,30 +26,51 @@ class ConsentListPage extends ConsumerStatefulWidget {
 
 class _ConsentListPageState extends ConsumerState<ConsentListPage> {
   final _searchController = TextEditingController();
-
-  String? _searchQuery;
-  String? _statusFilter; // 'valid' | 'voided' | null
-  int _currentPage = 1;
-  static const int _pageSize = 15;
+  Timer? _debounce;
 
   @override
   void dispose() {
+    _debounce?.cancel();
     _searchController.dispose();
     super.dispose();
   }
 
-  void _onSearchChanged(String query) {
-    setState(() {
-      _searchQuery = query.trim().isEmpty ? null : query.trim();
-      _currentPage = 1;
+  // ── Search (debounced) ──────────────────────────────────────────────────
+  void _onSearchChanged(String value) {
+    _debounce?.cancel();
+    _debounce = Timer(const Duration(milliseconds: 350), () {
+      final trimmed = value.trim();
+      final current = ref.read(consentFilterProvider);
+      ref.read(consentFilterProvider.notifier).state = current.copyWith(
+        search: trimmed.isEmpty ? null : trimmed,
+        clearSearch: trimmed.isEmpty,
+        page: 1,
+      );
     });
   }
 
+  void _onClearSearch() {
+    _searchController.clear();
+    final current = ref.read(consentFilterProvider);
+    ref.read(consentFilterProvider.notifier).state =
+        current.copyWith(clearSearch: true, page: 1);
+  }
+
+  // ── Status filter ───────────────────────────────────────────────────────
   void _onStatusChanged(String? status) {
-    setState(() {
-      _statusFilter = status;
-      _currentPage = 1;
-    });
+    final current = ref.read(consentFilterProvider);
+    ref.read(consentFilterProvider.notifier).state = current.copyWith(
+      status: status,
+      clearStatus: status == null,
+      page: 1,
+    );
+  }
+
+  // ── Pagination ──────────────────────────────────────────────────────────
+  void _onPageChanged(int newPage) {
+    final current = ref.read(consentFilterProvider);
+    ref.read(consentFilterProvider.notifier).state =
+        current.copyWith(page: newPage);
   }
 
   void _onRefresh() => ref.invalidate(patientConsentsProvider);
@@ -59,59 +82,62 @@ class _ConsentListPageState extends ConsumerState<ConsentListPage> {
 
   @override
   Widget build(BuildContext context) {
-    final perm       = ref.watch(permissionServiceProvider);
+    final perm = ref.watch(permissionServiceProvider);
     final canViewAny = perm.can(Perm.consentFormViewAny);
-    final canSign    = perm.can(Perm.consentFormSign);
+    final canSign = perm.can(Perm.consentFormSign);
 
-    final params = PatientConsentsParams(
-      page:     _currentPage,
-      pageSize: _pageSize,
-    );
-    final consentsAsync = ref.watch(patientConsentsProvider(params));
+    final filter = ref.watch(consentFilterProvider);
+    final consentsAsync = ref.watch(patientConsentsProvider(filter));
 
     return Scaffold(
-      backgroundColor: AppColors.surface,
-      floatingActionButton: canSign
-          ? FloatingActionButton.extended(
-              onPressed: _onSignPressed,
-              backgroundColor: AppColors.primary,
-              foregroundColor: AppColors.textOnPrimary,
-              icon: const Icon(Icons.add_rounded),
-              label: const Text(
-                'Sign New Consent',
-                style: TextStyle(fontWeight: FontWeight.w700),
-              ),
-            )
-          : null,
+      backgroundColor: AppColors.background,
       body: Padding(
-        padding: const EdgeInsets.all(AppDimensions.paddingLarge),
+        padding: const EdgeInsets.all(AppDimensions.paddingXL),
         child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
+          crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
-            _buildHeader(canViewAny, consentsAsync),
-            const SizedBox(height: AppDimensions.paddingMedium),
-            _buildSearchBar(),
-            const SizedBox(height: AppDimensions.paddingMedium),
-            ConsentFilterBar(
-              selectedStatus: _statusFilter,
-              onStatusChanged: _onStatusChanged,
+            _ConsentsHeader(
+              title: canViewAny ? 'All Consent Forms' : 'My Consent Forms',
+              subtitle: 'Signed patient consent records',
+              isLoading: consentsAsync.isLoading,
+              canSign: canSign,
+              onRefresh: _onRefresh,
+              onSign: _onSignPressed,
             ),
-            const SizedBox(height: AppDimensions.paddingMedium),
+            const SizedBox(height: AppDimensions.paddingLarge),
+
+            // ── Search + Filter row ──
+            Row(
+              children: [
+                Expanded(child: _buildSearchField()),
+                const SizedBox(width: AppDimensions.paddingMedium),
+                ConsentFilterBar(
+                  selectedStatus: filter.status,
+                  onStatusChanged: _onStatusChanged,
+                ),
+              ],
+            ),
+            const SizedBox(height: AppDimensions.paddingLarge),
+
+            // ── Body ──
             Expanded(
               child: consentsAsync.when(
-                loading: () => const LoadingWidget(
-                  message: 'Loading consent forms…',
-                ),
+                loading: () =>
+                    const LoadingWidget(message: 'Loading consent forms…'),
                 error: (e, _) => ErrorDisplayWidget(
                   error: e.toString(),
                   onRetry: _onRefresh,
                 ),
                 data: (result) {
-                  final filtered = _applyClientFilters(result.records);
-                  if (filtered.isEmpty) {
-                    return _buildEmpty(canViewAny, canSign);
+                  if (result.records.isEmpty) {
+                    return _ConsentsEmptyState(
+                      hasFilter: filter.search != null || filter.status != null,
+                      canViewAny: canViewAny,
+                      canSign: canSign,
+                      onSign: _onSignPressed,
+                    );
                   }
-                  return _buildList(result, filtered);
+                  return _buildTable(result, filter);
                 },
               ),
             ),
@@ -121,138 +147,36 @@ class _ConsentListPageState extends ConsumerState<ConsentListPage> {
     );
   }
 
-  // ── HEADER ────────────────────────────────────────────────────────────────
-  Widget _buildHeader(bool canViewAny, AsyncValue consentsAsync) {
+  // ── Search field ────────────────────────────────────────────────────────
+  Widget _buildSearchField() {
     return Container(
-      padding: const EdgeInsets.all(AppDimensions.paddingLarge),
       decoration: BoxDecoration(
-        color: AppColors.background,
+        color: AppColors.surface,
         borderRadius: BorderRadius.circular(AppDimensions.borderRadiusLarge),
-        border: Border.all(color: AppColors.border),
-        boxShadow: const [
-          BoxShadow(
-            color: AppColors.cardShadow,
-            blurRadius: 16,
-            offset: Offset(0, 6),
-          ),
-        ],
-      ),
-      child: Row(
-        mainAxisAlignment: MainAxisAlignment.spaceBetween,
-        children: [
-          Expanded(
-            child: Row(
-              children: [
-                Container(
-                  width: 52,
-                  height: 52,
-                  decoration: BoxDecoration(
-                    gradient: AppColors.primaryGradient,
-                    borderRadius: BorderRadius.circular(14),
-                    boxShadow: [
-                      BoxShadow(
-                        color: AppColors.primary.withValues(alpha: 0.25),
-                        blurRadius: 14,
-                        offset: const Offset(0, 6),
-                      ),
-                    ],
-                  ),
-                  child: const Icon(
-                    Icons.assignment_turned_in_rounded,
-                    color: AppColors.textOnPrimary,
-                    size: 26,
-                  ),
-                ),
-                const SizedBox(width: AppDimensions.paddingMedium),
-                Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      Text(
-                        canViewAny
-                            ? 'All Consent Forms'
-                            : 'My Consent Forms',
-                        style: AppTextStyles.headlineSmall,
-                        overflow: TextOverflow.ellipsis,
-                        maxLines: 1,
-                      ),
-                      const SizedBox(height: 2),
-                      Text(
-                        'Signed patient consent records',
-                        style: AppTextStyles.bodySmall,
-                        overflow: TextOverflow.ellipsis,
-                        maxLines: 1,
-                      ),
-                    ],
-                  ),
-                ),
-              ],
-            ),
-          ),
-          const SizedBox(width: 8),
-          Row(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              if (consentsAsync.isLoading)
-                const Padding(
-                  padding: EdgeInsets.only(right: 8),
-                  child: SizedBox(
-                    width: 18,
-                    height: 18,
-                    child: CircularProgressIndicator(
-                      strokeWidth: 2,
-                      color: AppColors.primary,
-                    ),
-                  ),
-                ),
-              _IconTile(
-                tooltip: 'Refresh',
-                icon: Icons.refresh_rounded,
-                onTap: _onRefresh,
-              ),
-            ],
-          ),
-        ],
-      ),
-    );
-  }
-
-  // ── SEARCH BAR ────────────────────────────────────────────────────────────
-  Widget _buildSearchBar() {
-    return Container(
-      decoration: BoxDecoration(
-        color: AppColors.background,
-        borderRadius: BorderRadius.circular(AppDimensions.borderRadius),
         border: Border.all(color: AppColors.border),
       ),
       child: TextField(
         controller: _searchController,
         onChanged: _onSearchChanged,
-        style: AppTextStyles.inputText,
+        style: AppTextStyles.bodyMedium.copyWith(color: AppColors.ink),
         decoration: InputDecoration(
           hintText: 'Search by patient name or consent title…',
-          hintStyle: AppTextStyles.inputHint,
+          hintStyle: AppTextStyles.bodyMedium.copyWith(
+            color: AppColors.textTertiary,
+          ),
           prefixIcon: const Icon(
             Icons.search_rounded,
-            color: AppColors.textSecondary,
-            size: 20,
+            color: AppColors.textTertiary,
+            size: AppDimensions.iconSize,
           ),
-          suffixIcon: _searchQuery == null
+          suffixIcon: _searchController.text.isEmpty
               ? null
               : IconButton(
                   icon: const Icon(Icons.close_rounded, size: 18),
                   color: AppColors.textSecondary,
-                  onPressed: () {
-                    _searchController.clear();
-                    _onSearchChanged('');
-                  },
+                  onPressed: _onClearSearch,
                 ),
-          filled: true,
-          fillColor: AppColors.background,
           border: InputBorder.none,
-          enabledBorder: InputBorder.none,
-          focusedBorder: InputBorder.none,
           contentPadding: const EdgeInsets.symmetric(
             horizontal: AppDimensions.paddingMedium,
             vertical: AppDimensions.paddingMedium,
@@ -262,192 +186,531 @@ class _ConsentListPageState extends ConsumerState<ConsentListPage> {
     );
   }
 
-  // ── LIST ──────────────────────────────────────────────────────────────────
-  Widget _buildList(dynamic result, List filtered) {
-    return RefreshIndicator(
-      color: AppColors.primary,
-      onRefresh: () async => _onRefresh(),
-      child: ListView.separated(
-        padding: const EdgeInsets.only(bottom: 100),
-        itemCount: filtered.length + 1,
-        separatorBuilder: (_, __) =>
-            const SizedBox(height: AppDimensions.paddingSmall),
-        itemBuilder: (context, index) {
-          if (index == filtered.length) return _buildPaginationBar(result);
-          final consent = filtered[index];
-          return ConsentCard(
-            consent: consent,
-            onTap: () => context.pushNamed(
-              RouteNames.consents,
-              extra: consent,
+  // ── Table (header + rows + pagination) ─────────────────────────────────
+  Widget _buildTable(dynamic result, PatientConsentsParams filter) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        const _TableHeader(),
+        const SizedBox(height: 6),
+        Expanded(
+          child: RefreshIndicator(
+            color: AppColors.primary,
+            onRefresh: () async => _onRefresh(),
+            child: ListView.separated(
+              padding: const EdgeInsets.only(bottom: 8),
+              itemCount: result.records.length,
+              separatorBuilder: (_, __) => const SizedBox(height: 6),
+              itemBuilder: (context, index) {
+                final consent = result.records[index];
+                return ConsentCard(
+                  consent: consent,
+                  onTap: () => context.pushNamed(
+                    'consent-detail',
+                    pathParameters: {'id': '${consent.id}'},
+                  ),
+                );
+              },
             ),
-          );
-        },
+          ),
+        ),
+        _PaginationBar(
+          currentPage: filter.page,
+          pageSize: filter.pageSize,
+          total: result.total as int,
+          lastPage: result.lastPage as int,
+          onPageChanged: _onPageChanged,
+        ),
+      ],
+    );
+  }
+}
+
+// ─── Header (with Sign New Consent button) ──────────────────────────────────
+class _ConsentsHeader extends StatelessWidget {
+  final String title;
+  final String subtitle;
+  final bool isLoading;
+  final bool canSign;
+  final VoidCallback onRefresh;
+  final VoidCallback onSign;
+
+  const _ConsentsHeader({
+    required this.title,
+    required this.subtitle,
+    required this.isLoading,
+    required this.canSign,
+    required this.onRefresh,
+    required this.onSign,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Row(
+      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+      children: [
+        // ── Title ──
+        Row(
+          children: [
+            Container(
+              padding: const EdgeInsets.all(AppDimensions.paddingSmall),
+              decoration: BoxDecoration(
+                gradient: AppColors.primaryGradient,
+                borderRadius: BorderRadius.circular(
+                  AppDimensions.borderRadiusLarge,
+                ),
+              ),
+              child: const Icon(
+                Icons.assignment_turned_in_rounded,
+                color: Colors.white,
+                size: AppDimensions.iconBadgeSize * 0.6,
+              ),
+            ),
+            const SizedBox(width: AppDimensions.paddingMedium),
+            Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(title, style: AppTextStyles.headlineSmall),
+                const SizedBox(height: 4),
+                Text(subtitle, style: AppTextStyles.bodySmall),
+              ],
+            ),
+          ],
+        ),
+
+        // ── Actions ──
+        Row(
+          children: [
+            if (isLoading)
+              const Padding(
+                padding: EdgeInsets.only(right: 8),
+                child: SizedBox(
+                  width: 18,
+                  height: 18,
+                  child: CircularProgressIndicator(
+                    strokeWidth: 2,
+                    color: AppColors.primary,
+                  ),
+                ),
+              ),
+            Container(
+              width: 42,
+              height: 42,
+              decoration: BoxDecoration(
+                color: AppColors.surface,
+                borderRadius: BorderRadius.circular(12),
+                border: Border.all(color: AppColors.border),
+              ),
+              child: IconButton(
+                tooltip: 'Refresh',
+                onPressed: onRefresh,
+                padding: EdgeInsets.zero,
+                icon: const Icon(
+                  Icons.refresh_rounded,
+                  color: AppColors.primaryDark,
+                  size: 20,
+                ),
+              ),
+            ),
+            if (canSign) ...[
+              const SizedBox(width: AppDimensions.paddingSmall),
+              Container(
+                decoration: BoxDecoration(
+                  gradient: AppColors.primaryGradient,
+                  borderRadius: BorderRadius.circular(12),
+                  boxShadow: [
+                    BoxShadow(
+                      color: AppColors.primary.withValues(alpha: 0.25),
+                      blurRadius: 10,
+                      offset: const Offset(0, 4),
+                    ),
+                  ],
+                ),
+                child: Material(
+                  color: Colors.transparent,
+                  child: InkWell(
+                    borderRadius: BorderRadius.circular(12),
+                    onTap: onSign,
+                    child: const Padding(
+                      padding: EdgeInsets.symmetric(
+                        horizontal: AppDimensions.paddingLarge,
+                        vertical: 10,
+                      ),
+                      child: Row(
+                        children: [
+                          Icon(
+                            Icons.add_rounded,
+                            color: Colors.white,
+                            size: 18,
+                          ),
+                          SizedBox(width: 6),
+                          Text(
+                            'Sign New Consent',
+                            style: TextStyle(
+                              color: Colors.white,
+                              fontWeight: FontWeight.w700,
+                              fontSize: 13,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ),
+                ),
+              ),
+            ],
+          ],
+        ),
+      ],
+    );
+  }
+}
+
+// ─── Table Header Row ───────────────────────────────────────────────────────
+class _TableHeader extends StatelessWidget {
+  const _TableHeader();
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.symmetric(
+        horizontal: AppDimensions.paddingMedium,
+        vertical: 10,
+      ),
+      decoration: BoxDecoration(
+        color: AppColors.surface,
+        borderRadius: BorderRadius.circular(AppDimensions.borderRadius),
+        border: Border.all(color: AppColors.border),
+      ),
+      child: Row(
+        children: [
+          // icon col placeholder (matches ConsentCard icon width)
+          const SizedBox(width: 32 + AppDimensions.paddingMedium),
+          Expanded(flex: 3, child: _label('CONSENT')),
+          Expanded(flex: 2, child: _label('PATIENT')),
+          Expanded(flex: 2, child: _label('SIGNED BY')),
+          SizedBox(width: 70, child: _label('STATUS', center: true)),
+          // action buttons placeholder (view + download + chevron)
+          const SizedBox(width: 8 + 40 + 40 + 20),
+        ],
       ),
     );
   }
 
-  List _applyClientFilters(List records) {
-    var list = records;
-
-    if (_searchQuery != null && _searchQuery!.isNotEmpty) {
-      final q = _searchQuery!.toLowerCase();
-      list = list.where((c) {
-        final title  = (c.template?.title ?? '').toLowerCase();
-        final name   = (c.patient?.name ?? '').toLowerCase();
-        return title.contains(q) || name.contains(q);
-      }).toList();
-    }
-
-    if (_statusFilter != null) {
-      list = list.where((c) {
-        final voided = c.isVoided as bool;
-        return _statusFilter == 'voided' ? voided : !voided;
-      }).toList();
-    }
-
-    return list;
+  Widget _label(String text, {bool center = false}) {
+    return Text(
+      text,
+      textAlign: center ? TextAlign.center : TextAlign.start,
+      style: const TextStyle(
+        fontSize: 11,
+        fontWeight: FontWeight.w800,
+        letterSpacing: 0.8,
+        color: AppColors.textSecondary,
+      ),
+    );
   }
+}
 
-  // ── PAGINATION ────────────────────────────────────────────────────────────
-  Widget _buildPaginationBar(dynamic result) {
-    final total   = result.total as int;
-    final hasMore = result.hasMore as bool;
+// ─── Empty State ────────────────────────────────────────────────────────────
+class _ConsentsEmptyState extends StatelessWidget {
+  final bool hasFilter;
+  final bool canViewAny;
+  final bool canSign;
+  final VoidCallback onSign;
 
-    if (total <= _pageSize) return const SizedBox.shrink();
+  const _ConsentsEmptyState({
+    required this.hasFilter,
+    required this.canViewAny,
+    required this.canSign,
+    required this.onSign,
+  });
 
-    final start = ((_currentPage - 1) * _pageSize) + 1;
-    final end   = (start + _pageSize - 1).clamp(1, total).clamp(start, total);
-
-    return Padding(
-      padding: const EdgeInsets.only(top: AppDimensions.paddingLarge),
-      child: Row(
+  @override
+  Widget build(BuildContext context) {
+    return Center(
+      child: Column(
         mainAxisAlignment: MainAxisAlignment.center,
         children: [
-          IconButton.filledTonal(
-            icon: const Icon(Icons.chevron_left_rounded),
-            onPressed: _currentPage > 1
-                ? () => setState(() => _currentPage--)
-                : null,
-          ),
-          Padding(
-            padding: const EdgeInsets.symmetric(
-              horizontal: AppDimensions.paddingMedium,
+          Container(
+            padding: const EdgeInsets.all(AppDimensions.paddingLarge),
+            decoration: BoxDecoration(
+              color: AppColors.surface,
+              shape: BoxShape.circle,
+              border: Border.all(color: AppColors.border),
             ),
-            child: Text(
-              '$start–$end of $total',
-              style: AppTextStyles.bodySmall.copyWith(
-                fontWeight: FontWeight.w700,
-                color: AppColors.textSecondary,
+            child: const Icon(
+              Icons.assignment_outlined,
+              size: 48,
+              color: AppColors.textTertiary,
+            ),
+          ),
+          const SizedBox(height: AppDimensions.paddingMedium),
+          Text(
+            hasFilter
+                ? 'No matching consents'
+                : (canViewAny ? 'No consent forms yet' : 'No consents signed'),
+            style: AppTextStyles.titleSmall.copyWith(
+              color: AppColors.textSecondary,
+            ),
+          ),
+          const SizedBox(height: AppDimensions.paddingXS),
+          Text(
+            hasFilter
+                ? 'Try adjusting your search or filter'
+                : 'Signed patient consents will appear here.',
+            style: AppTextStyles.bodySmall,
+            textAlign: TextAlign.center,
+          ),
+          if (canSign && !hasFilter) ...[
+            const SizedBox(height: AppDimensions.paddingLarge),
+            FilledButton.icon(
+              onPressed: onSign,
+              icon: const Icon(Icons.add_rounded, size: 18),
+              label: const Text('Sign New Consent'),
+              style: FilledButton.styleFrom(
+                backgroundColor: AppColors.primary,
+                foregroundColor: AppColors.textOnPrimary,
               ),
             ),
+          ],
+        ],
+      ),
+    );
+  }
+}
+
+// ─── Pagination Bar ─────────────────────────────────────────────────────────
+class _PaginationBar extends StatelessWidget {
+  final int currentPage;
+  final int pageSize;
+  final int total;
+  final int lastPage;
+  final ValueChanged<int> onPageChanged;
+
+  const _PaginationBar({
+    required this.currentPage,
+    required this.pageSize,
+    required this.total,
+    required this.lastPage,
+    required this.onPageChanged,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    if (total == 0) return const SizedBox.shrink();
+
+    final start = ((currentPage - 1) * pageSize) + 1;
+    final end = (currentPage * pageSize).clamp(start, total);
+
+    return Container(
+      margin: const EdgeInsets.only(top: AppDimensions.paddingMedium),
+      padding: const EdgeInsets.symmetric(
+        horizontal: AppDimensions.paddingLarge,
+        vertical: 10,
+      ),
+      decoration: BoxDecoration(
+        color: AppColors.background,
+        borderRadius: BorderRadius.circular(AppDimensions.borderRadius),
+        border: Border.all(color: AppColors.border),
+      ),
+      child: Row(
+        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+        children: [
+          // ── Left: Page X of Y ──
+          Text(
+            'Page $currentPage of $lastPage',
+            style: AppTextStyles.bodySmall.copyWith(
+              color: AppColors.textSecondary,
+              fontWeight: FontWeight.w600,
+            ),
           ),
-          IconButton.filledTonal(
-            icon: const Icon(Icons.chevron_right_rounded),
-            onPressed:
-                hasMore ? () => setState(() => _currentPage++) : null,
+
+          // ── Middle: Navigation controls ──
+          Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              _NavBtn(
+                icon: Icons.first_page_rounded,
+                tooltip: 'First page',
+                enabled: currentPage > 1,
+                onTap: () => onPageChanged(1),
+              ),
+              const SizedBox(width: 4),
+              _NavBtn(
+                icon: Icons.chevron_left_rounded,
+                tooltip: 'Previous',
+                enabled: currentPage > 1,
+                onTap: () => onPageChanged(currentPage - 1),
+              ),
+              const SizedBox(width: 8),
+              ..._buildPageNumbers(),
+              const SizedBox(width: 8),
+              _NavBtn(
+                icon: Icons.chevron_right_rounded,
+                tooltip: 'Next',
+                enabled: currentPage < lastPage,
+                onTap: () => onPageChanged(currentPage + 1),
+              ),
+              const SizedBox(width: 4),
+              _NavBtn(
+                icon: Icons.last_page_rounded,
+                tooltip: 'Last page',
+                enabled: currentPage < lastPage,
+                onTap: () => onPageChanged(lastPage),
+              ),
+            ],
+          ),
+
+          // ── Right: Showing X–Y of Z ──
+          Text(
+            'Showing $start–$end of $total',
+            style: AppTextStyles.bodySmall.copyWith(
+              color: AppColors.textSecondary,
+              fontWeight: FontWeight.w600,
+            ),
           ),
         ],
       ),
     );
   }
 
-  // ── EMPTY ─────────────────────────────────────────────────────────────────
-  Widget _buildEmpty(bool canViewAny, bool canSign) {
-    final hasFilter = _searchQuery != null || _statusFilter != null;
+  /// Builds numbered page buttons with ellipsis for long ranges.
+  List<Widget> _buildPageNumbers() {
+    final pages = _computeVisiblePages();
+    return pages.map((page) {
+      if (page == -1) {
+        return const Padding(
+          padding: EdgeInsets.symmetric(horizontal: 4),
+          child: Text(
+            '…',
+            style: TextStyle(
+              color: AppColors.textTertiary,
+              fontWeight: FontWeight.w700,
+            ),
+          ),
+        );
+      }
+      return _PageNumberBtn(
+        page: page,
+        active: page == currentPage,
+        onTap: () => onPageChanged(page),
+      );
+    }).toList();
+  }
 
-    return SingleChildScrollView(
-      physics: const AlwaysScrollableScrollPhysics(),
-      child: Container(
-        margin: const EdgeInsets.only(top: AppDimensions.paddingXL),
-        padding: const EdgeInsets.all(AppDimensions.paddingXL),
-        decoration: BoxDecoration(
-          color: AppColors.background,
-          borderRadius:
-              BorderRadius.circular(AppDimensions.borderRadiusLarge),
-          border: Border.all(color: AppColors.border),
-        ),
-        child: Column(
-          children: [
-            Container(
-              width: 72,
-              height: 72,
-              decoration: BoxDecoration(
-                color: AppColors.accentLight,
-                shape: BoxShape.circle,
-                border: Border.all(color: AppColors.border),
-              ),
-              child: const Icon(
-                Icons.assignment_outlined,
-                size: 34,
-                color: AppColors.primary,
-              ),
+  /// Returns a list of pages to show. Use -1 for ellipsis.
+  ///   1 total    → [1]
+  ///   5 total    → [1, 2, 3, 4, 5]
+  ///   10, cur=1  → [1, 2, 3, 4, 5, -1, 10]
+  ///   10, cur=5  → [1, -1, 4, 5, 6, -1, 10]
+  ///   10, cur=10 → [1, -1, 6, 7, 8, 9, 10]
+  List<int> _computeVisiblePages() {
+    if (lastPage <= 7) {
+      return List.generate(lastPage, (i) => i + 1);
+    }
+
+    final pages = <int>[1];
+
+    if (currentPage > 3) pages.add(-1);
+
+    final rangeStart = (currentPage - 1).clamp(2, lastPage - 1);
+    final rangeEnd = (currentPage + 1).clamp(2, lastPage - 1);
+
+    for (var p = rangeStart; p <= rangeEnd; p++) {
+      if (!pages.contains(p)) pages.add(p);
+    }
+
+    if (currentPage < lastPage - 2) pages.add(-1);
+
+    if (!pages.contains(lastPage)) pages.add(lastPage);
+
+    return pages;
+  }
+}
+
+// ─── Nav Button (first / prev / next / last) ────────────────────────────────
+class _NavBtn extends StatelessWidget {
+  final IconData icon;
+  final String tooltip;
+  final bool enabled;
+  final VoidCallback onTap;
+
+  const _NavBtn({
+    required this.icon,
+    required this.tooltip,
+    required this.enabled,
+    required this.onTap,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Tooltip(
+      message: tooltip,
+      child: Material(
+        color: Colors.transparent,
+        borderRadius: BorderRadius.circular(6),
+        child: InkWell(
+          borderRadius: BorderRadius.circular(6),
+          onTap: enabled ? onTap : null,
+          child: Container(
+            width: 32,
+            height: 32,
+            alignment: Alignment.center,
+            child: Icon(
+              icon,
+              size: 20,
+              color: enabled ? AppColors.textSecondary : AppColors.textTertiary,
             ),
-            const SizedBox(height: AppDimensions.paddingMedium),
-            Text(
-              hasFilter
-                  ? 'No matching consents'
-                  : (canViewAny
-                      ? 'No consent forms yet'
-                      : 'No consents signed'),
-              style: AppTextStyles.titleMedium,
-            ),
-            const SizedBox(height: 6),
-            Text(
-              hasFilter
-                  ? 'Try adjusting your search or filter'
-                  : (canViewAny
-                      ? 'Signed patient consents will appear here.'
-                      : 'Your signed consents will appear here.'),
-              style: AppTextStyles.bodySmall,
-              textAlign: TextAlign.center,
-            ),
-            if (canSign && !hasFilter) ...[
-              const SizedBox(height: AppDimensions.paddingMedium),
-              FilledButton.icon(
-                onPressed: _onSignPressed,
-                style: FilledButton.styleFrom(
-                  backgroundColor: AppColors.primary,
-                  foregroundColor: AppColors.textOnPrimary,
-                ),
-                icon: const Icon(Icons.add_rounded),
-                label: const Text('Sign New Consent'),
-              ),
-            ],
-          ],
+          ),
         ),
       ),
     );
   }
 }
 
-// ── Reusable icon tile (matches Appointments page) ──────────────────────────
-class _IconTile extends StatelessWidget {
-  final String tooltip;
-  final IconData icon;
+// ─── Page Number Button ─────────────────────────────────────────────────────
+class _PageNumberBtn extends StatelessWidget {
+  final int page;
+  final bool active;
   final VoidCallback onTap;
 
-  const _IconTile({
-    required this.tooltip,
-    required this.icon,
+  const _PageNumberBtn({
+    required this.page,
+    required this.active,
     required this.onTap,
   });
 
   @override
   Widget build(BuildContext context) {
-    return Container(
-      width: 42,
-      height: 42,
-      decoration: BoxDecoration(
-        color: AppColors.surface,
-        borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: AppColors.border),
-      ),
-      child: IconButton(
-        tooltip: tooltip,
-        onPressed: onTap,
-        padding: EdgeInsets.zero,
-        icon: Icon(icon, color: AppColors.primaryDark, size: 20),
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 2),
+      child: Material(
+        color: active ? AppColors.primary : Colors.transparent,
+        borderRadius: BorderRadius.circular(6),
+        child: InkWell(
+          borderRadius: BorderRadius.circular(6),
+          onTap: active ? null : onTap,
+          child: Container(
+            width: 32,
+            height: 32,
+            alignment: Alignment.center,
+            decoration: BoxDecoration(
+              borderRadius: BorderRadius.circular(6),
+              border: Border.all(
+                color: active ? AppColors.primary : Colors.transparent,
+              ),
+            ),
+            child: Text(
+              '$page',
+              style: TextStyle(
+                fontSize: 13,
+                fontWeight: FontWeight.w700,
+                color:
+                    active ? AppColors.textOnPrimary : AppColors.textSecondary,
+              ),
+            ),
+          ),
+        ),
       ),
     );
   }

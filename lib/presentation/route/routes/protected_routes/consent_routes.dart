@@ -1,7 +1,8 @@
+// lib/presentation/route/routes/protected_routes/consent_routes.dart
 import 'package:go_router/go_router.dart';
 
 import '/presentation/pages/consent/consent_detail_page.dart';
-import '/presentation/pages/consent/my_consents_page.dart';
+import '/presentation/pages/consent/consent_list_page.dart';
 import '/presentation/route/route_names.dart';
 import '/presentation/route/page_transitions.dart';
 
@@ -11,7 +12,7 @@ final List<GoRoute> consentRoutes = [
     name: RouteNames.consents,
     pageBuilder: (context, state) => FadeThroughPage(
       key: state.pageKey,
-      child: const MyConsentsPage(),
+      child: const ConsentListPage(),
     ),
     routes: [
       GoRoute(

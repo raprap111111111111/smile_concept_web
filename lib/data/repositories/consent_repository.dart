@@ -1,3 +1,4 @@
+// lib/data/repositories/consent_repository.dart
 import 'dart:typed_data';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
@@ -25,18 +26,30 @@ class ConsentRepository {
   })  : _remote = remote,
         _local = local;
 
+  /// Fetches paginated signed consents.
+  ///
+  /// Backend scopes results by the authenticated user's permissions:
+  ///   - Patients only see their own consents
+  ///   - Staff with `consent-form.viewAny` see all
+  ///
+  /// [search] — filters by patient name/email or template title
+  /// [status] — 'valid' | 'voided' | null (all)
   Future<PaginatedConsentResult> getSignedConsents({
     int page = 1,
     int pageSize = 15,
     int? userId,
     int? appointmentId,
     int? consentTemplateId,
+    String? search,
+    String? status,
   }) {
     final offset = (page - 1) * pageSize;
     return _remote.getSignedConsents(
       userId: userId,
       appointmentId: appointmentId,
       consentTemplateId: consentTemplateId,
+      search: search,
+      status: status,
       offset: offset,
       limit: pageSize,
     );
