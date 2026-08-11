@@ -1,3 +1,4 @@
+// lib/data/datasources/remote/consent_remote_datasource.dart
 import 'dart:typed_data';
 import 'package:dio/dio.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -28,19 +29,26 @@ class ConsentRemoteDataSource {
   }
 
   /// GET /consents
+  ///
+  /// [search] — filters by patient name/email or template title
+  /// [status] — 'valid' | 'voided' | null (all)
   Future<PaginatedConsentResult> getSignedConsents({
     int? userId,
     int? appointmentId,
     int? consentTemplateId,
+    String? search,
+    String? status,
     int offset = 0,
     int limit = 15,
   }) async {
     final response = await _dio.get('/consents', queryParameters: {
-      if (userId != null) 'user_id': userId,
-      if (appointmentId != null) 'appointment_id': appointmentId,
+      if (userId != null)            'user_id':             userId,
+      if (appointmentId != null)     'appointment_id':      appointmentId,
       if (consentTemplateId != null) 'consent_template_id': consentTemplateId,
+      if (search != null && search.trim().isNotEmpty) 'search': search.trim(),
+      if (status != null)            'status':              status,
       'offset': offset,
-      'limit': limit,
+      'limit':  limit,
     });
 
     return PaginatedConsentResult.fromJson(

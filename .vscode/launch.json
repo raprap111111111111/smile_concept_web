@@ -28,7 +28,9 @@
             "program": "lib/main.dart",
             "cwd": "${workspaceFolder}",
             "flutterMode": "profile",
-            "args": ["--web-port=3000"]
+            "args": [
+                "--web-port=3000"
+            ]
         }
     ]
 }

@@ -15,72 +15,55 @@ import 'topbar_user_info.dart';
 class Topbar extends ConsumerWidget {
   const Topbar({super.key});
 
+  static const double _height = 72;
+
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final collapsed = ref.watch(sidebarCollapsedProvider);
 
-    return Container(
-      height: 72,
-      padding: const EdgeInsets.symmetric(horizontal: 16),
-      decoration: BoxDecoration(
-        color: AppColors.background,
-        border: const Border(
-          bottom: BorderSide(color: AppColors.line),
+    return Material(
+      color: AppColors.background,
+      elevation: 0,
+      child: Container(
+        width: double.infinity,
+        height: _height,
+        padding: const EdgeInsets.symmetric(horizontal: 20),
+        decoration: const BoxDecoration(
+          border: Border(
+            bottom: BorderSide(color: AppColors.line),
+          ),
         ),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withValues(alpha: 0.03),
-            blurRadius: 8,
-            offset: const Offset(0, 2),
-          ),
-        ],
-      ),
-      child: Row(
-        children: [
-          // ── Sidebar toggle ────────────────────────────────
-          _SidebarToggle(
-            collapsed: collapsed,
-            onPressed: () =>
-                ref.read(sidebarCollapsedProvider.notifier).toggle(),
-          ),
-          const SizedBox(width: 8),
-
-          // ── Page title (takes remaining space, ellipsizes) ─
-          Expanded(
-            child: Text(
-              PageTitleResolver.resolve(context),
-              style: AppTextStyles.titleLarge.copyWith(
-                color: AppColors.ink,
-                fontWeight: FontWeight.w800,
+        child: Row(
+          crossAxisAlignment: CrossAxisAlignment.center,
+          children: [
+            // ── LEFT ──────────────────────────────────────────
+            _SidebarToggle(
+              collapsed: collapsed,
+              onPressed: () =>
+                  ref.read(sidebarCollapsedProvider.notifier).toggle(),
+            ),
+            const SizedBox(width: 12),
+            Expanded(
+              child: Text(
+                PageTitleResolver.resolve(context),
+                style: AppTextStyles.titleLarge.copyWith(
+                  color: AppColors.ink,
+                  fontWeight: FontWeight.w800,
+                ),
+                overflow: TextOverflow.ellipsis,
+                maxLines: 1,
               ),
-              overflow: TextOverflow.ellipsis,
-              maxLines: 1,
             ),
-          ),
 
-          const SizedBox(width: 8),
-
-          // ── Right actions (may shrink on narrow widths) ───
-          Flexible(
-            child: Row(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                const RealtimeStatusDot(),
-                const NotificationBell(),
-                const SizedBox(width: 8),
-                Container(
-                  width: 1,
-                  height: 28,
-                  color: AppColors.line,
-                ),
-                const SizedBox(width: 8),
-                const Flexible(
-                  child: TopbarUserInfo(),
-                ),
-              ],
-            ),
-          ),
-        ],
+            // ── RIGHT (flush to trailing edge) ────────────────
+            const RealtimeStatusDot(),
+            const NotificationBell(),
+            const SizedBox(width: 10),
+            Container(width: 1, height: 28, color: AppColors.line),
+            const SizedBox(width: 10),
+            const TopbarUserInfo(),
+          ],
+        ),
       ),
     );
   }
