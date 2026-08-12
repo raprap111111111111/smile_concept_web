@@ -16,7 +16,7 @@ import 'widgets/form/patient_dropdown.dart';
 import 'widgets/form/prescription_form_header.dart';
 import 'widgets/form/prescription_form_section.dart';
 import '/presentation/widgets/shared//access_denied_view.dart';
-import '/presentation/widgets/shared//app_snackbar.dart';       
+import '../../widgets/shared/app_snackbar.dart';
 import 'package:smile_concept_web/core/errors/error_message.dart';
 
 class PrescriptionFormPage extends ConsumerStatefulWidget {

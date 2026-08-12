@@ -28,6 +28,8 @@ class _ConsentListPageState extends ConsumerState<ConsentListPage> {
   final _searchController = TextEditingController();
   Timer? _debounce;
 
+  // ── Lifecycle ───────────────────────────────────────────────────────────
+
   @override
   void dispose() {
     _debounce?.cancel();
@@ -35,13 +37,14 @@ class _ConsentListPageState extends ConsumerState<ConsentListPage> {
     super.dispose();
   }
 
-  // ── Search (debounced) ──────────────────────────────────────────────────
+  // ── Event Handlers ──────────────────────────────────────────────────────
+
   void _onSearchChanged(String value) {
     _debounce?.cancel();
     _debounce = Timer(const Duration(milliseconds: 350), () {
+      if (!mounted) return; // ✅ Guard against calling ref after dispose
       final trimmed = value.trim();
-      final current = ref.read(consentFilterProvider);
-      ref.read(consentFilterProvider.notifier).state = current.copyWith(
+      _updateFilter(
         search: trimmed.isEmpty ? null : trimmed,
         clearSearch: trimmed.isEmpty,
         page: 1,
@@ -51,27 +54,18 @@ class _ConsentListPageState extends ConsumerState<ConsentListPage> {
 
   void _onClearSearch() {
     _searchController.clear();
-    final current = ref.read(consentFilterProvider);
-    ref.read(consentFilterProvider.notifier).state =
-        current.copyWith(clearSearch: true, page: 1);
+    _updateFilter(clearSearch: true, page: 1);
   }
 
-  // ── Status filter ───────────────────────────────────────────────────────
   void _onStatusChanged(String? status) {
-    final current = ref.read(consentFilterProvider);
-    ref.read(consentFilterProvider.notifier).state = current.copyWith(
+    _updateFilter(
       status: status,
       clearStatus: status == null,
       page: 1,
     );
   }
 
-  // ── Pagination ──────────────────────────────────────────────────────────
-  void _onPageChanged(int newPage) {
-    final current = ref.read(consentFilterProvider);
-    ref.read(consentFilterProvider.notifier).state =
-        current.copyWith(page: newPage);
-  }
+  void _onPageChanged(int newPage) => _updateFilter(page: newPage);
 
   void _onRefresh() => ref.invalidate(patientConsentsProvider);
 
@@ -80,8 +74,30 @@ class _ConsentListPageState extends ConsumerState<ConsentListPage> {
     if (result == true) _onRefresh();
   }
 
+  /// ✅ Single method to mutate filter — eliminates repetitive
+  /// ref.read(consentFilterProvider.notifier).state = ... pattern
+  void _updateFilter({
+    String? search,
+    String? status,
+    bool clearSearch = false,
+    bool clearStatus = false,
+    int? page,
+  }) {
+    final current = ref.read(consentFilterProvider);
+    ref.read(consentFilterProvider.notifier).state = current.copyWith(
+      search: search,
+      status: status,
+      clearSearch: clearSearch,
+      clearStatus: clearStatus,
+      page: page,
+    );
+  }
+
+  // ── Build ───────────────────────────────────────────────────────────────
+
   @override
   Widget build(BuildContext context) {
+    // ✅ Read permissions once — avoids multiple provider reads per frame
     final perm = ref.watch(permissionServiceProvider);
     final canViewAny = perm.can(Perm.consentFormViewAny);
     final canSign = perm.can(Perm.consentFormSign);
@@ -105,40 +121,31 @@ class _ConsentListPageState extends ConsumerState<ConsentListPage> {
               onSign: _onSignPressed,
             ),
             const SizedBox(height: AppDimensions.paddingLarge),
-
-            // ── Search + Filter row ──
-            Row(
-              children: [
-                Expanded(child: _buildSearchField()),
-                const SizedBox(width: AppDimensions.paddingMedium),
-                ConsentFilterBar(
-                  selectedStatus: filter.status,
-                  onStatusChanged: _onStatusChanged,
-                ),
-              ],
-            ),
+            _buildSearchAndFilter(filter),
             const SizedBox(height: AppDimensions.paddingLarge),
-
-            // ── Body ──
             Expanded(
               child: consentsAsync.when(
-                loading: () =>
-                    const LoadingWidget(message: 'Loading consent forms…'),
+                loading: () => const LoadingWidget(
+                  message: 'Loading consent forms…',
+                ),
                 error: (e, _) => ErrorDisplayWidget(
                   error: e.toString(),
                   onRetry: _onRefresh,
                 ),
-                data: (result) {
-                  if (result.records.isEmpty) {
-                    return _ConsentsEmptyState(
-                      hasFilter: filter.search != null || filter.status != null,
-                      canViewAny: canViewAny,
-                      canSign: canSign,
-                      onSign: _onSignPressed,
-                    );
-                  }
-                  return _buildTable(result, filter);
-                },
+                data: (result) => result.records.isEmpty
+                    ? _ConsentsEmptyState(
+                        hasFilter:
+                            filter.search != null || filter.status != null,
+                        canViewAny: canViewAny,
+                        canSign: canSign,
+                        onSign: _onSignPressed,
+                      )
+                    : _ConsentTable(
+                        result: result,
+                        filter: filter,
+                        onPageChanged: _onPageChanged,
+                        onRefresh: _onRefresh,
+                      ),
               ),
             ),
           ],
@@ -147,8 +154,64 @@ class _ConsentListPageState extends ConsumerState<ConsentListPage> {
     );
   }
 
-  // ── Search field ────────────────────────────────────────────────────────
-  Widget _buildSearchField() {
+  // ── Widgets ─────────────────────────────────────────────────────────────
+
+  Widget _buildSearchAndFilter(PatientConsentsParams filter) {
+    return Row(
+      children: [
+        Expanded(
+          child: _SearchField(
+            controller: _searchController,
+            onChanged: _onSearchChanged,
+            onClear: _onClearSearch,
+          ),
+        ),
+        const SizedBox(width: AppDimensions.paddingMedium),
+        ConsentFilterBar(
+          selectedStatus: filter.status,
+          onStatusChanged: _onStatusChanged,
+        ),
+      ],
+    );
+  }
+}
+
+// ─── Search Field ────────────────────────────────────────────────────────────
+/// ✅ Extracted to its own StatelessWidget — reduces rebuilds since
+/// the suffix icon change only rebuilds this widget, not the whole page.
+class _SearchField extends StatefulWidget {
+  final TextEditingController controller;
+  final ValueChanged<String> onChanged;
+  final VoidCallback onClear;
+
+  const _SearchField({
+    required this.controller,
+    required this.onChanged,
+    required this.onClear,
+  });
+
+  @override
+  State<_SearchField> createState() => _SearchFieldState();
+}
+
+class _SearchFieldState extends State<_SearchField> {
+  @override
+  void initState() {
+    super.initState();
+    // ✅ Listen to controller to rebuild only this widget for suffix icon
+    widget.controller.addListener(_onControllerChanged);
+  }
+
+  @override
+  void dispose() {
+    widget.controller.removeListener(_onControllerChanged);
+    super.dispose();
+  }
+
+  void _onControllerChanged() => setState(() {});
+
+  @override
+  Widget build(BuildContext context) {
     return Container(
       decoration: BoxDecoration(
         color: AppColors.surface,
@@ -156,8 +219,8 @@ class _ConsentListPageState extends ConsumerState<ConsentListPage> {
         border: Border.all(color: AppColors.border),
       ),
       child: TextField(
-        controller: _searchController,
-        onChanged: _onSearchChanged,
+        controller: widget.controller,
+        onChanged: widget.onChanged,
         style: AppTextStyles.bodyMedium.copyWith(color: AppColors.ink),
         decoration: InputDecoration(
           hintText: 'Search by patient name or consent title…',
@@ -169,12 +232,12 @@ class _ConsentListPageState extends ConsumerState<ConsentListPage> {
             color: AppColors.textTertiary,
             size: AppDimensions.iconSize,
           ),
-          suffixIcon: _searchController.text.isEmpty
+          suffixIcon: widget.controller.text.isEmpty
               ? null
               : IconButton(
                   icon: const Icon(Icons.close_rounded, size: 18),
                   color: AppColors.textSecondary,
-                  onPressed: _onClearSearch,
+                  onPressed: widget.onClear,
                 ),
           border: InputBorder.none,
           contentPadding: const EdgeInsets.symmetric(
@@ -185,9 +248,26 @@ class _ConsentListPageState extends ConsumerState<ConsentListPage> {
       ),
     );
   }
+}
 
-  // ── Table (header + rows + pagination) ─────────────────────────────────
-  Widget _buildTable(dynamic result, PatientConsentsParams filter) {
+// ─── Consent Table ───────────────────────────────────────────────────────────
+/// ✅ Extracted table to its own widget — keeps the parent page clean
+/// and prevents unnecessary rebuilds of the header/search on scroll.
+class _ConsentTable extends StatelessWidget {
+  final dynamic result;
+  final PatientConsentsParams filter;
+  final ValueChanged<int> onPageChanged;
+  final VoidCallback onRefresh;
+
+  const _ConsentTable({
+    required this.result,
+    required this.filter,
+    required this.onPageChanged,
+    required this.onRefresh,
+  });
+
+  @override
+  Widget build(BuildContext context) {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
@@ -196,7 +276,7 @@ class _ConsentListPageState extends ConsumerState<ConsentListPage> {
         Expanded(
           child: RefreshIndicator(
             color: AppColors.primary,
-            onRefresh: () async => _onRefresh(),
+            onRefresh: () async => onRefresh(),
             child: ListView.separated(
               padding: const EdgeInsets.only(bottom: 8),
               itemCount: result.records.length,
@@ -219,14 +299,14 @@ class _ConsentListPageState extends ConsumerState<ConsentListPage> {
           pageSize: filter.pageSize,
           total: result.total as int,
           lastPage: result.lastPage as int,
-          onPageChanged: _onPageChanged,
+          onPageChanged: onPageChanged,
         ),
       ],
     );
   }
 }
 
-// ─── Header (with Sign New Consent button) ──────────────────────────────────
+// ─── Header ──────────────────────────────────────────────────────────────────
 class _ConsentsHeader extends StatelessWidget {
   final String title;
   final String subtitle;
@@ -249,124 +329,151 @@ class _ConsentsHeader extends StatelessWidget {
     return Row(
       mainAxisAlignment: MainAxisAlignment.spaceBetween,
       children: [
-        // ── Title ──
-        Row(
-          children: [
-            Container(
-              padding: const EdgeInsets.all(AppDimensions.paddingSmall),
-              decoration: BoxDecoration(
-                gradient: AppColors.primaryGradient,
-                borderRadius: BorderRadius.circular(
-                  AppDimensions.borderRadiusLarge,
-                ),
-              ),
-              child: const Icon(
-                Icons.assignment_turned_in_rounded,
-                color: Colors.white,
-                size: AppDimensions.iconBadgeSize * 0.6,
-              ),
-            ),
-            const SizedBox(width: AppDimensions.paddingMedium),
-            Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(title, style: AppTextStyles.headlineSmall),
-                const SizedBox(height: 4),
-                Text(subtitle, style: AppTextStyles.bodySmall),
-              ],
-            ),
-          ],
-        ),
+        _buildTitle(),
+        _buildActions(),
+      ],
+    );
+  }
 
-        // ── Actions ──
-        Row(
-          children: [
-            if (isLoading)
-              const Padding(
-                padding: EdgeInsets.only(right: 8),
-                child: SizedBox(
-                  width: 18,
-                  height: 18,
-                  child: CircularProgressIndicator(
-                    strokeWidth: 2,
-                    color: AppColors.primary,
-                  ),
-                ),
-              ),
-            Container(
-              width: 42,
-              height: 42,
-              decoration: BoxDecoration(
-                color: AppColors.surface,
-                borderRadius: BorderRadius.circular(12),
-                border: Border.all(color: AppColors.border),
-              ),
-              child: IconButton(
-                tooltip: 'Refresh',
-                onPressed: onRefresh,
-                padding: EdgeInsets.zero,
-                icon: const Icon(
-                  Icons.refresh_rounded,
-                  color: AppColors.primaryDark,
-                  size: 20,
-                ),
-              ),
+  Widget _buildTitle() {
+    return Row(
+      children: [
+        Container(
+          padding: const EdgeInsets.all(AppDimensions.paddingSmall),
+          decoration: BoxDecoration(
+            gradient: AppColors.primaryGradient,
+            borderRadius: BorderRadius.circular(
+              AppDimensions.borderRadiusLarge,
             ),
-            if (canSign) ...[
-              const SizedBox(width: AppDimensions.paddingSmall),
-              Container(
-                decoration: BoxDecoration(
-                  gradient: AppColors.primaryGradient,
-                  borderRadius: BorderRadius.circular(12),
-                  boxShadow: [
-                    BoxShadow(
-                      color: AppColors.primary.withValues(alpha: 0.25),
-                      blurRadius: 10,
-                      offset: const Offset(0, 4),
-                    ),
-                  ],
-                ),
-                child: Material(
-                  color: Colors.transparent,
-                  child: InkWell(
-                    borderRadius: BorderRadius.circular(12),
-                    onTap: onSign,
-                    child: const Padding(
-                      padding: EdgeInsets.symmetric(
-                        horizontal: AppDimensions.paddingLarge,
-                        vertical: 10,
-                      ),
-                      child: Row(
-                        children: [
-                          Icon(
-                            Icons.add_rounded,
-                            color: Colors.white,
-                            size: 18,
-                          ),
-                          SizedBox(width: 6),
-                          Text(
-                            'Sign New Consent',
-                            style: TextStyle(
-                              color: Colors.white,
-                              fontWeight: FontWeight.w700,
-                              fontSize: 13,
-                            ),
-                          ),
-                        ],
-                      ),
-                    ),
-                  ),
-                ),
-              ),
-            ],
+          ),
+          child: const Icon(
+            Icons.assignment_turned_in_rounded,
+            color: Colors.white,
+            size: AppDimensions.iconBadgeSize * 0.6,
+          ),
+        ),
+        const SizedBox(width: AppDimensions.paddingMedium),
+        Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(title, style: AppTextStyles.headlineSmall),
+            const SizedBox(height: 4),
+            Text(subtitle, style: AppTextStyles.bodySmall),
           ],
         ),
       ],
     );
   }
+
+  Widget _buildActions() {
+    return Row(
+      children: [
+        // ✅ AnimatedOpacity instead of conditional Padding — smoother UX
+        AnimatedOpacity(
+          opacity: isLoading ? 1.0 : 0.0,
+          duration: const Duration(milliseconds: 200),
+          child: const Padding(
+            padding: EdgeInsets.only(right: 8),
+            child: SizedBox(
+              width: 18,
+              height: 18,
+              child: CircularProgressIndicator(
+                strokeWidth: 2,
+                color: AppColors.primary,
+              ),
+            ),
+          ),
+        ),
+        _RefreshButton(onRefresh: onRefresh),
+        if (canSign) ...[
+          const SizedBox(width: AppDimensions.paddingSmall),
+          _SignButton(onSign: onSign),
+        ],
+      ],
+    );
+  }
 }
 
-// ─── Table Header Row ───────────────────────────────────────────────────────
+// ─── Refresh Button ──────────────────────────────────────────────────────────
+class _RefreshButton extends StatelessWidget {
+  final VoidCallback onRefresh;
+  const _RefreshButton({required this.onRefresh});
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      width: 42,
+      height: 42,
+      decoration: BoxDecoration(
+        color: AppColors.surface,
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: AppColors.border),
+      ),
+      child: IconButton(
+        tooltip: 'Refresh',
+        onPressed: onRefresh,
+        padding: EdgeInsets.zero,
+        icon: const Icon(
+          Icons.refresh_rounded,
+          color: AppColors.primaryDark,
+          size: 20,
+        ),
+      ),
+    );
+  }
+}
+
+// ─── Sign Button ─────────────────────────────────────────────────────────────
+class _SignButton extends StatelessWidget {
+  final VoidCallback onSign;
+  const _SignButton({required this.onSign});
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      decoration: BoxDecoration(
+        gradient: AppColors.primaryGradient,
+        borderRadius: BorderRadius.circular(12),
+        boxShadow: [
+          BoxShadow(
+            color: AppColors.primary.withValues(alpha: 0.25),
+            blurRadius: 10,
+            offset: const Offset(0, 4),
+          ),
+        ],
+      ),
+      child: Material(
+        color: Colors.transparent,
+        child: InkWell(
+          borderRadius: BorderRadius.circular(12),
+          onTap: onSign,
+          child: const Padding(
+            padding: EdgeInsets.symmetric(
+              horizontal: AppDimensions.paddingLarge,
+              vertical: 10,
+            ),
+            child: Row(
+              children: [
+                Icon(Icons.add_rounded, color: Colors.white, size: 18),
+                SizedBox(width: 6),
+                Text(
+                  'Sign New Consent',
+                  style: TextStyle(
+                    color: Colors.white,
+                    fontWeight: FontWeight.w700,
+                    fontSize: 13,
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+// ─── Table Header Row ────────────────────────────────────────────────────────
 class _TableHeader extends StatelessWidget {
   const _TableHeader();
 
@@ -384,20 +491,26 @@ class _TableHeader extends StatelessWidget {
       ),
       child: Row(
         children: [
-          // icon col placeholder (matches ConsentCard icon width)
           const SizedBox(width: 32 + AppDimensions.paddingMedium),
-          Expanded(flex: 3, child: _label('CONSENT')),
-          Expanded(flex: 2, child: _label('PATIENT')),
-          Expanded(flex: 2, child: _label('SIGNED BY')),
-          SizedBox(width: 70, child: _label('STATUS', center: true)),
-          // action buttons placeholder (view + download + chevron)
+          Expanded(flex: 3, child: _HeaderLabel('CONSENT')),
+          Expanded(flex: 2, child: _HeaderLabel('PATIENT')),
+          Expanded(flex: 2, child: _HeaderLabel('SIGNED BY')),
+          SizedBox(width: 70, child: _HeaderLabel('STATUS', center: true)),
           const SizedBox(width: 8 + 40 + 40 + 20),
         ],
       ),
     );
   }
+}
 
-  Widget _label(String text, {bool center = false}) {
+class _HeaderLabel extends StatelessWidget {
+  final String text;
+  final bool center;
+
+  const _HeaderLabel(this.text, {this.center = false});
+
+  @override
+  Widget build(BuildContext context) {
     return Text(
       text,
       textAlign: center ? TextAlign.center : TextAlign.start,
@@ -411,7 +524,7 @@ class _TableHeader extends StatelessWidget {
   }
 }
 
-// ─── Empty State ────────────────────────────────────────────────────────────
+// ─── Empty State ─────────────────────────────────────────────────────────────
 class _ConsentsEmptyState extends StatelessWidget {
   final bool hasFilter;
   final bool canViewAny;
@@ -446,9 +559,7 @@ class _ConsentsEmptyState extends StatelessWidget {
           ),
           const SizedBox(height: AppDimensions.paddingMedium),
           Text(
-            hasFilter
-                ? 'No matching consents'
-                : (canViewAny ? 'No consent forms yet' : 'No consents signed'),
+            _resolveTitle(),
             style: AppTextStyles.titleSmall.copyWith(
               color: AppColors.textSecondary,
             ),
@@ -477,9 +588,15 @@ class _ConsentsEmptyState extends StatelessWidget {
       ),
     );
   }
+
+  // ✅ Extracted title logic — keeps build() clean and readable
+  String _resolveTitle() {
+    if (hasFilter) return 'No matching consents';
+    return canViewAny ? 'No consent forms yet' : 'No consents signed';
+  }
 }
 
-// ─── Pagination Bar ─────────────────────────────────────────────────────────
+// ─── Pagination Bar ──────────────────────────────────────────────────────────
 class _PaginationBar extends StatelessWidget {
   final int currentPage;
   final int pageSize;
@@ -516,7 +633,6 @@ class _PaginationBar extends StatelessWidget {
       child: Row(
         mainAxisAlignment: MainAxisAlignment.spaceBetween,
         children: [
-          // ── Left: Page X of Y ──
           Text(
             'Page $currentPage of $lastPage',
             style: AppTextStyles.bodySmall.copyWith(
@@ -524,44 +640,7 @@ class _PaginationBar extends StatelessWidget {
               fontWeight: FontWeight.w600,
             ),
           ),
-
-          // ── Middle: Navigation controls ──
-          Row(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              _NavBtn(
-                icon: Icons.first_page_rounded,
-                tooltip: 'First page',
-                enabled: currentPage > 1,
-                onTap: () => onPageChanged(1),
-              ),
-              const SizedBox(width: 4),
-              _NavBtn(
-                icon: Icons.chevron_left_rounded,
-                tooltip: 'Previous',
-                enabled: currentPage > 1,
-                onTap: () => onPageChanged(currentPage - 1),
-              ),
-              const SizedBox(width: 8),
-              ..._buildPageNumbers(),
-              const SizedBox(width: 8),
-              _NavBtn(
-                icon: Icons.chevron_right_rounded,
-                tooltip: 'Next',
-                enabled: currentPage < lastPage,
-                onTap: () => onPageChanged(currentPage + 1),
-              ),
-              const SizedBox(width: 4),
-              _NavBtn(
-                icon: Icons.last_page_rounded,
-                tooltip: 'Last page',
-                enabled: currentPage < lastPage,
-                onTap: () => onPageChanged(lastPage),
-              ),
-            ],
-          ),
-
-          // ── Right: Showing X–Y of Z ──
+          _buildNavControls(),
           Text(
             'Showing $start–$end of $total',
             style: AppTextStyles.bodySmall.copyWith(
@@ -574,10 +653,45 @@ class _PaginationBar extends StatelessWidget {
     );
   }
 
-  /// Builds numbered page buttons with ellipsis for long ranges.
+  Widget _buildNavControls() {
+    return Row(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        _NavBtn(
+          icon: Icons.first_page_rounded,
+          tooltip: 'First page',
+          enabled: currentPage > 1,
+          onTap: () => onPageChanged(1),
+        ),
+        const SizedBox(width: 4),
+        _NavBtn(
+          icon: Icons.chevron_left_rounded,
+          tooltip: 'Previous',
+          enabled: currentPage > 1,
+          onTap: () => onPageChanged(currentPage - 1),
+        ),
+        const SizedBox(width: 8),
+        ..._buildPageNumbers(),
+        const SizedBox(width: 8),
+        _NavBtn(
+          icon: Icons.chevron_right_rounded,
+          tooltip: 'Next',
+          enabled: currentPage < lastPage,
+          onTap: () => onPageChanged(currentPage + 1),
+        ),
+        const SizedBox(width: 4),
+        _NavBtn(
+          icon: Icons.last_page_rounded,
+          tooltip: 'Last page',
+          enabled: currentPage < lastPage,
+          onTap: () => onPageChanged(lastPage),
+        ),
+      ],
+    );
+  }
+
   List<Widget> _buildPageNumbers() {
-    final pages = _computeVisiblePages();
-    return pages.map((page) {
+    return _computeVisiblePages().map((page) {
       if (page == -1) {
         return const Padding(
           padding: EdgeInsets.symmetric(horizontal: 4),
@@ -598,20 +712,16 @@ class _PaginationBar extends StatelessWidget {
     }).toList();
   }
 
-  /// Returns a list of pages to show. Use -1 for ellipsis.
-  ///   1 total    → [1]
-  ///   5 total    → [1, 2, 3, 4, 5]
-  ///   10, cur=1  → [1, 2, 3, 4, 5, -1, 10]
-  ///   10, cur=5  → [1, -1, 4, 5, 6, -1, 10]
-  ///   10, cur=10 → [1, -1, 6, 7, 8, 9, 10]
+  /// Returns visible page numbers. -1 represents ellipsis (…).
   List<int> _computeVisiblePages() {
+    // ✅ Show all pages when total is small enough
     if (lastPage <= 7) {
       return List.generate(lastPage, (i) => i + 1);
     }
 
     final pages = <int>[1];
 
-    if (currentPage > 3) pages.add(-1);
+    if (currentPage > 3) pages.add(-1); // left ellipsis
 
     final rangeStart = (currentPage - 1).clamp(2, lastPage - 1);
     final rangeEnd = (currentPage + 1).clamp(2, lastPage - 1);
@@ -620,7 +730,7 @@ class _PaginationBar extends StatelessWidget {
       if (!pages.contains(p)) pages.add(p);
     }
 
-    if (currentPage < lastPage - 2) pages.add(-1);
+    if (currentPage < lastPage - 2) pages.add(-1); // right ellipsis
 
     if (!pages.contains(lastPage)) pages.add(lastPage);
 
@@ -628,7 +738,7 @@ class _PaginationBar extends StatelessWidget {
   }
 }
 
-// ─── Nav Button (first / prev / next / last) ────────────────────────────────
+// ─── Nav Button ──────────────────────────────────────────────────────────────
 class _NavBtn extends StatelessWidget {
   final IconData icon;
   final String tooltip;
@@ -652,14 +762,14 @@ class _NavBtn extends StatelessWidget {
         child: InkWell(
           borderRadius: BorderRadius.circular(6),
           onTap: enabled ? onTap : null,
-          child: Container(
+          child: SizedBox(
             width: 32,
             height: 32,
-            alignment: Alignment.center,
             child: Icon(
               icon,
               size: 20,
-              color: enabled ? AppColors.textSecondary : AppColors.textTertiary,
+              color:
+                  enabled ? AppColors.textSecondary : AppColors.textTertiary,
             ),
           ),
         ),
@@ -668,7 +778,7 @@ class _NavBtn extends StatelessWidget {
   }
 }
 
-// ─── Page Number Button ─────────────────────────────────────────────────────
+// ─── Page Number Button ──────────────────────────────────────────────────────
 class _PageNumberBtn extends StatelessWidget {
   final int page;
   final bool active;
@@ -705,8 +815,9 @@ class _PageNumberBtn extends StatelessWidget {
               style: TextStyle(
                 fontSize: 13,
                 fontWeight: FontWeight.w700,
-                color:
-                    active ? AppColors.textOnPrimary : AppColors.textSecondary,
+                color: active
+                    ? AppColors.textOnPrimary
+                    : AppColors.textSecondary,
               ),
             ),
           ),
