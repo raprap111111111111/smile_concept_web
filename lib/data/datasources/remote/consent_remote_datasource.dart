@@ -29,9 +29,6 @@ class ConsentRemoteDataSource {
   }
 
   /// GET /consents
-  ///
-  /// [search] — filters by patient name/email or template title
-  /// [status] — 'valid' | 'voided' | null (all)
   Future<PaginatedConsentResult> getSignedConsents({
     int? userId,
     int? appointmentId,
@@ -42,13 +39,13 @@ class ConsentRemoteDataSource {
     int limit = 15,
   }) async {
     final response = await _dio.get('/consents', queryParameters: {
-      if (userId != null)            'user_id':             userId,
-      if (appointmentId != null)     'appointment_id':      appointmentId,
+      if (userId != null) 'user_id': userId,
+      if (appointmentId != null) 'appointment_id': appointmentId,
       if (consentTemplateId != null) 'consent_template_id': consentTemplateId,
       if (search != null && search.trim().isNotEmpty) 'search': search.trim(),
-      if (status != null)            'status':              status,
+      if (status != null) 'status': status,
       'offset': offset,
-      'limit':  limit,
+      'limit': limit,
     });
 
     return PaginatedConsentResult.fromJson(
@@ -74,21 +71,20 @@ class ConsentRemoteDataSource {
 
   /// POST /consents/sign
   Future<PatientConsentModel> sign(ConsentSignRequest request) async {
-    final response =
-        await _dio.post('/consents/sign', data: request.toJson());
+    final response = await _dio.post('/consents/sign', data: request.toJson());
     return PatientConsentModel.fromJson(response.data['data']);
   }
 
-  /// POST /consents/{id}/void
+// ✅ AFTER — matches 'reason' => ['required'...] in VoidConsentRequest
   Future<PatientConsentModel> voidConsent(int id, String reason) async {
     final response = await _dio.post(
       '/consents/$id/void',
-      data: {'voided_reason': reason},
+      data: {'reason': reason}, // ✅ fixed
     );
     return PatientConsentModel.fromJson(response.data['data']);
   }
 
-  /// GET /consents/{id}/pdf → returns raw PDF bytes (auth token attached via Dio interceptor)
+  /// GET /consents/{id}/pdf
   Future<Uint8List> getPdfBytes(int id) async {
     final response = await _dio.get<List<int>>(
       '/consents/$id/pdf',

@@ -26,6 +26,8 @@ class PageTitleResolver {
     '/settings': 'Settings',
     '/prescriptions': 'My Prescriptions',
     '/treatment-plans': 'My Treatment Plans',
+    '/consents/': 'Consent Details',      
+    '/consents': 'My Consent Forms',    
   };
 
   static String resolve(BuildContext context) {
