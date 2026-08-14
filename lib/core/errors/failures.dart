@@ -15,10 +15,16 @@ abstract class Failure {
 class ApiFailure extends Failure {
   final int? statusCode;
 
+  /// Laravel's 422 validation bag as {field: first message}. Empty for
+  /// non-validation failures. Lets forms place server errors inline on the
+  /// exact field instead of one generic snackbar.
+  final Map<String, String> fieldErrors;
+
   ApiFailure({
     required String message,
     required String code,
     this.statusCode,
+    this.fieldErrors = const {},
   }) : super(message: message, code: code);
 }
 

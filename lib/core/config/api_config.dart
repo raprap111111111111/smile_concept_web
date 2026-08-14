@@ -109,6 +109,7 @@ class ApiConfig {
   static const String getAppointments = '/appointments';
   static const String createAppointment = '/appointments';
   static const String getAvailableSlots = '/appointments/available-slots';
+  static const String appointmentSettings = '/appointment-settings';
 
   static const String getInvoices = '/invoices';
   static const String getPayments = '/payments';
