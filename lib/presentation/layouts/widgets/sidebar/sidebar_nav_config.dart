@@ -232,6 +232,12 @@ class SidebarNavConfig {
             permissions: [Perm.activityLogViewAny],
           ),
           NavItem(
+            icon: Icons.event_note_outlined,
+            title: 'Appointment Settings',
+            routeName: RouteNames.appointmentSettings,
+            permissions: [Perm.settingUpdate],
+          ),
+          NavItem(
             icon: Icons.settings_outlined,
             title: 'Settings',
             routeName: RouteNames.settings,

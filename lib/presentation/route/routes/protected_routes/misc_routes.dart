@@ -2,6 +2,7 @@
 
 import 'package:go_router/go_router.dart';
 
+import '../../../pages/appointment_settings/appointment_settings_page.dart';
 import '../../../pages/doctors/doctors_page.dart';
 import '../../../pages/doctor_schedules/doctor_schedules_pages.dart';
 import '../../../pages/profile/profile_page.dart';
@@ -44,6 +45,14 @@ final List<GoRoute> miscRoutes = [
     pageBuilder: (context, state) => FadeThroughPage(
       key: state.pageKey,
       child: const SettingsPage(),
+    ),
+  ),
+  GoRoute(
+    path: '/appointment-settings',
+    name: RouteNames.appointmentSettings,
+    pageBuilder: (context, state) => FadeThroughPage(
+      key: state.pageKey,
+      child: const AppointmentSettingsPage(),
     ),
   ),
   GoRoute(

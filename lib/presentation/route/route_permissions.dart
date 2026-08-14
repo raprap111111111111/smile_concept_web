@@ -106,6 +106,9 @@ class RoutePermissions {
     '/users': [Perm.userViewAny],
     '/roles': [Perm.roleViewAny],
     '/activity-logs': [Perm.activityLogViewAny],
+    // Editing clinic-wide booking rules is a write action, so this gates on
+    // setting.update rather than the read permission /settings uses.
+    '/appointment-settings': [Perm.settingUpdate],
     '/settings': [Perm.settingView],
     '/notifications': [Perm.notificationViewAny, Perm.notificationView],
 

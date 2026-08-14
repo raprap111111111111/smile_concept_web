@@ -104,6 +104,7 @@ class RouteNames {
 
   // ── System ────────────────────────────────────────────────
   static const String settings = 'settings';
+  static const String appointmentSettings = 'appointment-settings';
   static const String roles = 'roles';
   static const String users = 'users';
   static const String activityLogs = 'activity-logs';
