@@ -22,42 +22,57 @@ class _DashedAddButtonState extends State<DashedAddButton> {
       cursor: SystemMouseCursors.click,
       onEnter: (_) => setState(() => _hovered = true),
       onExit: (_) => setState(() => _hovered = false),
-      child: GestureDetector(
-        onTap: widget.onTap,
-        child: AnimatedContainer(
-          duration: const Duration(milliseconds: 160),
-          width: double.infinity,
-          padding: const EdgeInsets.symmetric(vertical: 18),
-          decoration: BoxDecoration(
-            color: _hovered
-                ? AppColors.accentWithOpacity(0.15)
-                : AppColors.surface,
-            borderRadius: BorderRadius.circular(AppDimensions.borderRadius),
-            border: Border.all(
-              color: _hovered
-                  ? AppColors.primary
-                  : AppColors.accentWithOpacity(0.5),
-              width: 1.5,
+      child: Semantics(
+        button: true,
+        label: 'Add another treatment step',
+        child: GestureDetector(
+          onTap: widget.onTap,
+          child: AnimatedContainer(
+            duration: const Duration(milliseconds: 160),
+            width: double.infinity,
+            constraints: const BoxConstraints(minHeight: 52),
+            padding: const EdgeInsets.symmetric(
+              horizontal: AppDimensions.paddingSmall,
+              vertical: 16,
             ),
-          ),
-          child: const Row(
-            mainAxisAlignment: MainAxisAlignment.center,
-            children: [
-              Icon(
-                Icons.add_circle_outline,
-                color: AppColors.primaryDark,
-                size: 20,
+            decoration: BoxDecoration(
+              color: _hovered
+                  ? AppColors.accentWithOpacity(0.18)
+                  : AppColors.surface,
+              borderRadius:
+                  BorderRadius.circular(AppDimensions.borderRadiusLarge),
+              border: Border.all(
+                color: _hovered
+                    ? AppColors.primary
+                    : AppColors.accentWithOpacity(0.5),
+                width: 1.5,
               ),
-              SizedBox(width: 10),
-              Text(
-                'Add Another Treatment Step',
-                style: TextStyle(
+            ),
+            child: const Row(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                Icon(
+                  Icons.add_circle_outline_rounded,
                   color: AppColors.primaryDark,
-                  fontWeight: FontWeight.w800,
-                  fontSize: 14,
+                  size: 20,
                 ),
-              ),
-            ],
+                SizedBox(width: 10),
+                // Flexible so the label ellipsises on a phone-width column
+                // instead of overflowing the dashed frame.
+                Flexible(
+                  child: Text(
+                    'Add Another Treatment Step',
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: TextStyle(
+                      color: AppColors.primaryDark,
+                      fontWeight: FontWeight.w800,
+                      fontSize: 14,
+                    ),
+                  ),
+                ),
+              ],
+            ),
           ),
         ),
       ),

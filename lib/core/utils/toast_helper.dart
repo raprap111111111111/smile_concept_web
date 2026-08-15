@@ -94,13 +94,10 @@ class ToastHelper {
           borderRadius: BorderRadius.circular(8),
         ),
         duration: const Duration(seconds: 4),
-        action: SnackBarAction(
-          label: 'DISMISS',
-          textColor: Colors.white,
-          onPressed: () {
-            ScaffoldMessenger.of(context).hideCurrentSnackBar();
-          },
-        ),
+        // A SnackBarAction would set SnackBar.persist, which suppresses the
+        // auto-dismiss timer entirely. The close icon dismisses without it.
+        showCloseIcon: true,
+        closeIconColor: Colors.white,
       ),
     );
   }

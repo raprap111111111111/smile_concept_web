@@ -133,14 +133,73 @@ class AppTheme {
         thickness: 1,
         space: 0,
       ),
+      // Widgets that read `theme.hintColor` for secondary copy would otherwise
+      // land on Material's translucent black, which reads grey-on-tint rather
+      // than the palette's slate.
+      hintColor: AppColors.textSecondary,
+      // M3 resolves dialogs and menus from `surfaceContainerHigh`, which the
+      // baseline light scheme paints lavender. Pin them to the card white so
+      // pickers match the pages that open them.
+      dialogTheme: DialogThemeData(
+        backgroundColor: AppColors.background,
+        surfaceTintColor: Colors.transparent,
+        elevation: 8,
+        shadowColor: AppColors.cardShadow,
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(AppDimensions.borderRadiusLarge),
+        ),
+      ),
+      popupMenuTheme: PopupMenuThemeData(
+        color: AppColors.background,
+        surfaceTintColor: Colors.transparent,
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(AppDimensions.borderRadius),
+          side: const BorderSide(color: AppColors.line),
+        ),
+      ),
+      tooltipTheme: TooltipThemeData(
+        decoration: BoxDecoration(
+          color: AppColors.ink,
+          borderRadius: BorderRadius.circular(AppDimensions.borderRadiusSmall),
+        ),
+        textStyle: const TextStyle(
+          color: Colors.white,
+          fontSize: 12,
+          fontWeight: FontWeight.w600,
+        ),
+        waitDuration: const Duration(milliseconds: 400),
+      ),
+      snackBarTheme: SnackBarThemeData(
+        behavior: SnackBarBehavior.floating,
+        elevation: 0,
+        contentTextStyle: const TextStyle(
+          color: Colors.white,
+          fontWeight: FontWeight.w600,
+        ),
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(AppDimensions.borderRadius),
+        ),
+      ),
       colorScheme: const ColorScheme.light(
         primary: AppColors.primary,
-        secondary: AppColors.accent,
-        surface: AppColors.surface,
-        error: AppColors.error,
         onPrimary: Colors.white,
+        primaryContainer: AppColors.accentLight,
+        onPrimaryContainer: AppColors.primaryDark,
+        secondary: AppColors.accent,
         onSecondary: AppColors.ink,
+        secondaryContainer: AppColors.accentLight,
+        onSecondaryContainer: AppColors.primaryDark,
+        surface: AppColors.background,
         onSurface: AppColors.ink,
+        onSurfaceVariant: AppColors.textSecondary,
+        surfaceContainerLowest: AppColors.background,
+        surfaceContainerLow: AppColors.surface,
+        surfaceContainer: AppColors.surface,
+        surfaceContainerHigh: AppColors.background,
+        surfaceContainerHighest: AppColors.surface,
+        outline: AppColors.border,
+        outlineVariant: AppColors.line,
+        error: AppColors.error,
         onError: Colors.white,
       ),
     );
