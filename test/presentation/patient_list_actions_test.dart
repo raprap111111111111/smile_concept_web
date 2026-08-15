@@ -96,4 +96,20 @@ void main() {
     expect(find.byTooltip('View'), findsOneWidget);
     expect(find.text('Juan Dela Cruz'), findsOneWidget);
   });
+
+  testWidgets('the table shows no ID column', (tester) async {
+    await _pumpList(
+      tester,
+      const _FakeUser('receptionist', ['patient.viewAny', 'patient.view']),
+    );
+
+    // The primary key is an implementation detail; staff identify a patient by
+    // name. It is still reachable — the row and the View control both route to
+    // /patients/<id>.
+    expect(find.text('ID'), findsNothing);
+
+    for (final header in ['NAME', 'EMAIL', 'PHONE', 'BLOOD TYPE', 'ACTIONS']) {
+      expect(find.text(header), findsOneWidget, reason: 'header $header');
+    }
+  });
 }
