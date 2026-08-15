@@ -90,6 +90,14 @@ class RoutePermissions {
       Perm.patientAttachmentViewAny,
       Perm.patientAttachmentView,
     ],
+    // The staff-facing view of the same records — one folder per patient. It
+    // was never registered here, and an unregistered path is waved through, so
+    // every patient's files were reachable by URL without any permission at
+    // all. Same requirement as /patient-attachments, which it wraps.
+    '/patient-folders': [
+      Perm.patientAttachmentViewAny,
+      Perm.patientAttachmentView,
+    ],
 
     // ── Billing ────────────────────────────────────────────────
     '/invoices': [Perm.invoiceViewAny, Perm.invoiceView],
