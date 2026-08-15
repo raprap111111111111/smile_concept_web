@@ -1,6 +1,7 @@
 // lib/presentation/pages/doctor_schedules/widgets/schedule_card.dart
 
 import 'package:flutter/material.dart';
+import 'package:intl/intl.dart';
 
 import '../../../../data/models/doctor_schedule/doctor_schedule_model.dart';
 import '../../../theme/app_colors.dart';
@@ -22,8 +23,19 @@ class ScheduleCard extends StatelessWidget {
     this.onDelete,
   });
 
-  String _formatTime(String time) =>
-      time.length >= 5 ? time.substring(0, 5) : time;
+  /// `"14:30:00"` → `"2:30 PM"`. The API sends 24-hour `HH:mm[:ss]`; anything
+  /// that doesn't parse is shown as-is rather than swallowed.
+  String _formatTime(String time) {
+    final parts = time.split(':');
+    if (parts.length < 2) return time;
+
+    final hour = int.tryParse(parts[0]);
+    final minute = int.tryParse(parts[1]);
+    if (hour == null || minute == null) return time;
+    if (hour < 0 || hour > 23 || minute < 0 || minute > 59) return time;
+
+    return DateFormat('h:mm a').format(DateTime(2000, 1, 1, hour, minute));
+  }
 
   /// Get color based on day of week for visual variety
   Color _getDayColor() {

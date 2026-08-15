@@ -61,6 +61,21 @@ class AppColors {
   static const Color statusCancelledSoft = Color(0xFFFDE7E7);
   static const Color statusCancelledInk = Color(0xFFC62828);
 
+  // Row action icons. The vivid values above are fills and dots; drawn as an
+  // 18px glyph they miss WCAG's 3:1 non-text minimum — `warning` measures
+  // 1.6:1 on white, so the edit control was all but invisible. These are the
+  // same hues darkened until each clears 4.5:1 both on white and on the 10%
+  // tint it sits on.
+  static const Color actionViewInk = Color(0xFF1565C0);
+  static const Color actionEditInk = Color(0xFF8A5A00);
+  static const Color actionDeleteInk = Color(0xFFB3261E);
+
+  // Blood type badge. Its own pair rather than a reuse of `error`, which reads
+  // as "something went wrong" everywhere else it appears — a blood type is a
+  // clinical fact. Ink verified at 5.7:1 on its own soft tint.
+  static const Color bloodTypeSoft = Color(0xFFFDECEC);
+  static const Color bloodTypeInk = Color(0xFFB3261E);
+
   // Card Shadow
   static const Color cardShadow = Color(0x14000000);
 
