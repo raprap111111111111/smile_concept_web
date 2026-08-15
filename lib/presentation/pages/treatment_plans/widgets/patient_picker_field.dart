@@ -7,10 +7,17 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../../data/models/patient/patient_model.dart';
 import '../../../providers/patient/patient_search_provider.dart';
+import '../../../theme/app_colors.dart';
+import '../../../theme/app_dimensions.dart';
+import 'picker_dialog_chrome.dart';
 import 'package:smile_concept_web/core/errors/error_message.dart';
 
 /// A tappable field that opens a searchable patient picker dialog.
 /// Server-side search — safe for thousands of patients.
+///
+/// Colours are pinned to [AppColors] instead of the ambient scheme: main.dart
+/// still boots `ThemeData.dark()`, so theme-driven text here would render
+/// near-white on the form's white card.
 class PatientPickerField extends StatelessWidget {
   final PatientModel? selected;
   final bool hasError;
@@ -33,116 +40,152 @@ class PatientPickerField extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-    final borderColor = hasError
-        ? theme.colorScheme.error
-        : theme.colorScheme.outline.withValues(alpha: 0.5);
+    final picked = selected;
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        InkWell(
-          borderRadius: BorderRadius.circular(10),
-          onTap: () => _open(context),
-          child: Container(
-            padding: const EdgeInsets.symmetric(
-                horizontal: 14, vertical: 14),
-            decoration: BoxDecoration(
-              border: Border.all(color: borderColor),
-              borderRadius: BorderRadius.circular(10),
-            ),
-            child: Row(
-              children: [
-                _avatar(context, selected?.name),
-                const SizedBox(width: 12),
-                Expanded(
-                  child: selected == null
-                      ? Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            Text(
-                              'Select patient',
-                              style: TextStyle(
-                                  fontSize: 12,
-                                  color: theme.hintColor,
-                                  fontWeight: FontWeight.w500),
+        const Text(
+          'Patient *',
+          style: TextStyle(
+            fontSize: 14,
+            color: AppColors.ink,
+            fontWeight: FontWeight.w700,
+          ),
+        ),
+        const SizedBox(height: 8),
+        Material(
+          color: Colors.transparent,
+          child: InkWell(
+            borderRadius: BorderRadius.circular(AppDimensions.borderRadius),
+            onTap: () => _open(context),
+            hoverColor: AppColors.accentWithOpacity(0.12),
+            child: Container(
+              constraints: const BoxConstraints(minHeight: 64),
+              padding: const EdgeInsets.symmetric(
+                horizontal: 14,
+                vertical: 10,
+              ),
+              decoration: BoxDecoration(
+                color: picked == null ? AppColors.surface : AppColors.background,
+                border: Border.all(
+                  color: hasError
+                      ? AppColors.error
+                      : picked == null
+                          ? AppColors.line
+                          : AppColors.primaryLight,
+                  width: hasError ? 1.5 : 1,
+                ),
+                borderRadius:
+                    BorderRadius.circular(AppDimensions.borderRadius),
+              ),
+              child: Row(
+                children: [
+                  PatientAvatar(name: picked?.name),
+                  const SizedBox(width: 12),
+                  Expanded(
+                    child: picked == null
+                        ? const Text(
+                            'Tap to search patients by name, email or phone',
+                            style: TextStyle(
+                              color: AppColors.textSecondary,
+                              fontWeight: FontWeight.w600,
                             ),
-                            const SizedBox(height: 2),
-                            Text(
-                              'Tap to search patients',
-                              style: TextStyle(color: theme.hintColor),
-                            ),
-                          ],
-                        )
-                      : Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            Text(
-                              'Patient',
-                              style: TextStyle(
-                                  fontSize: 12,
-                                  color: theme.hintColor,
-                                  fontWeight: FontWeight.w500),
-                            ),
-                            const SizedBox(height: 2),
-                            Text(
-                              selected!.name,
-                              style: const TextStyle(
-                                  fontSize: 15,
-                                  fontWeight: FontWeight.w600),
-                              overflow: TextOverflow.ellipsis,
-                            ),
-                            if (selected!.phone != null &&
-                                selected!.phone!.isNotEmpty)
+                          )
+                        : Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
                               Text(
-                                selected!.phone!,
-                                style: TextStyle(
-                                    fontSize: 12,
-                                    color: theme.hintColor),
+                                picked.name,
+                                style: const TextStyle(
+                                  fontSize: 15,
+                                  fontWeight: FontWeight.w700,
+                                  color: AppColors.ink,
+                                ),
+                                overflow: TextOverflow.ellipsis,
                               ),
-                          ],
-                        ),
-                ),
-                Icon(
-                  selected == null ? Icons.search : Icons.swap_horiz,
-                  color: theme.hintColor,
-                ),
-              ],
+                              const SizedBox(height: 2),
+                              Text(
+                                [
+                                  if (picked.phone != null &&
+                                      picked.phone!.isNotEmpty)
+                                    picked.phone!,
+                                  if (picked.email.isNotEmpty) picked.email,
+                                ].join('  ·  '),
+                                style: const TextStyle(
+                                  fontSize: 12,
+                                  color: AppColors.textSecondary,
+                                  fontWeight: FontWeight.w500,
+                                ),
+                                overflow: TextOverflow.ellipsis,
+                              ),
+                            ],
+                          ),
+                  ),
+                  const SizedBox(width: 8),
+                  Icon(
+                    picked == null
+                        ? Icons.search_rounded
+                        : Icons.swap_horiz_rounded,
+                    size: 20,
+                    color: AppColors.textSecondary,
+                  ),
+                ],
+              ),
             ),
           ),
         ),
         if (hasError)
-          Padding(
-            padding: const EdgeInsets.only(top: 6, left: 12),
-            child: Text(
-              'Please select a patient',
-              style: TextStyle(
-                  color: theme.colorScheme.error, fontSize: 12),
+          const Padding(
+            padding: EdgeInsets.only(top: 6, left: 2),
+            child: Row(
+              children: [
+                Icon(Icons.error_outline, size: 14, color: AppColors.error),
+                SizedBox(width: 6),
+                Text(
+                  'Please select a patient',
+                  style: TextStyle(
+                    color: AppColors.error,
+                    fontSize: 12,
+                    fontWeight: FontWeight.w600,
+                  ),
+                ),
+              ],
             ),
           ),
       ],
     );
   }
+}
 
-  Widget _avatar(BuildContext context, String? name) {
-    final theme = Theme.of(context);
-    final initial = (name != null && name.trim().isNotEmpty)
-        ? name.trim()[0].toUpperCase()
-        : '?';
+/// Circular initial badge, shared by the field and the result rows.
+class PatientAvatar extends StatelessWidget {
+  final String? name;
+  final double size;
+
+  const PatientAvatar({super.key, required this.name, this.size = 40});
+
+  @override
+  Widget build(BuildContext context) {
+    final trimmed = name?.trim() ?? '';
+    final initial = trimmed.isNotEmpty ? trimmed[0].toUpperCase() : '?';
+
     return Container(
-      width: 40,
-      height: 40,
+      width: size,
+      height: size,
       alignment: Alignment.center,
       decoration: BoxDecoration(
-        color: theme.colorScheme.primary.withValues(alpha: 0.15),
+        color: AppColors.accentWithOpacity(0.25),
         shape: BoxShape.circle,
+        border: Border.all(color: AppColors.accentWithOpacity(0.5)),
       ),
       child: Text(
         initial,
         style: TextStyle(
-          color: theme.colorScheme.primary,
-          fontWeight: FontWeight.bold,
-          fontSize: 16,
+          color: AppColors.primaryDark,
+          fontWeight: FontWeight.w800,
+          fontSize: size * 0.4,
         ),
       ),
     );
@@ -183,92 +226,35 @@ class _PatientPickerDialogState
 
   @override
   Widget build(BuildContext context) {
-    final theme = Theme.of(context);
     final resultsAsync = ref.watch(patientSearchProvider(_query));
 
     return Dialog(
+      backgroundColor: AppColors.background,
+      surfaceTintColor: Colors.transparent,
+      clipBehavior: Clip.antiAlias,
       shape: RoundedRectangleBorder(
         borderRadius: BorderRadius.circular(16),
       ),
       child: ConstrainedBox(
-        constraints:
-            const BoxConstraints(maxWidth: 560, maxHeight: 620),
+        constraints: const BoxConstraints(maxWidth: 560, maxHeight: 620),
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            // ── Header ────────────────────────────
-            Padding(
-              padding: const EdgeInsets.fromLTRB(20, 18, 10, 8),
-              child: Row(
-                children: [
-                  Container(
-                    padding: const EdgeInsets.all(8),
-                    decoration: BoxDecoration(
-                      color: theme.colorScheme.primary
-                          .withValues(alpha: 0.15),
-                      borderRadius: BorderRadius.circular(10),
-                    ),
-                    child: Icon(Icons.person_search,
-                        color: theme.colorScheme.primary),
-                  ),
-                  const SizedBox(width: 12),
-                  const Expanded(
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text('Select Patient',
-                            style: TextStyle(
-                                fontWeight: FontWeight.bold,
-                                fontSize: 16)),
-                        Text(
-                          'Search by name, email, or phone',
-                          style:
-                              TextStyle(fontSize: 12, color: Colors.grey),
-                        ),
-                      ],
-                    ),
-                  ),
-                  IconButton(
-                    onPressed: () => Navigator.pop(context),
-                    icon: const Icon(Icons.close),
-                    tooltip: 'Close',
-                  ),
-                ],
-              ),
+            const PickerDialogHeader(
+              icon: Icons.person_search_rounded,
+              title: 'Select Patient',
+              subtitle: 'Search by name, email, or phone',
             ),
-
-            // ── Search box ────────────────────────
-            Padding(
-              padding:
-                  const EdgeInsets.symmetric(horizontal: 20, vertical: 4),
-              child: TextField(
-                controller: _ctrl,
-                autofocus: true,
-                decoration: InputDecoration(
-                  hintText: 'Type to search patients...',
-                  prefixIcon: const Icon(Icons.search),
-                  suffixIcon: _ctrl.text.isNotEmpty
-                      ? IconButton(
-                          icon: const Icon(Icons.clear, size: 18),
-                          onPressed: () {
-                            _ctrl.clear();
-                            _onChanged('');
-                          },
-                        )
-                      : null,
-                  border: OutlineInputBorder(
-                    borderRadius: BorderRadius.circular(10),
-                  ),
-                  isDense: true,
-                ),
-                onChanged: _onChanged,
-              ),
+            PickerSearchField(
+              controller: _ctrl,
+              hintText: 'Type to search patients…',
+              onChanged: _onChanged,
+              onClear: () {
+                _ctrl.clear();
+                _onChanged('');
+              },
             ),
-            const SizedBox(height: 8),
-            Divider(
-                height: 1,
-                color: theme.colorScheme.outline
-                    .withValues(alpha: 0.15)),
+            const Divider(height: 1, color: AppColors.line),
 
             // ── Results ───────────────────────────
             Expanded(
@@ -276,45 +262,54 @@ class _PatientPickerDialogState
                 loading: () => const Center(
                   child: Padding(
                     padding: EdgeInsets.all(32),
-                    child: CircularProgressIndicator(),
+                    child: CircularProgressIndicator(
+                      valueColor:
+                          AlwaysStoppedAnimation(AppColors.primaryDark),
+                    ),
                   ),
                 ),
-                error: (e, _) => Center(
-                  child: Padding(
-                    padding: const EdgeInsets.all(24),
-                    child: Column(
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        const Icon(Icons.error_outline,
-                            color: Colors.red, size: 40),
-                        const SizedBox(height: 12),
-                        Text(describeError(e),
-                            textAlign: TextAlign.center,
-                            style:
-                                const TextStyle(color: Colors.red)),
-                        const SizedBox(height: 12),
-                        FilledButton.tonalIcon(
-                          onPressed: () => ref.invalidate(
-                              patientSearchProvider(_query)),
-                          icon: const Icon(Icons.refresh),
-                          label: const Text('Retry'),
+                error: (e, _) => PickerDialogEmpty(
+                  icon: Icons.wifi_off_rounded,
+                  title: 'Could not load patients',
+                  message: describeError(e),
+                  action: FilledButton.icon(
+                    onPressed: () =>
+                        ref.invalidate(patientSearchProvider(_query)),
+                    icon: const Icon(Icons.refresh_rounded, size: 18),
+                    label: const Text('Retry'),
+                    style: FilledButton.styleFrom(
+                      backgroundColor: AppColors.primary,
+                      foregroundColor: Colors.white,
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(
+                          AppDimensions.borderRadius,
                         ),
-                      ],
+                      ),
                     ),
                   ),
                 ),
                 data: (patients) {
                   if (patients.isEmpty) {
-                    return _emptyState(context);
+                    return PickerDialogEmpty(
+                      icon: Icons.person_off_outlined,
+                      title: _query.isEmpty
+                          ? 'No patients yet'
+                          : 'No matches',
+                      message: _query.isEmpty
+                          ? 'Add patients from the Patients page first.'
+                          : 'No patient matches "$_query". '
+                              'Try a different name, email, or phone.',
+                    );
                   }
                   return ListView.separated(
                     padding: const EdgeInsets.symmetric(vertical: 4),
                     itemCount: patients.length,
-                    separatorBuilder: (_, __) => Divider(
-                        height: 1,
-                        indent: 72,
-                        color: theme.colorScheme.outline
-                            .withValues(alpha: 0.1)),
+                    separatorBuilder: (_, __) => const Divider(
+                      height: 1,
+                      indent: 72,
+                      endIndent: 20,
+                      color: AppColors.line,
+                    ),
                     itemBuilder: (_, i) {
                       final p = patients[i];
                       return _PatientTile(
@@ -330,64 +325,36 @@ class _PatientPickerDialogState
             // ── Footer hint ───────────────────────
             Container(
               padding: const EdgeInsets.symmetric(
-                  horizontal: 20, vertical: 12),
-              decoration: BoxDecoration(
-                color:
-                    theme.colorScheme.surface.withValues(alpha: 0.5),
-                border: Border(
-                  top: BorderSide(
-                      color: theme.colorScheme.outline
-                          .withValues(alpha: 0.15)),
-                ),
+                horizontal: 20,
+                vertical: 12,
+              ),
+              decoration: const BoxDecoration(
+                color: AppColors.surface,
+                border: Border(top: BorderSide(color: AppColors.line)),
               ),
               child: Row(
                 children: [
-                  Icon(Icons.info_outline,
-                      size: 14, color: theme.hintColor),
+                  const Icon(
+                    Icons.info_outline,
+                    size: 14,
+                    color: AppColors.textSecondary,
+                  ),
                   const SizedBox(width: 6),
                   Expanded(
                     child: Text(
                       _query.isEmpty
                           ? 'Showing recent patients. Type to search.'
                           : 'Showing results for "$_query"',
-                      style: TextStyle(
-                          fontSize: 12, color: theme.hintColor),
+                      style: const TextStyle(
+                        fontSize: 12,
+                        color: AppColors.textSecondary,
+                        fontWeight: FontWeight.w500,
+                      ),
+                      overflow: TextOverflow.ellipsis,
                     ),
                   ),
                 ],
               ),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-
-  Widget _emptyState(BuildContext context) {
-    final theme = Theme.of(context);
-    return Center(
-      child: Padding(
-        padding: const EdgeInsets.all(32),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Icon(Icons.person_off_outlined,
-                size: 48, color: theme.hintColor),
-            const SizedBox(height: 12),
-            Text(
-              _query.isEmpty
-                  ? 'No patients yet'
-                  : 'No patients match "$_query"',
-              style: TextStyle(
-                  fontWeight: FontWeight.w600, color: theme.hintColor),
-            ),
-            const SizedBox(height: 4),
-            Text(
-              _query.isEmpty
-                  ? 'Add patients from the Patients page first.'
-                  : 'Try a different name, email, or phone.',
-              style: TextStyle(fontSize: 12, color: theme.hintColor),
-              textAlign: TextAlign.center,
             ),
           ],
         ),
@@ -405,80 +372,82 @@ class _PatientTile extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-    final initial = patient.name.trim().isNotEmpty
-        ? patient.name.trim()[0].toUpperCase()
-        : '?';
-
-    return InkWell(
-      onTap: onTap,
-      child: Padding(
-        padding: const EdgeInsets.symmetric(
-            horizontal: 20, vertical: 12),
-        child: Row(
-          children: [
-            Container(
-              width: 40,
-              height: 40,
-              alignment: Alignment.center,
-              decoration: BoxDecoration(
-                color:
-                    theme.colorScheme.primary.withValues(alpha: 0.15),
-                shape: BoxShape.circle,
-              ),
-              child: Text(initial,
-                  style: TextStyle(
-                    color: theme.colorScheme.primary,
-                    fontWeight: FontWeight.bold,
-                  )),
-            ),
-            const SizedBox(width: 14),
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    patient.name,
-                    style: const TextStyle(
-                        fontWeight: FontWeight.w600, fontSize: 14),
-                    overflow: TextOverflow.ellipsis,
-                  ),
-                  const SizedBox(height: 2),
-                  Row(
-                    children: [
-                      if (patient.phone != null &&
-                          patient.phone!.isNotEmpty) ...[
-                        Icon(Icons.phone,
-                            size: 12, color: theme.hintColor),
-                        const SizedBox(width: 4),
-                        Text(patient.phone!,
-                            style: TextStyle(
-                                fontSize: 12,
-                                color: theme.hintColor)),
-                        const SizedBox(width: 10),
-                      ],
-                      if (patient.email.isNotEmpty) ...[
-                        Icon(Icons.email_outlined,
-                            size: 12, color: theme.hintColor),
-                        const SizedBox(width: 4),
-                        Expanded(
-                          child: Text(
-                            patient.email,
-                            style: TextStyle(
-                                fontSize: 12,
-                                color: theme.hintColor),
-                            overflow: TextOverflow.ellipsis,
+    return Material(
+      color: Colors.transparent,
+      child: InkWell(
+        onTap: onTap,
+        hoverColor: AppColors.accentWithOpacity(0.12),
+        child: Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
+          child: Row(
+            children: [
+              PatientAvatar(name: patient.name),
+              const SizedBox(width: 14),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      patient.name,
+                      style: const TextStyle(
+                        fontWeight: FontWeight.w700,
+                        fontSize: 14,
+                        color: AppColors.ink,
+                      ),
+                      overflow: TextOverflow.ellipsis,
+                    ),
+                    const SizedBox(height: 3),
+                    Row(
+                      children: [
+                        if (patient.phone != null &&
+                            patient.phone!.isNotEmpty) ...[
+                          const Icon(
+                            Icons.phone_rounded,
+                            size: 12,
+                            color: AppColors.textSecondary,
                           ),
-                        ),
+                          const SizedBox(width: 4),
+                          Text(
+                            patient.phone!,
+                            style: const TextStyle(
+                              fontSize: 12,
+                              color: AppColors.textSecondary,
+                              fontWeight: FontWeight.w500,
+                            ),
+                          ),
+                          const SizedBox(width: 10),
+                        ],
+                        if (patient.email.isNotEmpty) ...[
+                          const Icon(
+                            Icons.email_outlined,
+                            size: 12,
+                            color: AppColors.textSecondary,
+                          ),
+                          const SizedBox(width: 4),
+                          Expanded(
+                            child: Text(
+                              patient.email,
+                              style: const TextStyle(
+                                fontSize: 12,
+                                color: AppColors.textSecondary,
+                                fontWeight: FontWeight.w500,
+                              ),
+                              overflow: TextOverflow.ellipsis,
+                            ),
+                          ),
+                        ],
                       ],
-                    ],
-                  ),
-                ],
+                    ),
+                  ],
+                ),
               ),
-            ),
-            const SizedBox(width: 8),
-            Icon(Icons.chevron_right, color: theme.hintColor),
-          ],
+              const SizedBox(width: 8),
+              const Icon(
+                Icons.chevron_right_rounded,
+                color: AppColors.textTertiary,
+              ),
+            ],
+          ),
         ),
       ),
     );
