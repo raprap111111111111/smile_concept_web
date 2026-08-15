@@ -186,13 +186,21 @@ class SidebarNavConfig {
             icon: Icons.medical_services_outlined,
             title: 'Items Catalog',
             routeName: RouteNames.items,
-            permissions: [Perm.inventoryViewAny],
+            // Kept in step with the router's /items rule, which accepts either
+            // family. Gating on viewAny alone also hid the link from a user who
+            // holds only `view` and can in fact open the page by URL.
+            permissions: [
+              Perm.itemViewAny,
+              Perm.itemView,
+              Perm.inventoryViewAny,
+              Perm.inventoryView,
+            ],
           ),
           NavItem(
             icon: Icons.inventory_2_outlined,
             title: 'Inventory',
             routeName: RouteNames.inventory,
-            permissions: [Perm.inventoryViewAny],
+            permissions: [Perm.inventoryViewAny, Perm.inventoryView],
           ),
           NavItem(
             icon: Icons.account_balance_outlined,

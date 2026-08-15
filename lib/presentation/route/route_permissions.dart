@@ -106,8 +106,17 @@ class RoutePermissions {
     // ── Operations ─────────────────────────────────────────────
     '/inventory/new': [Perm.inventoryCreate],
     '/inventory': [Perm.inventoryViewAny, Perm.inventoryView],
-    '/items/new': [Perm.inventoryCreate],
-    '/items': [Perm.inventoryViewAny, Perm.inventoryView],
+    // The catalog is its own `item.*` family server-side, but until this
+    // release nothing granted it, so the pages were reachable only via
+    // `inventory.*`. Both are accepted (the lists are OR-semantics) so the
+    // catalog keeps working whether or not the seeder has been re-run.
+    '/items/new': [Perm.itemCreate, Perm.inventoryCreate],
+    '/items': [
+      Perm.itemViewAny,
+      Perm.itemView,
+      Perm.inventoryViewAny,
+      Perm.inventoryView,
+    ],
     '/branches': [Perm.branchViewAny],
 
     // ── System ─────────────────────────────────────────────────

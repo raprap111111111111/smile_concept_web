@@ -5,6 +5,8 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
 import '/../core/permissions/app_permissions.dart';
+import '../../../core/utils/toast_helper.dart';
+import '../../../data/models/inventory/item_model.dart';
 import '../../providers/auth/auth_provider.dart';
 import '../../providers/inventory/item_provider.dart';
 import '../../route/route_names.dart';
@@ -12,6 +14,7 @@ import '../../theme/app_colors.dart';
 import '../../theme/app_dimensions.dart';
 import '../../theme/app_text_styles.dart';
 import '../../widgets/shared/hold_to_delete_dialog.dart';
+import '../../widgets/shared/search_bar_onclick.dart';
 
 class ItemsPage extends ConsumerStatefulWidget {
   const ItemsPage({super.key});
@@ -21,46 +24,80 @@ class ItemsPage extends ConsumerStatefulWidget {
 }
 
 class _ItemsPageState extends ConsumerState<ItemsPage> {
+  final _searchController = TextEditingController();
+  final _scrollController = ScrollController();
+
   @override
   void initState() {
     super.initState();
+
     WidgetsBinding.instance.addPostFrameCallback((_) {
       ref.read(itemProvider.notifier).loadItems();
     });
+
+    // Same 200px trigger as InventoryPage, so the two lists behave alike.
+    _scrollController.addListener(() {
+      final position = _scrollController.position;
+
+      if (position.pixels >= position.maxScrollExtent - 200) {
+        ref.read(itemProvider.notifier).loadMore();
+      }
+    });
+  }
+
+  @override
+  void dispose() {
+    _searchController.dispose();
+    _scrollController.dispose();
+    super.dispose();
+  }
+
+  void _onSearch(String query) =>
+      ref.read(itemProvider.notifier).loadItems(search: query);
+
+  void _onClearSearch() {
+    _searchController.clear();
+    ref.read(itemProvider.notifier).loadItems(search: '');
   }
 
   Future<void> _delete(int id, String name) async {
-  final confirmed = await HoldToDeleteDialog.show(
-    context: context,
-    title: 'Delete Item',
-    itemName: name,
-    description: 'You are about to delete "$name" from the item catalog. '
-        'This will affect all inventory records and cannot be undone.',
-  );
+    final confirmed = await HoldToDeleteDialog.show(
+      context: context,
+      title: 'Delete Item',
+      itemName: name,
+      description: 'You are about to delete "$name" from the item catalog. '
+          'This is refused while any branch still holds stock of it.',
+    );
 
-  if (!confirmed || !mounted) return;
+    if (!confirmed || !mounted) return;
 
-  final success = await ref.read(itemProvider.notifier).deleteItem(id);
+    final success = await ref.read(itemProvider.notifier).deleteItem(id);
 
-  if (!mounted) return;
-  ScaffoldMessenger.of(context).showSnackBar(
-    SnackBar(
-      content: Text(
-        success ? '"$name" deleted from catalog' : 'Failed to delete',
-        style: const TextStyle(color: Colors.white),
-      ),
-      backgroundColor: success ? AppColors.success : AppColors.error,
-      behavior: SnackBarBehavior.floating,
-    ),
-  );
-}
+    if (!mounted) return;
+
+    if (success) {
+      ToastHelper.success(context, '"$name" deleted from catalog');
+    } else {
+      // The server refuses with a 409 naming how many branches still stock it,
+      // which is far more useful than a flat "failed to delete".
+      ToastHelper.error(
+        context,
+        ref.read(itemProvider).submitError ?? 'Could not delete "$name".',
+      );
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
     final state = ref.watch(itemProvider);
     final auth = ref.watch(authStateProvider);
-    final canCreate = auth.hasPermission(Perm.inventoryCreate);
-    final canDelete = auth.hasPermission(Perm.inventoryDelete);
+    // Either family grants the catalog, matching the router's /items rule.
+    final canCreate = auth.hasAnyPermission(
+      [Perm.itemCreate, Perm.inventoryCreate],
+    );
+    final canDelete = auth.hasAnyPermission(
+      [Perm.itemDelete, Perm.inventoryDelete],
+    );
 
     return Scaffold(
       backgroundColor: AppColors.surface,
@@ -119,6 +156,22 @@ class _ItemsPageState extends ConsumerState<ItemsPage> {
                   ),
                 ),
               ],
+            ),
+          ),
+
+          // ── Search ───────────────────────────────────
+          Padding(
+            padding: const EdgeInsets.fromLTRB(
+              AppDimensions.paddingLarge,
+              0,
+              AppDimensions.paddingLarge,
+              AppDimensions.paddingMedium,
+            ),
+            child: SearchBarOnClick(
+              controller: _searchController,
+              hintText: 'Search by name, SKU or category...',
+              onChanged: _onSearch,
+              onClear: _onClearSearch,
             ),
           ),
 
@@ -203,32 +256,67 @@ class _ItemsPageState extends ConsumerState<ItemsPage> {
       );
     }
 
-    return ListView.builder(
-      padding: const EdgeInsets.symmetric(
-        horizontal: AppDimensions.paddingLarge,
+    return RefreshIndicator(
+      color: AppColors.primary,
+      onRefresh: () => ref.read(itemProvider.notifier).refresh(),
+      child: Center(
+        child: ConstrainedBox(
+          constraints: const BoxConstraints(
+            maxWidth: AppDimensions.maxContentWidth,
+          ),
+          child: ListView.builder(
+            controller: _scrollController,
+            physics: const AlwaysScrollableScrollPhysics(),
+            padding: const EdgeInsets.symmetric(
+              horizontal: AppDimensions.paddingLarge,
+            ),
+            // Trailing spinner row while the next page loads, matching
+            // InventoryPage.
+            itemCount: state.items.length + (state.isLoadingMore ? 1 : 0),
+            itemBuilder: (context, index) {
+              if (index >= state.items.length) {
+                return const Padding(
+                  padding: EdgeInsets.all(AppDimensions.paddingMedium),
+                  child: Center(
+                    child: CircularProgressIndicator(color: AppColors.primary),
+                  ),
+                );
+              }
+
+              final item = state.items[index];
+
+              return _ItemCard(
+                item: item,
+                canDelete: canDelete,
+                onDelete: () => _delete(item.id, item.name),
+                // The edit route has existed all along but nothing linked to
+                // it — it was reachable only by typing the URL.
+                onTap: () => context.pushNamed(
+                  RouteNames.itemEdit,
+                  pathParameters: {'id': item.id.toString()},
+                ),
+              );
+            },
+          ),
+        ),
       ),
-      itemCount: state.items.length,
-      itemBuilder: (context, index) {
-        final item = state.items[index];
-        return _ItemCard(
-          item: item,
-          canDelete: canDelete,
-          onDelete: () => _delete(item.id, item.name),
-        );
-      },
     );
   }
 }
 
 class _ItemCard extends StatelessWidget {
-  final dynamic item;
+  /// Typed, not `dynamic` — this card reads five fields off it and had no
+  /// compile-time safety on any of them.
+  final ItemModel item;
   final bool canDelete;
   final VoidCallback? onDelete;
+  final VoidCallback? onTap;
 
   const _ItemCard({
     required this.item,
     this.canDelete = false,
     this.onDelete,
+    this.onTap,
   });
 
   @override
@@ -248,7 +336,15 @@ class _ItemCard extends StatelessWidget {
           ),
         ],
       ),
-      child: Padding(
+      // Material + InkWell rather than a bare GestureDetector, so the tap has
+      // a ripple and the card reads as actionable.
+      child: Material(
+        color: Colors.transparent,
+        borderRadius: BorderRadius.circular(AppDimensions.borderRadiusLarge),
+        child: InkWell(
+          onTap: onTap,
+          borderRadius: BorderRadius.circular(AppDimensions.borderRadiusLarge),
+          child: Padding(
         padding: const EdgeInsets.all(AppDimensions.paddingMedium),
         child: Row(
           children: [
@@ -298,6 +394,8 @@ class _ItemCard extends StatelessWidget {
                 iconSize: AppDimensions.iconSizeMedium,
               ),
           ],
+        ),
+          ),
         ),
       ),
     );
