@@ -26,7 +26,7 @@ class InventoryCard extends StatelessWidget {
     final branch = inventory.branch;
 
     return Container(
-      margin: const EdgeInsets.only(bottom: AppDimensions.paddingSmall),
+      margin: const EdgeInsets.only(bottom: AppDimensions.paddingMedium),
       decoration: BoxDecoration(
         color: AppColors.background,
         borderRadius:
@@ -38,7 +38,7 @@ class InventoryCard extends StatelessWidget {
         boxShadow: const [
           BoxShadow(
             color: AppColors.cardShadow,
-            blurRadius: 8,
+            blurRadius: 10,
             offset: Offset(0, 2),
           ),
         ],
@@ -50,7 +50,7 @@ class InventoryCard extends StatelessWidget {
           borderRadius:
               BorderRadius.circular(AppDimensions.borderRadiusLarge),
           child: Padding(
-            padding: const EdgeInsets.all(AppDimensions.paddingMedium),
+            padding: const EdgeInsets.all(AppDimensions.cardPaddingSmall),
             child: Row(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
@@ -59,7 +59,12 @@ class InventoryCard extends StatelessWidget {
                   width: AppDimensions.iconBadgeSize,
                   height: AppDimensions.iconBadgeSize,
                   decoration: BoxDecoration(
-                    color: _iconBgColor,
+                    gradient: inventory.isLowStock || inventory.isExpired
+                        ? null
+                        : AppColors.accentGradient,
+                    color: inventory.isLowStock || inventory.isExpired
+                        ? _iconBgColor
+                        : null,
                     borderRadius: BorderRadius.circular(
                         AppDimensions.borderRadius),
                   ),
@@ -167,7 +172,7 @@ class InventoryCard extends StatelessWidget {
                   IconButton(
                     onPressed: onDelete,
                     icon: const Icon(Icons.delete_outline),
-                    color: AppColors.error.withValues(alpha:0.7),
+                    color: AppColors.actionDeleteInk,
                     iconSize: AppDimensions.iconSizeMedium,
                     tooltip: 'Delete',
                   ),
@@ -193,13 +198,13 @@ class InventoryCard extends StatelessWidget {
 
   Color get _iconColor {
     if (inventory.isExpired) return AppColors.error;
-    if (inventory.isLowStock) return AppColors.warning;
-    return AppColors.primary;
+    if (inventory.isLowStock) return AppColors.statusPendingInk;
+    return Colors.white;
   }
 
   Color get _quantityColor {
     if (inventory.isExpired) return AppColors.error;
-    if (inventory.isLowStock) return AppColors.warning;
+    if (inventory.isLowStock) return AppColors.statusPendingInk;
     return AppColors.success;
   }
 }
@@ -218,7 +223,7 @@ class _StatusBadge extends StatelessWidget {
       color = AppColors.error;
       icon = Icons.warning_amber_rounded;
     } else if (inventory.isLowStock) {
-      color = AppColors.warning;
+      color = AppColors.statusPendingInk;
       icon = Icons.trending_down;
     } else {
       color = AppColors.success;
