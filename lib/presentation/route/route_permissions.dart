@@ -90,16 +90,42 @@ class RoutePermissions {
       Perm.patientAttachmentViewAny,
       Perm.patientAttachmentView,
     ],
+    // The staff-facing view of the same records — one folder per patient. It
+    // was never registered here, and an unregistered path is waved through, so
+    // every patient's files were reachable by URL without any permission at
+    // all. Same requirement as /patient-attachments, which it wraps.
+    '/patient-folders': [
+      Perm.patientAttachmentViewAny,
+      Perm.patientAttachmentView,
+    ],
 
     // ── Billing ────────────────────────────────────────────────
     '/invoices': [Perm.invoiceViewAny, Perm.invoiceView],
     '/payments': [Perm.paymentViewAny, Perm.paymentView],
 
     // ── Operations ─────────────────────────────────────────────
+    // The four stock verbs each gate on their own permission — the ones the
+    // seeder has always granted to admin but which had no code behind them.
+    '/inventory/stock-in': [Perm.inventoryStockIn],
+    '/inventory/usage': [Perm.inventoryStockOut],
+    '/inventory/adjust': [Perm.inventoryAdjust],
+    '/inventory/transfer': [Perm.inventoryTransfer],
     '/inventory/new': [Perm.inventoryCreate],
     '/inventory': [Perm.inventoryViewAny, Perm.inventoryView],
-    '/items/new': [Perm.inventoryCreate],
-    '/items': [Perm.inventoryViewAny, Perm.inventoryView],
+    // Editing clinic-wide stock rules is a write action, so it gates on
+    // setting.update — same reasoning as /appointment-settings.
+    '/inventory-settings': [Perm.settingUpdate],
+    // The catalog is its own `item.*` family server-side, but until this
+    // release nothing granted it, so the pages were reachable only via
+    // `inventory.*`. Both are accepted (the lists are OR-semantics) so the
+    // catalog keeps working whether or not the seeder has been re-run.
+    '/items/new': [Perm.itemCreate, Perm.inventoryCreate],
+    '/items': [
+      Perm.itemViewAny,
+      Perm.itemView,
+      Perm.inventoryViewAny,
+      Perm.inventoryView,
+    ],
     '/branches': [Perm.branchViewAny],
 
     // ── System ─────────────────────────────────────────────────

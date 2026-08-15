@@ -98,6 +98,14 @@ class RouteNames {
   static const String itemEdit = 'item-edit';
   static const String inventoryEdit = 'inventory-edit';
   static const String inventoryDetail = 'inventory-detail';
+
+  // ── Stock movements ───────────────────────────────────────
+  static const String inventoryStockIn = 'inventory-stock-in';
+  static const String inventoryUsage = 'inventory-usage';
+  static const String inventoryAdjust = 'inventory-adjust';
+  static const String inventoryTransfer = 'inventory-transfer';
+  static const String inventorySettings = 'inventory-settings';
+
   static const String items = 'items';
   static const String itemCreate = 'item-create';
   static const String branches = 'branches';

@@ -3,11 +3,11 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../../../core/utils/toast_helper.dart';
 import '../../providers/inventory/item_provider.dart';
 import '../../theme/app_colors.dart';
 import '../../theme/app_dimensions.dart';
 import '../../theme/app_text_styles.dart';
-import 'package:smile_concept_web/core/errors/error_message.dart';
 
 class ItemFormPage extends ConsumerStatefulWidget {
   final int? itemId;
@@ -96,7 +96,9 @@ class _ItemFormPageState extends ConsumerState<ItemFormPage> {
         });
       }
     } catch (e) {
-      if (mounted) _showSnack(describeError(e, fallback: 'Failed to load item'), AppColors.error);
+      if (mounted) {
+        ToastHelper.fromError(context, e, fallback: 'Could not load that item.');
+      }
     } finally {
       if (mounted) setState(() => _isLoading = false);
     }
@@ -131,39 +133,19 @@ class _ItemFormPageState extends ConsumerState<ItemFormPage> {
       }
 
       if (mounted) {
-        _showSnack(
-          _isEditMode
-              ? 'Item updated successfully'
-              : 'Item created successfully',
-          AppColors.success,
+        ToastHelper.success(
+          context,
+          _isEditMode ? 'Item updated' : 'Item created',
         );
         Navigator.of(context).pop();
       }
     } catch (e) {
-      if (mounted) {
-        _showSnack(describeError(e), AppColors.error);
-      }
+      // A duplicate SKU comes back as a 422 whose field message is the useful
+      // part; fromError surfaces it rather than a generic failure line.
+      if (mounted) ToastHelper.fromError(context, e);
     } finally {
       if (mounted) setState(() => _isSubmitting = false);
     }
-  }
-
-  // ── Snackbar helper ────────────────────────────────────────
-  void _showSnack(String msg, Color color) {
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: Text(
-          msg,
-          style: const TextStyle(color: Colors.white),
-        ),
-        backgroundColor: color,
-        behavior: SnackBarBehavior.floating,
-        shape: RoundedRectangleBorder(
-          borderRadius:
-              BorderRadius.circular(AppDimensions.borderRadius),
-        ),
-      ),
-    );
   }
 
   @override

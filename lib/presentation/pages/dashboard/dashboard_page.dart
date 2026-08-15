@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
+import '/../core/permissions/app_permissions.dart';
 import '../../../data/models/dashboard/dashboard_stats.dart';
 import '../../../data/models/dashboard/recent_activity.dart';
 import '../../../data/models/dashboard/today_schedule.dart';
@@ -19,6 +20,7 @@ import 'components/charts/hourly_appointments_chart.dart';
 import 'components/charts/new_patients_chart.dart';
 import 'components/schedule_card.dart';
 import 'components/stat_card.dart';
+import 'components/stock_health_banner.dart';
 import 'dashboard_providers.dart';
 
 class DashboardPage extends ConsumerWidget {
@@ -39,6 +41,10 @@ class DashboardPage extends ConsumerWidget {
     final hasError = statsAsync.hasError ||
         scheduleAsync.hasError ||
         activityAsync.hasError;
+
+    final canSeeStock = ref.watch(authStateProvider).hasAnyPermission(
+      const [Perm.inventoryViewAny, Perm.inventoryView],
+    );
 
     return RefreshIndicator(
       onRefresh: () async => refreshDashboard(ref),
@@ -119,7 +125,17 @@ class DashboardPage extends ConsumerWidget {
               ],
             ),
 
-            const SizedBox(height: AppDimensions.paddingXL),
+            // ─── Stock health ───────────────────────────────
+            // Renders nothing when the cupboard is fine, and is hidden outright
+            // from anyone who cannot open the inventory page it links to.
+            if (canSeeStock) ...[
+              StockHealthBanner(stats: stats),
+              if (stats.hasStockWarnings)
+                const SizedBox(height: AppDimensions.paddingXL),
+            ],
+
+            if (!canSeeStock || !stats.hasStockWarnings)
+              const SizedBox(height: AppDimensions.paddingXL),
 
             // ─── Charts ─────────────────────────────────────
             LayoutBuilder(

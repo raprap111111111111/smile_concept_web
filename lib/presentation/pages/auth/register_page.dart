@@ -248,13 +248,23 @@ class _RegisterPageState extends ConsumerState<RegisterPage> {
   /// Optional emergency contact, tucked away so it doesn't lengthen the form
   /// for the people who skip it.
   Widget _buildEmergencyContactSection() {
-    return Container(
-      decoration: BoxDecoration(
-        border: Border.all(color: AuthDesign.line),
-        borderRadius: BorderRadius.circular(12),
-        color: Colors.white,
-      ),
+    // Material rather than a Container with a coloured BoxDecoration.
+    //
+    // ExpansionTile builds a ListTile, which paints its background and ink on
+    // the nearest Material ancestor. With the white sitting on an intermediate
+    // DecoratedBox instead, that Material was further up and the tile's ink was
+    // painted underneath the white — which Flutter now asserts on, taking every
+    // widget test that renders this page down with it.
+    //
+    // Same white, same 12px radius, same hairline border; the surface just
+    // comes from a Material so the tile has something real to paint onto.
+    return Material(
+      color: Colors.white,
       clipBehavior: Clip.antiAlias,
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(12),
+        side: const BorderSide(color: AuthDesign.line),
+      ),
       child: Theme(
         // The default tile paints its own dividers over the border above.
         data: Theme.of(context).copyWith(dividerColor: Colors.transparent),

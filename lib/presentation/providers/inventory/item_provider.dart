@@ -35,6 +35,13 @@ class ItemState {
   final int lastPage;
   final int total;
 
+  /// The active search term.
+  ///
+  /// Held in state so paging can carry it — loadMore() used to fetch page 2
+  /// with no term at all, which silently appended unfiltered rows underneath a
+  /// filtered page 1.
+  final String? searchQuery;
+
   const ItemState({
     this.items = const [],
     this.selected,
@@ -48,10 +55,12 @@ class ItemState {
     this.currentPage = 1,
     this.lastPage = 1,
     this.total = 0,
+    this.searchQuery,
   });
 
   bool get hasListError   => listError != null;
   bool get hasDetailError => detailError != null;
+  bool get hasSubmitError => submitError != null;
   bool get hasMore        => currentPage < lastPage;
   bool get isEmpty        =>
       !isListLoading && items.isEmpty && listError == null;
@@ -69,10 +78,12 @@ class ItemState {
     int? currentPage,
     int? lastPage,
     int? total,
+    String? searchQuery,
     bool clearListError   = false,
     bool clearDetailError = false,
     bool clearSubmitError = false,
     bool clearSelected    = false,
+    bool clearSearchQuery = false,
   }) {
     return ItemState(
       items:           items ?? this.items,
@@ -87,6 +98,7 @@ class ItemState {
       currentPage:     currentPage ?? this.currentPage,
       lastPage:        lastPage ?? this.lastPage,
       total:           total ?? this.total,
+      searchQuery:     clearSearchQuery ? null : searchQuery ?? this.searchQuery,
     );
   }
 }
@@ -106,12 +118,15 @@ class ItemNotifier extends StateNotifier<ItemState> {
       isListLoading: true,
       clearListError: true,
       currentPage: 1,
+      searchQuery: search,
+      // An empty term means "show everything", not "keep the old term".
+      clearSearchQuery: search != null && search.isEmpty,
     );
 
     try {
       final result = await _repository.getItems(
         page: 1,
-        search: search,
+        search: search ?? state.searchQuery,
         forceRefresh: forceRefresh,
       );
       state = state.copyWith(
@@ -137,6 +152,9 @@ class ItemNotifier extends StateNotifier<ItemState> {
     try {
       final result = await _repository.getItems(
         page: state.currentPage + 1,
+        // Without this, page 2 came back unfiltered and was appended
+        // underneath a filtered page 1.
+        search: state.searchQuery,
       );
       state = state.copyWith(
         items:         [...state.items, ...result.items],

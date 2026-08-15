@@ -3,10 +3,13 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../../../data/models/inventory/treatment_consumable_model.dart';
+import '../../providers/treatment/treatment_consumable_provider.dart';
 import '../../providers/treatment/treatment_provider.dart';
 import '../../theme/app_colors.dart';
 import '../../theme/app_dimensions.dart';
 import '../../theme/app_text_styles.dart';
+import 'widgets/treatment_consumables_panel.dart';
 import 'package:smile_concept_web/core/errors/error_message.dart';
 
 class TreatmentFormPage extends ConsumerStatefulWidget {
@@ -31,6 +34,46 @@ class _TreatmentFormPageState extends ConsumerState<TreatmentFormPage> {
   bool _isSubmitting = false;
   bool get _isEditing => widget.treatmentId != null;
 
+  /// Held here, not saved per keystroke — the recipe is part of this form, so
+  /// abandoning the page changes nothing.
+  List<TreatmentConsumableModel> _consumables = [];
+  bool _consumablesLoaded = false;
+
+  @override
+  void initState() {
+    super.initState();
+
+    if (_isEditing) {
+      WidgetsBinding.instance.addPostFrameCallback((_) => _loadConsumables());
+    } else {
+      _consumablesLoaded = true;
+    }
+  }
+
+  Future<void> _loadConsumables() async {
+    try {
+      final existing = await ref.read(
+        treatmentConsumablesProvider(widget.treatmentId!).future,
+      );
+
+      if (mounted) {
+        setState(() {
+          _consumables = existing;
+          _consumablesLoaded = true;
+        });
+      }
+    } catch (e) {
+      // A recipe that will not load must not block editing the treatment
+      // itself. Saving then leaves the recipe untouched — see _submit().
+      if (mounted) {
+        _showSnack(
+          'Could not load consumables: ${describeError(e)}',
+          AppColors.error,
+        );
+      }
+    }
+  }
+
   @override
   void dispose() {
     _nameController.dispose();
@@ -51,6 +94,8 @@ class _TreatmentFormPageState extends ConsumerState<TreatmentFormPage> {
       final price = double.tryParse(_priceController.text.trim()) ?? 0.0;
       final duration = int.tryParse(_durationController.text.trim()) ?? 30;
 
+      int treatmentId;
+
       if (_isEditing) {
         await ref.read(treatmentProvider.notifier).updateTreatment(
               id: widget.treatmentId!,
@@ -59,13 +104,30 @@ class _TreatmentFormPageState extends ConsumerState<TreatmentFormPage> {
               price: price,
               estimatedDurationMinutes: duration,
             );
+
+        treatmentId = widget.treatmentId!;
       } else {
-        await ref.read(treatmentProvider.notifier).createTreatment(
+        // On create the recipe has nowhere to go until the treatment has an id,
+        // which is why createTreatment now hands back the created model.
+        final created = await ref.read(treatmentProvider.notifier).createTreatment(
               name: name,
               description: description,
               price: price,
               estimatedDurationMinutes: duration,
             );
+
+        treatmentId = created.id;
+      }
+
+      // Skipped when the existing recipe never loaded: sending an empty list
+      // then would silently wipe consumables this form never showed.
+      if (_consumablesLoaded) {
+        await ref.read(treatmentConsumableWriterProvider).sync(
+              treatmentId: treatmentId,
+              consumables: _consumables,
+            );
+
+        ref.invalidate(treatmentConsumablesProvider(treatmentId));
       }
 
       if (mounted) {
@@ -140,6 +202,20 @@ class _TreatmentFormPageState extends ConsumerState<TreatmentFormPage> {
                     const SizedBox(width: AppDimensions.paddingSmall),
                     Expanded(child: _buildDurationField()),
                   ],
+                ),
+              ],
+            ),
+            const SizedBox(height: AppDimensions.paddingMedium),
+            _SectionCard(
+              children: [
+                _SectionHeader(
+                  icon: Icons.inventory_2_outlined,
+                  label: 'Consumables',
+                ),
+                const SizedBox(height: AppDimensions.paddingMedium),
+                TreatmentConsumablesPanel(
+                  consumables: _consumables,
+                  onChanged: (lines) => setState(() => _consumables = lines),
                 ),
               ],
             ),

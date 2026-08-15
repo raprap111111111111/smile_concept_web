@@ -180,7 +180,12 @@ class TreatmentNotifier extends StateNotifier<TreatmentState> {
 // Replace the two methods in TreatmentNotifier with these:
 
   // ── Create ─────────────────────────────────────────────────
-  Future<void> createTreatment({
+  /// Returns the created treatment.
+  ///
+  /// The id matters to the caller now: a treatment's consumables list is saved
+  /// against it in a second call, and on create there is no id until this
+  /// returns. Existing callers can keep ignoring the value.
+  Future<TreatmentModel> createTreatment({
     required String name,
     required double price,
     String? description,
@@ -193,7 +198,7 @@ class TreatmentNotifier extends StateNotifier<TreatmentState> {
     );
 
     try {
-      await _repository.createTreatment(
+      final created = await _repository.createTreatment(
         name: name,
         price: price,
         description: description,
@@ -203,6 +208,8 @@ class TreatmentNotifier extends StateNotifier<TreatmentState> {
 
       state = state.copyWith(isSubmitting: false);
       await loadTreatments(forceRefresh: true);
+
+      return created;
     } catch (e) {
       state = state.copyWith(
         isSubmitting: false,

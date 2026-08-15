@@ -5,6 +5,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
 import '/../core/permissions/app_permissions.dart';
+import '../../../core/utils/toast_helper.dart';
 import '../../providers/auth/auth_provider.dart';
 import '../../providers/inventory/inventory_provider.dart';
 import '../../route/route_names.dart';
@@ -13,6 +14,7 @@ import '../../theme/app_dimensions.dart';
 import '../../theme/app_text_styles.dart';
 import '../../widgets/shared/hold_to_delete_dialog.dart';
 import '../../widgets/shared/search_bar_onclick.dart';
+import 'widgets/inventory_branch_filter.dart';
 import 'widgets/inventory_card.dart';
 import 'widgets/inventory_empty_state.dart';
 import 'widgets/inventory_stats_bar.dart';
@@ -68,7 +70,7 @@ class _InventoryPageState extends ConsumerState<InventoryPage> {
   Future<void> _delete(int id, String? itemName) async {
     final auth = ref.read(authStateProvider);
     if (!auth.hasPermission(Perm.inventoryDelete)) {
-      _showSnack('No permission to delete inventory', AppColors.error);
+      ToastHelper.warning(context, 'You cannot delete stock records.');
       return;
     }
 
@@ -89,22 +91,87 @@ class _InventoryPageState extends ConsumerState<InventoryPage> {
         await ref.read(inventoryProvider.notifier).deleteInventory(id);
 
     if (!mounted) return;
-    _showSnack(
-      success
-          ? '"$name" deleted from inventory'
-          : ref.read(inventoryProvider).listError ?? 'Failed to delete',
-      success ? AppColors.success : AppColors.error,
-    );
+
+    if (success) {
+      ToastHelper.success(context, '"$name" deleted from inventory');
+    } else {
+      ToastHelper.error(
+        context,
+        ref.read(inventoryProvider).listError ?? 'Could not delete "$name".',
+      );
+    }
   }
 
-  void _showSnack(String msg, Color color) {
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: Text(msg, style: const TextStyle(color: Colors.white)),
-        backgroundColor: color,
-        behavior: SnackBarBehavior.floating,
-        shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(AppDimensions.borderRadius),
+  /// Stock actions this user may perform, in the order they are usually needed.
+  ///
+  /// These four permissions have been seeded since the beginning with no code
+  /// behind them; this is the first time they gate anything a user can see.
+  List<({String label, IconData icon, String route})> _stockActions(
+    dynamic auth,
+  ) {
+    return [
+      if (auth.hasPermission(Perm.inventoryStockIn))
+        (
+          label: 'Receive stock',
+          icon: Icons.add_box_outlined,
+          route: RouteNames.inventoryStockIn,
+        ),
+      if (auth.hasPermission(Perm.inventoryStockOut))
+        (
+          label: 'Record usage',
+          icon: Icons.remove_circle_outline,
+          route: RouteNames.inventoryUsage,
+        ),
+      if (auth.hasPermission(Perm.inventoryAdjust))
+        (
+          label: 'Adjust after a count',
+          icon: Icons.tune_rounded,
+          route: RouteNames.inventoryAdjust,
+        ),
+      if (auth.hasPermission(Perm.inventoryTransfer))
+        (
+          label: 'Transfer between branches',
+          icon: Icons.swap_horiz,
+          route: RouteNames.inventoryTransfer,
+        ),
+      if (auth.hasPermission(Perm.inventoryCreate))
+        (
+          label: 'Register a new item at a branch',
+          icon: Icons.playlist_add,
+          route: RouteNames.inventoryCreate,
+        ),
+    ];
+  }
+
+  Future<void> _openStockActions(dynamic auth) async {
+    final actions = _stockActions(auth);
+
+    await showModalBottomSheet<void>(
+      context: context,
+      backgroundColor: AppColors.background,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(
+          top: Radius.circular(AppDimensions.borderRadiusLarge),
+        ),
+      ),
+      builder: (sheetContext) => SafeArea(
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: actions
+              .map(
+                (action) => Material(
+                  color: Colors.transparent,
+                  child: ListTile(
+                    leading: Icon(action.icon, color: AppColors.primary),
+                    title: Text(action.label),
+                    onTap: () {
+                      Navigator.of(sheetContext).pop();
+                      context.pushNamed(action.route);
+                    },
+                  ),
+                ),
+              )
+              .toList(),
         ),
       ),
     );
@@ -115,7 +182,6 @@ class _InventoryPageState extends ConsumerState<InventoryPage> {
     final state = ref.watch(inventoryProvider);
     final auth = ref.watch(authStateProvider);
 
-    final canCreate = auth.hasPermission(Perm.inventoryCreate);
     final canDelete = auth.hasPermission(Perm.inventoryDelete);
 
     return Scaffold(
@@ -137,6 +203,21 @@ class _InventoryPageState extends ConsumerState<InventoryPage> {
             ),
           ),
 
+          // ── Branch Filter ───────────────────────────────
+          Padding(
+            padding: const EdgeInsets.fromLTRB(
+              AppDimensions.paddingLarge,
+              0,
+              AppDimensions.paddingLarge,
+              AppDimensions.paddingSmall,
+            ),
+            child: InventoryBranchFilter(
+              selectedBranchId: state.branchFilter,
+              onChanged: (branchId) =>
+                  ref.read(inventoryProvider.notifier).filterByBranch(branchId),
+            ),
+          ),
+
           // ── Stats Bar ───────────────────────────────────
           if (!state.isListLoading && state.inventories.isNotEmpty)
             Padding(
@@ -154,12 +235,18 @@ class _InventoryPageState extends ConsumerState<InventoryPage> {
           Expanded(child: _buildBody(state, canDelete)),
         ],
       ),
-      floatingActionButton: canCreate
-          ? FloatingActionButton.extended(
-              onPressed: () => context.pushNamed(RouteNames.inventoryCreate),
-              icon: const Icon(Icons.add, size: AppDimensions.iconSizeSmall),
+      // One entry point for every stock action rather than five competing
+      // buttons. Each row is gated on its own permission, so a user only ever
+      // sees what they can actually do — and the sheet is suppressed entirely
+      // if that leaves nothing.
+      floatingActionButton: _stockActions(auth).isEmpty
+          ? null
+          : FloatingActionButton.extended(
+              onPressed: () => _openStockActions(auth),
+              icon: const Icon(Icons.bolt_outlined,
+                  size: AppDimensions.iconSizeSmall),
               label: const Text(
-                'Add Stock',
+                'Stock Actions',
                 style: TextStyle(fontWeight: FontWeight.w700),
               ),
               backgroundColor: AppColors.primary,
@@ -168,8 +255,7 @@ class _InventoryPageState extends ConsumerState<InventoryPage> {
                 borderRadius:
                     BorderRadius.circular(AppDimensions.borderRadiusLarge),
               ),
-            )
-          : null,
+            ),
     );
   }
 
@@ -345,8 +431,12 @@ class _InventoryPageState extends ConsumerState<InventoryPage> {
             inventory: inv,
             canDelete: canDelete,
             onDelete: () => _delete(inv.id, inv.item?.name),
+            // Detail rather than edit: the lots and the history are what a
+            // reader actually wants from a stock row, and the summary line
+            // can only ever show the earliest expiry. Editing is reachable
+            // from there.
             onTap: () => context.pushNamed(
-              RouteNames.inventoryEdit,
+              RouteNames.inventoryDetail,
               pathParameters: {'id': inv.id.toString()},
             ),
           );
