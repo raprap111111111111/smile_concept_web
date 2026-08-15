@@ -110,16 +110,19 @@ class TreatmentPlanCard extends StatelessWidget {
                 const SizedBox(height: 10),
                 _MetaRow(
                   icon: Icons.format_list_numbered,
-                  label: 'Items',
+                  label: 'Steps',
                   value:
                       '${plan.items.length} treatment step${plan.items.length == 1 ? '' : 's'}',
                 ),
+                if (plan.hasItems) ...[
+                  const SizedBox(height: 12),
+                  _StepList(items: plan.items),
+                ],
                 const SizedBox(height: 10),
                 _MetaRow(
                   icon: Icons.payments_outlined,
                   label: 'Total',
-                  value:
-                      '\$${(plan.totalEstimatedAmount).toStringAsFixed(2)}',
+                  value: plan.formattedTotal,
                   valueColor: AppColors.primaryDark,
                   valueBold: true,
                 ),
@@ -194,6 +197,110 @@ class TreatmentPlanCard extends StatelessWidget {
                       ),
                     ),
                   ],
+                ],
+              ),
+            ),
+          ],
+        ],
+      ),
+    );
+  }
+}
+
+/// The plan's steps in sequence order. Counting them was never enough — the
+/// point of the card is seeing what the plan actually contains.
+class _StepList extends StatelessWidget {
+  const _StepList({required this.items});
+
+  final List<TreatmentPlanItemModel> items;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.symmetric(vertical: 6, horizontal: 12),
+      decoration: BoxDecoration(
+        color: AppColors.surface,
+        borderRadius: BorderRadius.circular(AppDimensions.borderRadius),
+        border: Border.all(color: AppColors.line),
+      ),
+      child: Column(
+        children: [
+          for (int i = 0; i < items.length; i++) ...[
+            if (i > 0) const Divider(height: 1, color: AppColors.line),
+            Padding(
+              padding: const EdgeInsets.symmetric(vertical: 8),
+              child: Row(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Container(
+                    width: 22,
+                    height: 22,
+                    alignment: Alignment.center,
+                    decoration: BoxDecoration(
+                      color: AppColors.accentWithOpacity(0.3),
+                      borderRadius: BorderRadius.circular(6),
+                    ),
+                    child: Text(
+                      '${items[i].sequenceOrder}',
+                      style: const TextStyle(
+                        color: AppColors.primaryDark,
+                        fontSize: 11,
+                        fontWeight: FontWeight.w800,
+                      ),
+                    ),
+                  ),
+                  const SizedBox(width: 10),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          items[i].treatmentName,
+                          style: const TextStyle(
+                            color: AppColors.ink,
+                            fontSize: 13,
+                            fontWeight: FontWeight.w700,
+                          ),
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                        ),
+                        if (items[i].quantity > 1) ...[
+                          const SizedBox(height: 2),
+                          Text(
+                            items[i].quantityLabel,
+                            style: const TextStyle(
+                              color: AppColors.primaryDark,
+                              fontSize: 12,
+                              fontWeight: FontWeight.w600,
+                            ),
+                          ),
+                        ],
+                        if (items[i].hasNotes) ...[
+                          const SizedBox(height: 2),
+                          Text(
+                            items[i].notes!,
+                            style: const TextStyle(
+                              color: AppColors.textSecondary,
+                              fontSize: 12,
+                              height: 1.35,
+                            ),
+                            maxLines: 2,
+                            overflow: TextOverflow.ellipsis,
+                          ),
+                        ],
+                      ],
+                    ),
+                  ),
+                  const SizedBox(width: 10),
+                  Text(
+                    items[i].formattedCost,
+                    style: const TextStyle(
+                      color: AppColors.textSecondary,
+                      fontSize: 12.5,
+                      fontWeight: FontWeight.w700,
+                    ),
+                  ),
                 ],
               ),
             ),

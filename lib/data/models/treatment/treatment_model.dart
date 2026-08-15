@@ -1,5 +1,7 @@
 // lib/data/models/treatment/treatment_model.dart
 
+import '../../../core/utils/money.dart';
+
 class TreatmentModel {
   final int id;
   final String name;
@@ -48,7 +50,7 @@ class TreatmentModel {
       };
 
   // ── Display helpers ────────────────────────────────────────
-  String get formattedPrice => '₱${price.toStringAsFixed(2)}';
+  String get formattedPrice => formatMoney(price);
 
   String get durationLabel {
     if (estimatedDurationMinutes < 60) {
