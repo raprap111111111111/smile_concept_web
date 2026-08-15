@@ -11,6 +11,8 @@ dependencies:
   flutter:
     sdk: flutter
 
+  web: ^1.1.0
+  
   flutter_dotenv: ^5.1.0
 
   # UI Components
@@ -44,7 +46,7 @@ dependencies:
   # Routing
   go_router: ^14.6.0
 
-  # UI/UX
+  # UI / UX
   flutter_svg: ^2.0.16
   intl: ^0.19.0
   get_time_ago: ^2.3.2
@@ -63,9 +65,9 @@ dependencies:
   # PDF & Files
   pdf: ^3.12.0
   printing: ^5.13.0
-  file_picker: ^8.1.5  
+  file_picker: ^8.1.5
 
-  url_launcher: ^6.3.2  
+  url_launcher: ^6.3.2
 
   # Images
   image_picker: ^1.1.2

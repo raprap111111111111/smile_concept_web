@@ -15,7 +15,7 @@ Future<void> main() async {
     await dotenv.load(fileName: '.env');
     ApiConfig.printConfig();
   } catch (e) {
-    print('''
+    debugPrint('''
 ⚠️  Warning: Could not load .env file
    Reason: $e
    
