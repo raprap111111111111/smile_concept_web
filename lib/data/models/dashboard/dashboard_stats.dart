@@ -15,6 +15,16 @@ class DashboardStats {
   final double monthlyRevenue;
   final double monthlyRevenueDelta;
 
+  /// Items at or below their reorder point.
+  final int lowStockItems;
+
+  /// Open batches expiring inside the configured warning window.
+  final int expiringBatches;
+
+  /// Stock rows that have gone negative — supplies used beyond what was on
+  /// record. Each one is a reconciliation someone still owes.
+  final int negativeStock;
+
   final List<AppointmentTrendPoint> appointmentsTrend;
   final List<HourlyPoint> appointmentsTodayByHour;
   final List<CountPoint> newPatientsTrend;
@@ -28,11 +38,18 @@ class DashboardStats {
     required this.pendingReviews,
     required this.monthlyRevenue,
     required this.monthlyRevenueDelta,
+    this.lowStockItems = 0,
+    this.expiringBatches = 0,
+    this.negativeStock = 0,
     required this.appointmentsTrend,
     required this.appointmentsTodayByHour,
     required this.newPatientsTrend,
     required this.newPatientsByMonth,
   });
+
+  /// True when anything in the stock cupboard wants attention.
+  bool get hasStockWarnings =>
+      lowStockItems > 0 || expiringBatches > 0 || negativeStock > 0;
 
   factory DashboardStats.fromJson(Map<String, dynamic> json) {
     return DashboardStats(
@@ -43,6 +60,11 @@ class DashboardStats {
       pendingReviews: _int(json['pendingReviews']),
       monthlyRevenue: toDouble(json['monthlyRevenue']),
       monthlyRevenueDelta: toDouble(json['monthlyRevenueDelta']),
+      // Default to 0 rather than requiring the keys: an API that has not been
+      // deployed with the inventory counters yet must not break the dashboard.
+      lowStockItems: _int(json['lowStockItems']),
+      expiringBatches: _int(json['expiringBatches']),
+      negativeStock: _int(json['negativeStock']),
       appointmentsTrend:
           parseList(json['appointmentsTrend'], AppointmentTrendPoint.fromJson),
       appointmentsTodayByHour:

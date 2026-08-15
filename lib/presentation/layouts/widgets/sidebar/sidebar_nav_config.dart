@@ -246,6 +246,12 @@ class SidebarNavConfig {
             permissions: [Perm.settingUpdate],
           ),
           NavItem(
+            icon: Icons.inventory_outlined,
+            title: 'Inventory Settings',
+            routeName: RouteNames.inventorySettings,
+            permissions: [Perm.settingUpdate],
+          ),
+          NavItem(
             icon: Icons.settings_outlined,
             title: 'Settings',
             routeName: RouteNames.settings,

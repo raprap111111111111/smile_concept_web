@@ -33,6 +33,12 @@ class DashboardScope {
   static const String stats = 'stats';
   static const String schedule = 'schedule';
   static const String activity = 'activity';
+
+  /// Stock levels. Mirrors DashboardCountersStale::SCOPE_INVENTORY, which the
+  /// server dispatches when a completed appointment moves stock. Unlike the
+  /// three above it has no endpoint of its own — the counts ride along in
+  /// `stats`, so this maps onto the same provider.
+  static const String inventory = 'inventory';
 }
 
 /// Pull-to-refresh / manual refresh for the whole dashboard.
@@ -48,7 +54,11 @@ void refreshDashboard(WidgetRef ref) {
 /// supertype with `Ref`, so RealtimeBridge cannot call it. Passing [scopes]
 /// refetches only the named panels; omitting it refetches all three.
 void invalidateDashboard(Ref ref, {Set<String>? scopes}) {
-  if (scopes == null || scopes.contains(DashboardScope.stats)) {
+  if (scopes == null ||
+      scopes.contains(DashboardScope.stats) ||
+      // The stock counters live in the stats payload, so an inventory-only
+      // event still has to refetch it.
+      scopes.contains(DashboardScope.inventory)) {
     ref.invalidate(dashboardStatsProvider);
   }
   if (scopes == null || scopes.contains(DashboardScope.schedule)) {

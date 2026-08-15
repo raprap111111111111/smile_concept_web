@@ -104,8 +104,17 @@ class RoutePermissions {
     '/payments': [Perm.paymentViewAny, Perm.paymentView],
 
     // ── Operations ─────────────────────────────────────────────
+    // The four stock verbs each gate on their own permission — the ones the
+    // seeder has always granted to admin but which had no code behind them.
+    '/inventory/stock-in': [Perm.inventoryStockIn],
+    '/inventory/usage': [Perm.inventoryStockOut],
+    '/inventory/adjust': [Perm.inventoryAdjust],
+    '/inventory/transfer': [Perm.inventoryTransfer],
     '/inventory/new': [Perm.inventoryCreate],
     '/inventory': [Perm.inventoryViewAny, Perm.inventoryView],
+    // Editing clinic-wide stock rules is a write action, so it gates on
+    // setting.update — same reasoning as /appointment-settings.
+    '/inventory-settings': [Perm.settingUpdate],
     // The catalog is its own `item.*` family server-side, but until this
     // release nothing granted it, so the pages were reachable only via
     // `inventory.*`. Both are accepted (the lists are OR-semantics) so the

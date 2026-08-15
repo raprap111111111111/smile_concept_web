@@ -3,13 +3,13 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../../../core/utils/toast_helper.dart';
 import '../../providers/inventory/inventory_provider.dart';
 import '../../theme/app_colors.dart';
 import '../../theme/app_dimensions.dart';
 import '../../theme/app_text_styles.dart';
 import 'widgets/branch_dropdown.dart';
 import 'widgets/item_dropdown.dart';
-import 'package:smile_concept_web/core/errors/error_message.dart';
 
 class InventoryFormPage extends ConsumerStatefulWidget {
   final int? inventoryId;
@@ -125,36 +125,20 @@ class _InventoryFormPageState extends ConsumerState<InventoryFormPage> {
       }
 
       if (mounted) {
-        _showSnack(
+        ToastHelper.success(
+          context,
           _isEditing
-              ? 'Inventory updated successfully'
-              : 'Inventory added successfully',
-          AppColors.success,
+              ? 'Stock record updated'
+              : 'Stock record added',
         );
         Navigator.of(context).pop();
       }
     } catch (e) {
-      if (mounted) {
-        _showSnack(describeError(e), AppColors.error);
-      }
+      // fromError humanizes the message and strips the Exception: prefix.
+      if (mounted) ToastHelper.fromError(context, e);
     } finally {
       if (mounted) setState(() => _isSubmitting = false);
     }
-  }
-
-  void _showSnack(String msg, Color color) {
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content:
-            Text(msg, style: const TextStyle(color: Colors.white)),
-        backgroundColor: color,
-        behavior: SnackBarBehavior.floating,
-        shape: RoundedRectangleBorder(
-          borderRadius:
-              BorderRadius.circular(AppDimensions.borderRadius),
-        ),
-      ),
-    );
   }
 
   @override
