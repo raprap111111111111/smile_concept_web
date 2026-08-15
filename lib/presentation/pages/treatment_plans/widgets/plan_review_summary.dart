@@ -2,6 +2,7 @@
 
 import 'package:flutter/material.dart';
 
+import '../../../../core/utils/money.dart';
 import '../../../../data/models/patient/patient_model.dart';
 import '../../../../data/models/treatment/treatment_plan_model.dart';
 
@@ -96,7 +97,7 @@ class PlanReviewSummary extends StatelessWidget {
                             fontWeight: FontWeight.w600, fontSize: 14),
                       ),
                       Text(
-                        '₱${item.price.toStringAsFixed(2)} × ${item.quantity}',
+                        '${formatMoney(item.price)} × ${item.quantity}',
                         style: TextStyle(
                             fontSize: 12, color: theme.hintColor),
                       ),
@@ -104,7 +105,7 @@ class PlanReviewSummary extends StatelessWidget {
                   ),
                 ),
                 Text(
-                  '₱${item.subtotal.toStringAsFixed(2)}',
+                  formatMoney(item.subtotal),
                   style: TextStyle(
                     fontWeight: FontWeight.bold,
                     color: theme.colorScheme.primary,
@@ -132,7 +133,7 @@ class PlanReviewSummary extends StatelessWidget {
                   style: TextStyle(
                       fontSize: 15, fontWeight: FontWeight.bold)),
               Text(
-                '₱${grandTotal.toStringAsFixed(2)}',
+                formatMoney(grandTotal),
                 style: TextStyle(
                   fontSize: 22,
                   fontWeight: FontWeight.bold,
