@@ -10,6 +10,7 @@ import '../../providers/inventory/inventory_settings_provider.dart';
 import '../../theme/app_colors.dart';
 import '../../theme/app_dimensions.dart';
 import '../../theme/app_text_styles.dart';
+import '../../theme/app_theme.dart';
 
 /// Clinic-wide stock rules.
 ///
@@ -54,6 +55,19 @@ class _InventorySettingsPageState
   Widget build(BuildContext context) {
     final settingsAsync = ref.watch(inventorySettingsProvider);
 
+    // main.dart still runs ThemeData.dark(); this page is designed light, so
+    // it pins the light theme the same way the appointment and schedule pages
+    // do — otherwise the number fields and switches inherit dark defaults.
+    return Theme(
+      data: AppTheme.lightTheme,
+      child: _buildScaffold(context, settingsAsync),
+    );
+  }
+
+  Widget _buildScaffold(
+    BuildContext context,
+    AsyncValue<InventorySettingsModel> settingsAsync,
+  ) {
     return Scaffold(
       backgroundColor: AppColors.surface,
       appBar: AppBar(

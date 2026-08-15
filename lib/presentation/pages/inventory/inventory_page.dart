@@ -12,6 +12,7 @@ import '../../route/route_names.dart';
 import '../../theme/app_colors.dart';
 import '../../theme/app_dimensions.dart';
 import '../../theme/app_text_styles.dart';
+import '../../theme/app_theme.dart';
 import '../../widgets/shared/hold_to_delete_dialog.dart';
 import '../../widgets/shared/search_bar_onclick.dart';
 import 'widgets/inventory_branch_filter.dart';
@@ -154,24 +155,33 @@ class _InventoryPageState extends ConsumerState<InventoryPage> {
           top: Radius.circular(AppDimensions.borderRadiusLarge),
         ),
       ),
-      builder: (sheetContext) => SafeArea(
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: actions
-              .map(
-                (action) => Material(
-                  color: Colors.transparent,
-                  child: ListTile(
-                    leading: Icon(action.icon, color: AppColors.primary),
-                    title: Text(action.label),
-                    onTap: () {
-                      Navigator.of(sheetContext).pop();
-                      context.pushNamed(action.route);
-                    },
+      // The sheet builds off the State's context, which sits above the page's
+      // light-theme wrapper — without pinning it again here the row labels
+      // take the ambient dark theme's white text on the white sheet.
+      builder: (sheetContext) => Theme(
+        data: AppTheme.lightTheme,
+        child: SafeArea(
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: actions
+                .map(
+                  (action) => Material(
+                    color: Colors.transparent,
+                    child: ListTile(
+                      leading: Icon(action.icon, color: AppColors.primary),
+                      title: Text(
+                        action.label,
+                        style: AppTextStyles.bodyMedium,
+                      ),
+                      onTap: () {
+                        Navigator.of(sheetContext).pop();
+                        context.pushNamed(action.route);
+                      },
+                    ),
                   ),
-                ),
-              )
-              .toList(),
+                )
+                .toList(),
+          ),
         ),
       ),
     );
@@ -184,50 +194,88 @@ class _InventoryPageState extends ConsumerState<InventoryPage> {
 
     final canDelete = auth.hasPermission(Perm.inventoryDelete);
 
+    // main.dart still runs ThemeData.dark(); this page is designed light, so
+    // it pins the light theme the same way the appointment and schedule pages
+    // do — otherwise the search field, filter pills, bottom sheet and dialogs
+    // inherit dark defaults.
+    return Theme(
+      data: AppTheme.lightTheme,
+      child: _buildScaffold(state, auth, canDelete),
+    );
+  }
+
+  Widget _buildScaffold(InventoryState state, dynamic auth, bool canDelete) {
     return Scaffold(
-      backgroundColor: AppColors.surface,
+      backgroundColor: AppColors.background,
       body: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           // ── Header ──────────────────────────────────────
-          _buildHeader(state),
+          _buildHeader(state, auth),
 
           // ── Search Bar (onClick) ────────────────────────
-          Padding(
-            padding: const EdgeInsets.all(AppDimensions.paddingLarge),
-            child: SearchBarOnClick(
-              controller: _searchController,
-              hintText: 'Search by item name or SKU...',
-              onChanged: _onSearch,
-              onClear: _onClearSearch,
+          Center(
+            child: ConstrainedBox(
+              constraints: const BoxConstraints(
+                maxWidth: AppDimensions.maxContentWidth,
+              ),
+              child: Padding(
+                padding: const EdgeInsets.fromLTRB(
+                  AppDimensions.paddingLarge,
+                  AppDimensions.paddingLarge,
+                  AppDimensions.paddingLarge,
+                  AppDimensions.paddingMedium,
+                ),
+                child: SearchBarOnClick(
+                  controller: _searchController,
+                  hintText: 'Search by item name or SKU...',
+                  onChanged: _onSearch,
+                  onClear: _onClearSearch,
+                ),
+              ),
             ),
           ),
 
           // ── Branch Filter ───────────────────────────────
-          Padding(
-            padding: const EdgeInsets.fromLTRB(
-              AppDimensions.paddingLarge,
-              0,
-              AppDimensions.paddingLarge,
-              AppDimensions.paddingSmall,
-            ),
-            child: InventoryBranchFilter(
-              selectedBranchId: state.branchFilter,
-              onChanged: (branchId) =>
-                  ref.read(inventoryProvider.notifier).filterByBranch(branchId),
+          Center(
+            child: ConstrainedBox(
+              constraints: const BoxConstraints(
+                maxWidth: AppDimensions.maxContentWidth,
+              ),
+              child: Padding(
+                padding: const EdgeInsets.fromLTRB(
+                  AppDimensions.paddingLarge,
+                  0,
+                  AppDimensions.paddingLarge,
+                  AppDimensions.paddingSmall,
+                ),
+                child: InventoryBranchFilter(
+                  selectedBranchId: state.branchFilter,
+                  onChanged: (branchId) => ref
+                      .read(inventoryProvider.notifier)
+                      .filterByBranch(branchId),
+                ),
+              ),
             ),
           ),
 
           // ── Stats Bar ───────────────────────────────────
           if (!state.isListLoading && state.inventories.isNotEmpty)
-            Padding(
-              padding: const EdgeInsets.symmetric(
-                horizontal: AppDimensions.paddingLarge,
-              ),
-              child: InventoryStatsBar(
-                total: state.total,
-                lowStock: state.lowStockCount,
-                expired: state.expiredCount,
+            Center(
+              child: ConstrainedBox(
+                constraints: const BoxConstraints(
+                  maxWidth: AppDimensions.maxContentWidth,
+                ),
+                child: Padding(
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: AppDimensions.paddingLarge,
+                  ),
+                  child: InventoryStatsBar(
+                    total: state.total,
+                    lowStock: state.lowStockCount,
+                    expired: state.expiredCount,
+                  ),
+                ),
               ),
             ),
 
@@ -239,28 +287,13 @@ class _InventoryPageState extends ConsumerState<InventoryPage> {
       // buttons. Each row is gated on its own permission, so a user only ever
       // sees what they can actually do — and the sheet is suppressed entirely
       // if that leaves nothing.
-      floatingActionButton: _stockActions(auth).isEmpty
-          ? null
-          : FloatingActionButton.extended(
-              onPressed: () => _openStockActions(auth),
-              icon: const Icon(Icons.bolt_outlined,
-                  size: AppDimensions.iconSizeSmall),
-              label: const Text(
-                'Stock Actions',
-                style: TextStyle(fontWeight: FontWeight.w700),
-              ),
-              backgroundColor: AppColors.primary,
-              foregroundColor: AppColors.textOnPrimary,
-              shape: RoundedRectangleBorder(
-                borderRadius:
-                    BorderRadius.circular(AppDimensions.borderRadiusLarge),
-              ),
-            ),
     );
   }
 
   // ── Header ──────────────────────────────────────────────────
-  Widget _buildHeader(InventoryState state) {
+  Widget _buildHeader(InventoryState state, dynamic auth) {
+    final actions = _stockActions(auth);
+
     return Padding(
       padding: const EdgeInsets.fromLTRB(
         AppDimensions.paddingLarge,
@@ -274,12 +307,20 @@ class _InventoryPageState extends ConsumerState<InventoryPage> {
             width: AppDimensions.iconBadgeSize,
             height: AppDimensions.iconBadgeSize,
             decoration: BoxDecoration(
-              color: AppColors.accentWithOpacity(0.18),
-              borderRadius: BorderRadius.circular(AppDimensions.borderRadius),
+              gradient: AppColors.primaryGradient,
+              borderRadius:
+                  BorderRadius.circular(AppDimensions.borderRadiusLarge),
+              boxShadow: [
+                BoxShadow(
+                  color: AppColors.primaryWithOpacity(0.22),
+                  blurRadius: 12,
+                  offset: const Offset(0, 4),
+                ),
+              ],
             ),
             child: const Icon(
               Icons.inventory_2_outlined,
-              color: AppColors.primaryDark,
+              color: Colors.white,
               size: AppDimensions.iconSize,
             ),
           ),
@@ -304,6 +345,14 @@ class _InventoryPageState extends ConsumerState<InventoryPage> {
           const SizedBox(width: AppDimensions.paddingXS),
           // ── Refresh ───────────────────────────────
           _buildRefreshButton(state.isListLoading),
+          if (actions.isNotEmpty) ...[
+            const SizedBox(width: AppDimensions.paddingXS),
+            _InventoryHeaderActionButton(
+              icon: Icons.bolt_outlined,
+              label: 'Stock Actions',
+              onPressed: () => _openStockActions(auth),
+            ),
+          ],
         ],
       ),
     );
@@ -410,37 +459,105 @@ class _InventoryPageState extends ConsumerState<InventoryPage> {
     return RefreshIndicator(
       color: AppColors.primary,
       onRefresh: () => ref.read(inventoryProvider.notifier).refresh(),
-      child: ListView.builder(
-        controller: _scrollController,
-        padding: const EdgeInsets.symmetric(
-          horizontal: AppDimensions.paddingLarge,
-          vertical: AppDimensions.paddingXS,
-        ),
-        itemCount: state.inventories.length + (state.isLoadingMore ? 1 : 0),
-        itemBuilder: (context, index) {
-          if (index == state.inventories.length) {
-            return const Padding(
-              padding: EdgeInsets.all(AppDimensions.paddingMedium),
-              child: Center(
-                child: CircularProgressIndicator(color: AppColors.primary),
-              ),
-            );
-          }
-          final inv = state.inventories[index];
-          return InventoryCard(
-            inventory: inv,
-            canDelete: canDelete,
-            onDelete: () => _delete(inv.id, inv.item?.name),
-            // Detail rather than edit: the lots and the history are what a
-            // reader actually wants from a stock row, and the summary line
-            // can only ever show the earliest expiry. Editing is reachable
-            // from there.
-            onTap: () => context.pushNamed(
-              RouteNames.inventoryDetail,
-              pathParameters: {'id': inv.id.toString()},
+      child: Center(
+        child: ConstrainedBox(
+          constraints: const BoxConstraints(
+            maxWidth: AppDimensions.maxContentWidth,
+          ),
+          child: ListView.builder(
+            controller: _scrollController,
+            padding: const EdgeInsets.fromLTRB(
+              AppDimensions.paddingLarge,
+              AppDimensions.paddingXS,
+              AppDimensions.paddingLarge,
+              AppDimensions.paddingLarge,
             ),
-          );
-        },
+            itemCount: state.inventories.length + (state.isLoadingMore ? 1 : 0),
+            itemBuilder: (context, index) {
+              if (index == state.inventories.length) {
+                return const Padding(
+                  padding: EdgeInsets.all(AppDimensions.paddingMedium),
+                  child: Center(
+                    child: CircularProgressIndicator(color: AppColors.primary),
+                  ),
+                );
+              }
+              final inv = state.inventories[index];
+              return InventoryCard(
+                inventory: inv,
+                canDelete: canDelete,
+                onDelete: () => _delete(inv.id, inv.item?.name),
+                // Detail rather than edit: the lots and the history are what a
+                // reader actually wants from a stock row, and the summary line
+                // can only ever show the earliest expiry. Editing is reachable
+                // from there.
+                onTap: () => context.pushNamed(
+                  RouteNames.inventoryDetail,
+                  pathParameters: {'id': inv.id.toString()},
+                ),
+              );
+            },
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+class _InventoryHeaderActionButton extends StatelessWidget {
+  final IconData icon;
+  final String label;
+  final VoidCallback onPressed;
+
+  const _InventoryHeaderActionButton({
+    required this.icon,
+    required this.label,
+    required this.onPressed,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      decoration: BoxDecoration(
+        gradient: AppColors.primaryGradient,
+        borderRadius: BorderRadius.circular(AppDimensions.borderRadiusLarge),
+        boxShadow: [
+          BoxShadow(
+            color: AppColors.primaryWithOpacity(0.25),
+            blurRadius: 12,
+            offset: const Offset(0, 4),
+          ),
+        ],
+      ),
+      child: Material(
+        color: Colors.transparent,
+        child: InkWell(
+          borderRadius: BorderRadius.circular(AppDimensions.borderRadiusLarge),
+          onTap: onPressed,
+          child: Padding(
+            padding: const EdgeInsets.symmetric(
+              horizontal: AppDimensions.paddingMedium,
+              vertical: AppDimensions.paddingSmall,
+            ),
+            child: Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Icon(
+                  icon,
+                  color: Colors.white,
+                  size: AppDimensions.iconSizeSmall,
+                ),
+                const SizedBox(width: AppDimensions.paddingXS),
+                Text(
+                  label,
+                  style: AppTextStyles.labelLarge.copyWith(
+                    color: Colors.white,
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ),
       ),
     );
   }

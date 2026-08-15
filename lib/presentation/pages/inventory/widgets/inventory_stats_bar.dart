@@ -20,10 +20,10 @@ class InventoryStatsBar extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Container(
-      margin: const EdgeInsets.only(bottom: AppDimensions.paddingSmall),
+      margin: const EdgeInsets.only(bottom: AppDimensions.paddingMedium),
       padding: const EdgeInsets.symmetric(
-        horizontal: AppDimensions.paddingSmall,
-        vertical: AppDimensions.paddingXS,
+        horizontal: AppDimensions.paddingMedium,
+        vertical: AppDimensions.paddingSmall,
       ),
       decoration: BoxDecoration(
         color: AppColors.background,
@@ -33,8 +33,8 @@ class InventoryStatsBar extends StatelessWidget {
         boxShadow: const [
           BoxShadow(
             color: AppColors.cardShadow,
-            blurRadius: 6,
-            offset: Offset(0, 1),
+            blurRadius: 10,
+            offset: Offset(0, 2),
           ),
         ],
       ),
@@ -44,14 +44,14 @@ class InventoryStatsBar extends StatelessWidget {
             label: 'Total',
             count: total,
             icon: Icons.inventory_2_outlined,
-            color: AppColors.info,
+            color: AppColors.primaryDark,
           ),
           _Divider(),
           _StatItem(
             label: 'Low Stock',
             count: lowStock,
             icon: Icons.trending_down,
-            color: AppColors.warning,
+            color: AppColors.statusPendingInk,
           ),
           _Divider(),
           _StatItem(

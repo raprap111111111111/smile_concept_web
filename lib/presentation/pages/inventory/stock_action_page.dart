@@ -10,6 +10,7 @@ import '../../providers/inventory/stock_provider.dart';
 import '../../theme/app_colors.dart';
 import '../../theme/app_dimensions.dart';
 import '../../theme/app_text_styles.dart';
+import '../../theme/app_theme.dart';
 import 'widgets/branch_dropdown.dart';
 import 'widgets/item_dropdown.dart';
 
@@ -181,6 +182,17 @@ class _StockActionPageState extends ConsumerState<StockActionPage> {
 
   @override
   Widget build(BuildContext context) {
+    // main.dart still runs ThemeData.dark(); this form is designed light, so
+    // it pins the light theme the same way the appointment and schedule forms
+    // do — otherwise the text fields, dropdown menus and the date picker
+    // inherit dark defaults and render dark-on-dark.
+    return Theme(
+      data: AppTheme.lightTheme,
+      child: _buildScaffold(context),
+    );
+  }
+
+  Widget _buildScaffold(BuildContext context) {
     return Scaffold(
       backgroundColor: AppColors.surface,
       appBar: AppBar(

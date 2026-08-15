@@ -15,6 +15,7 @@ import '../../route/route_names.dart';
 import '../../theme/app_colors.dart';
 import '../../theme/app_dimensions.dart';
 import '../../theme/app_text_styles.dart';
+import '../../theme/app_theme.dart';
 
 /// Everything behind one branch's stock of one item: the lots on the shelf and
 /// the ledger that explains the number.
@@ -44,6 +45,16 @@ class _InventoryDetailPageState extends ConsumerState<InventoryDetailPage> {
 
   @override
   Widget build(BuildContext context) {
+    // main.dart still runs ThemeData.dark(); this page is designed light, so
+    // it pins the light theme the same way the appointment and schedule pages
+    // do — every state branch below paints light surfaces.
+    return Theme(
+      data: AppTheme.lightTheme,
+      child: _buildPage(context),
+    );
+  }
+
+  Widget _buildPage(BuildContext context) {
     final state = ref.watch(inventoryProvider);
     final inventory = state.selected;
 

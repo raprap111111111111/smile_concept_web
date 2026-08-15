@@ -8,6 +8,7 @@ import '../../providers/inventory/item_provider.dart';
 import '../../theme/app_colors.dart';
 import '../../theme/app_dimensions.dart';
 import '../../theme/app_text_styles.dart';
+import '../../theme/app_theme.dart';
 
 class ItemFormPage extends ConsumerStatefulWidget {
   final int? itemId;
@@ -150,6 +151,17 @@ class _ItemFormPageState extends ConsumerState<ItemFormPage> {
 
   @override
   Widget build(BuildContext context) {
+    // main.dart still runs ThemeData.dark(); this form is designed light, so
+    // it pins the light theme the same way the appointment and schedule forms
+    // do — otherwise the text fields and dropdown menus inherit dark defaults
+    // and render dark-on-dark.
+    return Theme(
+      data: AppTheme.lightTheme,
+      child: _buildScaffold(context),
+    );
+  }
+
+  Widget _buildScaffold(BuildContext context) {
     return Scaffold(
       backgroundColor: AppColors.surface,
       appBar: AppBar(
