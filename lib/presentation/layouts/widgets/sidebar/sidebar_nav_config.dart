@@ -1,9 +1,9 @@
 // lib/presentation/layouts/widgets/sidebar/sidebar_nav_config.dart
 
 import 'package:flutter/material.dart';
-import '/../core/permissions/app_permissions.dart';
 import '../../../providers/auth/permission_provider.dart';
 import '../../../route/route_names.dart';
+import 'package:smile_concept_web/core/permissions/app_permissions.dart';
 
 class NavItem {
   final IconData icon;
@@ -122,19 +122,19 @@ class SidebarNavConfig {
               Perm.treatmentView,
             ],
           ),
-          NavItem(
-            icon: Icons.folder_shared_outlined,
-            title: isPatient ? 'My Records' : 'Clinical Records',
-            routeName: RouteNames.clinicalRecords,
-            activeRouteNames: const [
-              RouteNames.clinicalRecords,
-            ],
-            permissions: const [
-              Perm.clinicalNoteViewAny,
-              Perm.dentalChartViewAny,
-              Perm.dentalChartView,
-            ],
-          ),
+          // NavItem(
+          //   icon: Icons.folder_shared_outlined,
+          //   title: isPatient ? 'My Records' : 'Clinical Records',
+          //   routeName: RouteNames.clinicalRecords,
+          //   activeRouteNames: const [
+          //     RouteNames.clinicalRecords,
+          //   ],
+          //   permissions: const [
+          //     Perm.clinicalNoteViewAny,
+          //     Perm.dentalChartViewAny,
+          //     Perm.dentalChartView,
+          //   ],
+          // ),
           NavItem(
             icon: Icons.folder_copy_outlined,
             title: isPatient ? 'My Files' : 'Patient Files',
@@ -208,12 +208,12 @@ class SidebarNavConfig {
             routeName: RouteNames.branches,
             permissions: [Perm.branchViewAny],
           ),
-          NavItem(
-            icon: Icons.science_outlined,
-            title: 'Lab Cases',
-            routeName: RouteNames.labCases,
-            permissions: [Perm.labCaseViewAny],
-          ),
+          // NavItem(
+          //   icon: Icons.science_outlined,
+          //   title: 'Lab Cases',
+          //   routeName: RouteNames.labCases,
+          //   permissions: [Perm.labCaseViewAny],
+          // ),
         ],
       ),
 

@@ -1,6 +1,7 @@
 import 'package:dio/dio.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+
 import '../../../core/network/dio_client.dart';
 import '../../models/doctor/doctor_simple_model.dart';
 
@@ -14,6 +15,9 @@ class DoctorRemoteDataSource {
 
   static const _basePath = '/doctors';
 
+  // ═══════════════════════════════════════════════════════════
+  // GET ALL
+  // ═══════════════════════════════════════════════════════════
   Future<List<DoctorSimpleModel>> getAll() async {
     debugPrint('📤 GET $_basePath');
 
@@ -40,7 +44,35 @@ class DoctorRemoteDataSource {
     return doctors;
   }
 
-  // ─── Helpers ────────────────────────────────────────────
+  // ═══════════════════════════════════════════════════════════
+  // ✅ NEW — GET BY ID (for detail page)
+  // ═══════════════════════════════════════════════════════════
+  Future<Map<String, dynamic>> getById(int id) async {
+    debugPrint('📤 GET $_basePath/$id');
+
+    final response = await _dio.get('$_basePath/$id');
+
+    debugPrint('📥 Doctor detail response received');
+
+    // Handle both wrapped { data: {...} } and direct {...} responses
+    final raw = response.data;
+    Map<String, dynamic> data;
+
+    if (raw is Map && raw['data'] is Map) {
+      data = _toStringMap(raw['data'] as Map);
+    } else if (raw is Map) {
+      data = _toStringMap(raw);
+    } else {
+      throw Exception('Unexpected response format for doctor #$id');
+    }
+
+    debugPrint('✅ Loaded doctor #$id');
+    return data;
+  }
+
+  // ═══════════════════════════════════════════════════════════
+  // Helpers
+  // ═══════════════════════════════════════════════════════════
   Map<String, dynamic> _toStringMap(Map source) {
     final result = <String, dynamic>{};
     source.forEach((k, v) => result[k.toString()] = v);

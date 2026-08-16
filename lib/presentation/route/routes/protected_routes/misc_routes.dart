@@ -2,20 +2,22 @@
 
 import 'package:go_router/go_router.dart';
 
+import '../../../pages/activity_logs/activity_logs_page.dart';
 import '../../../pages/appointment_settings/appointment_settings_page.dart';
-import '../../../pages/doctors/doctors_page.dart';
-import '../../../pages/doctor_schedules/doctor_schedules_pages.dart';
-import '../../../pages/profile/profile_page.dart';
-import '../../../pages/settings/settings_page.dart';
-import '../../../pages/roles/roles_permissions_page.dart';
-import '../../../pages/users/users_page.dart';
 import '../../../pages/branch/branches_page.dart';
+import '../../../pages/doctor_schedules/doctor_schedules_pages.dart';
+import '/presentation/pages/doctors/doctor_detail_page.dart';
+import '../../../pages/doctors/doctors_page.dart';
 import '../../../pages/notifications/notifications_page.dart';
-import '../../route_names.dart';
+import '../../../pages/profile/profile_page.dart';
+import '../../../pages/roles/roles_permissions_page.dart';
+import '../../../pages/settings/settings_page.dart';
+import '../../../pages/users/users_page.dart';
 import '../../page_transitions.dart';
-import '../../../pages/activity_logs/activity_logs_page.dart'; // ← ADD IMPORT
+import '../../route_names.dart';
 
 final List<GoRoute> miscRoutes = [
+  // ═══ DOCTORS ══════════════════════════════════════════════
   GoRoute(
     path: '/doctors',
     name: RouteNames.doctors,
@@ -23,7 +25,27 @@ final List<GoRoute> miscRoutes = [
       key: state.pageKey,
       child: const DoctorsPage(),
     ),
+    routes: [
+      // ✅ Nested /doctors/:id — no name, just path
+      GoRoute(
+        path: ':id',
+        pageBuilder: (context, state) {
+          final id = int.tryParse(state.pathParameters['id'] ?? '');
+          if (id == null) {
+            return FadeThroughPage(
+              key: state.pageKey,
+              child: const DoctorsPage(),
+            );
+          }
+          return FadeThroughPage(
+            key: state.pageKey,
+            child: DoctorDetailPage(doctorId: id),
+          );
+        },
+      ),
+    ],
   ),
+
   GoRoute(
     path: '/doctor-schedules',
     name: RouteNames.doctorSchedules,
