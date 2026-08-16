@@ -13,6 +13,7 @@ import '../../../pages/branch/branches_page.dart';
 import '../../../pages/notifications/notifications_page.dart';
 import '../../route_names.dart';
 import '../../page_transitions.dart';
+import '../../../pages/activity_logs/activity_logs_page.dart'; // ← ADD IMPORT
 
 final List<GoRoute> miscRoutes = [
   GoRoute(
@@ -85,6 +86,14 @@ final List<GoRoute> miscRoutes = [
     pageBuilder: (context, state) => FadeThroughPage(
       key: state.pageKey,
       child: const NotificationsPage(),
+    ),
+  ),
+  GoRoute(
+    path: '/activity-logs',
+    name: RouteNames.activityLogs,
+    pageBuilder: (context, state) => FadeThroughPage(
+      key: state.pageKey,
+      child: const ActivityLogsPage(),
     ),
   ),
 ];
