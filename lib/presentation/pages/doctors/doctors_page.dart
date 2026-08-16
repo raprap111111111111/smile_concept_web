@@ -1,16 +1,17 @@
 // lib/presentation/pages/doctors/doctors_page.dart
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:go_router/go_router.dart';   // ✅ NEW
+import 'package:smile_concept_web/core/errors/error_message.dart';
 
 import '../../../data/repositories/doctor_repository.dart';
 import '../../theme/app_colors.dart';
 import '../../theme/app_dimensions.dart';
 import '../../theme/app_text_styles.dart';
-import 'widgets/doctor_card.dart';
-import 'widgets/doctor_form_dialog.dart';
 import '../../widgets/shared/hold_to_delete_dialog.dart';
 import '../../widgets/shared/search_bar_onclick.dart';
-import 'package:smile_concept_web/core/errors/error_message.dart';
+import 'widgets/doctor_card.dart';
+import 'widgets/doctor_form_dialog.dart';
 
 class DoctorsPage extends ConsumerStatefulWidget {
   const DoctorsPage({super.key});
@@ -46,8 +47,10 @@ class _DoctorsPageState extends ConsumerState<DoctorsPage> {
                 doctors: _filter(doctors),
                 onEdit: (doc) => _openDialog(doctor: doc),
                 onDelete: _confirmDelete,
+                onTap: _openDetail,            
               ),
-              loading: () => const Center(child: CircularProgressIndicator()),
+              loading: () =>
+                  const Center(child: CircularProgressIndicator()),
               error: (e, _) => _ErrorView(message: describeError(e)),
             ),
           ),
@@ -73,6 +76,12 @@ class _DoctorsPageState extends ConsumerState<DoctorsPage> {
       context: context,
       builder: (_) => DoctorFormDialog(doctor: doctor),
     );
+  }
+
+  // ✅ NEW — Navigate to detail page
+  void _openDetail(Map<String, dynamic> doctor) {
+    final id = doctor['id'] as int;
+    context.push('/doctors/$id');
   }
 
   // ── Delete confirmation ──
@@ -181,17 +190,18 @@ class _Header extends StatelessWidget {
   }
 }
 
-
 // ── Doctor Grid ───────────────────────────────────────────────
 class _DoctorGrid extends StatelessWidget {
   final List<Map<String, dynamic>> doctors;
   final void Function(Map<String, dynamic>) onEdit;
   final void Function(Map<String, dynamic>) onDelete;
+  final void Function(Map<String, dynamic>) onTap;  
 
   const _DoctorGrid({
     required this.doctors,
     required this.onEdit,
     required this.onDelete,
+    required this.onTap,   
   });
 
   @override
@@ -210,6 +220,7 @@ class _DoctorGrid extends StatelessWidget {
         doctor: doctors[i],
         onEdit: () => onEdit(doctors[i]),
         onDelete: () => onDelete(doctors[i]),
+        onTap: () => onTap(doctors[i]),  
       ),
     );
   }

@@ -1,5 +1,6 @@
 // lib/presentation/pages/doctors/widgets/doctor_card.dart
 import 'package:flutter/material.dart';
+
 import '../../../theme/app_colors.dart';
 import '../../../theme/app_dimensions.dart';
 import '../../../theme/app_text_styles.dart';
@@ -11,12 +12,14 @@ class DoctorCard extends StatelessWidget {
   final Map<String, dynamic> doctor;
   final VoidCallback onEdit;
   final VoidCallback onDelete;
+  final VoidCallback? onTap;   // ✅ NEW — tap the card to view details
 
   const DoctorCard({
     super.key,
     required this.doctor,
     required this.onEdit,
     required this.onDelete,
+    this.onTap,                 // ✅ NEW
   });
 
   @override
@@ -33,43 +36,53 @@ class DoctorCard extends StatelessWidget {
     final schedules = doctor['schedules_count'] ?? 0;
     final appointments = doctor['appointments_count'] ?? 0;
 
-    return Container(
-      decoration: BoxDecoration(
-        color: AppColors.background,
-        borderRadius:
-            BorderRadius.circular(AppDimensions.borderRadiusLarge),
-        border: Border.all(color: AppColors.line),
-        boxShadow: const [
-          BoxShadow(
-            color: AppColors.cardShadow,
-            blurRadius: 8,
-            offset: Offset(0, 2),
+    // ✅ Wrap in Material + InkWell for ripple + tap
+    return Material(
+      color: Colors.transparent,
+      borderRadius: BorderRadius.circular(AppDimensions.borderRadiusLarge),
+      child: InkWell(
+        onTap: onTap,
+        borderRadius: BorderRadius.circular(AppDimensions.borderRadiusLarge),
+        child: Container(
+          decoration: BoxDecoration(
+            color: AppColors.background,
+            borderRadius:
+                BorderRadius.circular(AppDimensions.borderRadiusLarge),
+            border: Border.all(color: AppColors.line),
+            boxShadow: const [
+              BoxShadow(
+                color: AppColors.cardShadow,
+                blurRadius: 8,
+                offset: Offset(0, 2),
+              ),
+            ],
           ),
-        ],
-      ),
-      padding: const EdgeInsets.all(AppDimensions.paddingLarge),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          _buildHeader(name, specialization, isActive),
-          const SizedBox(height: AppDimensions.paddingSmall),
-          if (license.isNotEmpty) ...[
-            DoctorInfoRow(
-                icon: Icons.badge_outlined, text: 'License: $license'),
-            const SizedBox(height: 4),
-          ],
-          DoctorInfoRow(icon: Icons.email_outlined, text: email),
-          const SizedBox(height: 4),
-          DoctorInfoRow(icon: Icons.phone_outlined, text: phone),
-          if (branches.isNotEmpty) ...[
-            const SizedBox(height: 10),
-            _buildBranchChips(branches),
-          ],
-          const SizedBox(height: AppDimensions.paddingSmall),
-          _buildStats(schedules.toString(), appointments.toString()),
-          const Spacer(),
-          _buildActions(),
-        ],
+          padding: const EdgeInsets.all(AppDimensions.paddingLarge),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              _buildHeader(name, specialization, isActive),
+              const SizedBox(height: AppDimensions.paddingSmall),
+              if (license.isNotEmpty) ...[
+                DoctorInfoRow(
+                    icon: Icons.badge_outlined,
+                    text: 'License: $license'),
+                const SizedBox(height: 4),
+              ],
+              DoctorInfoRow(icon: Icons.email_outlined, text: email),
+              const SizedBox(height: 4),
+              DoctorInfoRow(icon: Icons.phone_outlined, text: phone),
+              if (branches.isNotEmpty) ...[
+                const SizedBox(height: 10),
+                _buildBranchChips(branches),
+              ],
+              const SizedBox(height: AppDimensions.paddingSmall),
+              _buildStats(schedules.toString(), appointments.toString()),
+              const Spacer(),
+              _buildActions(),
+            ],
+          ),
+        ),
       ),
     );
   }
