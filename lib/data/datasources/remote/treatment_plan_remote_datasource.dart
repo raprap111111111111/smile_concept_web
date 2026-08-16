@@ -1,6 +1,7 @@
 // lib/data/datasources/remote/treatment_plan_remote_datasource.dart
 
 import 'package:dio/dio.dart';
+import '../../models/treatment/plan_consumables_model.dart';
 import '../../models/treatment/treatment_plan_model.dart';
 
 class TreatmentPlanRemoteDataSource {
@@ -98,5 +99,31 @@ class TreatmentPlanRemoteDataSource {
     );
     final data = response.data['data'] as Map<String, dynamic>;
     return TreatmentPlanModel.fromJson(data);
+  }
+
+  // ── GET consumables ────────────────────────────────────────
+  Future<PlanConsumablesStatusModel> fetchConsumables(int planId) async {
+    final response = await dio.get('/treatment-plans/$planId/consumables');
+    final data = response.data['data'] as Map<String, dynamic>;
+    return PlanConsumablesStatusModel.fromJson(data);
+  }
+
+  // ── POST consumables ───────────────────────────────────────
+  Future<RecordSuppliesResultModel> recordConsumables({
+    required int planId,
+    required int branchId,
+    required List<Map<String, dynamic>> lines,
+    String? notes,
+  }) async {
+    final response = await dio.post(
+      '/treatment-plans/$planId/consumables',
+      data: {
+        'branch_id': branchId,
+        'lines': lines,
+        if (notes != null && notes.trim().isNotEmpty) 'notes': notes.trim(),
+      },
+    );
+    final data = response.data['data'] as Map<String, dynamic>;
+    return RecordSuppliesResultModel.fromJson(data);
   }
 }

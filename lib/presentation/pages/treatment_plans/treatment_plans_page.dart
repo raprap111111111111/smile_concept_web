@@ -13,6 +13,7 @@ import '../../theme/app_colors.dart';
 import '../../theme/app_dimensions.dart';
 import '../../theme/app_text_styles.dart';
 import '../../widgets/shared/hold_to_delete_dialog.dart';
+import 'widgets/record_supplies_dialog.dart';
 import 'widgets/status_change_dialog.dart';
 import 'widgets/treatment_plan_card.dart';
 import 'widgets/treatment_plan_empty_state.dart';
@@ -116,15 +117,31 @@ class _TreatmentPlansPageState extends ConsumerState<TreatmentPlansPage> {
 
     if (!mounted) return;
 
-    _load(forceRefresh: true);
-
-    if (error == null) {
-      _showSnack(
-        'Status changed to ${result['status']}',
-        AppColors.success,
-      );
-    } else {
+    if (error != null) {
+      _load(forceRefresh: true);
       _showSnack(error, AppColors.error);
+      return;
+    }
+
+    _showSnack('Status changed to ${result['status']}', AppColors.success);
+
+    // Completing the plan is the moment staff still remember what was used, so
+    // offer the recording right here rather than making them find the card
+    // again.
+    if (result['status'] == 'completed' &&
+        auth.hasPermission(Perm.treatmentPlanRecordConsumables)) {
+      await RecordSuppliesDialog.show(context, plan);
+      if (!mounted) return;
+    }
+
+    _load(forceRefresh: true);
+  }
+
+  Future<void> _recordSupplies(TreatmentPlanModel plan) async {
+    final recorded = await RecordSuppliesDialog.show(context, plan);
+
+    if (recorded == true && mounted) {
+      _load(forceRefresh: true);
     }
   }
 
@@ -152,6 +169,8 @@ class _TreatmentPlansPageState extends ConsumerState<TreatmentPlansPage> {
     final canCreate = auth.hasPermission(Perm.treatmentPlanCreate);
     final canDelete = auth.hasPermission(Perm.treatmentPlanDelete);
     final canChangeStatus = auth.hasPermission(Perm.treatmentPlanUpdate);
+    final canRecordSupplies =
+        auth.hasPermission(Perm.treatmentPlanRecordConsumables);
 
     return Scaffold(
       backgroundColor: AppColors.surface,
@@ -166,7 +185,14 @@ class _TreatmentPlansPageState extends ConsumerState<TreatmentPlansPage> {
               _load(forceRefresh: true);
             },
           ),
-          Expanded(child: _buildBody(state, canDelete, canChangeStatus)),
+          Expanded(
+            child: _buildBody(
+              state,
+              canDelete,
+              canChangeStatus,
+              canRecordSupplies,
+            ),
+          ),
         ],
       ),
       floatingActionButton: canCreate ? _buildFAB() : null,
@@ -208,6 +234,7 @@ class _TreatmentPlansPageState extends ConsumerState<TreatmentPlansPage> {
     TreatmentPlanState state,
     bool canDelete,
     bool canChangeStatus,
+    bool canRecordSupplies,
   ) {
     if (state.isListLoading) return const _LoadingView();
 
@@ -246,8 +273,10 @@ class _TreatmentPlansPageState extends ConsumerState<TreatmentPlansPage> {
                   plan: plan,
                   canDelete: canDelete,
                   canChangeStatus: canChangeStatus,
+                  canRecordSupplies: canRecordSupplies,
                   onDelete: () => _delete(plan.id, plan.name),
                   onChangeStatus: () => _changeStatus(plan),
+                  onRecordSupplies: () => _recordSupplies(plan),
                 ),
               );
             },

@@ -11,6 +11,7 @@ import '../../../providers/inventory/inventory_form_providers.dart';
 import '../../../theme/app_colors.dart';
 import '../../../theme/app_dimensions.dart';
 import '../../../theme/app_text_styles.dart';
+import '../../../widgets/shared/item_picker_dialog.dart';
 
 /// Edits which supplies a treatment consumes.
 ///
@@ -311,7 +312,7 @@ class _AddButton extends StatelessWidget {
   ) async {
     final picked = await showDialog<InventoryItemModel>(
       context: context,
-      builder: (context) => _ItemPickerDialog(items: available),
+      builder: (context) => ItemPickerDialog(items: available),
     );
 
     if (picked != null) {
@@ -320,91 +321,3 @@ class _AddButton extends StatelessWidget {
   }
 }
 
-/// Searchable list rather than a dropdown.
-///
-/// The items endpoint is fetched with a page cap, and a clinic's catalog runs
-/// long — a bare dropdown makes anything past the fold unreachable.
-class _ItemPickerDialog extends StatefulWidget {
-  final List<InventoryItemModel> items;
-
-  const _ItemPickerDialog({required this.items});
-
-  @override
-  State<_ItemPickerDialog> createState() => _ItemPickerDialogState();
-}
-
-class _ItemPickerDialogState extends State<_ItemPickerDialog> {
-  String _query = '';
-
-  @override
-  Widget build(BuildContext context) {
-    final needle = _query.trim().toLowerCase();
-
-    final matches = needle.isEmpty
-        ? widget.items
-        : widget.items.where((item) {
-            return item.name.toLowerCase().contains(needle) ||
-                (item.sku ?? '').toLowerCase().contains(needle) ||
-                (item.category ?? '').toLowerCase().contains(needle);
-          }).toList();
-
-    return AlertDialog(
-      title: const Text('Add consumable'),
-      content: SizedBox(
-        width: 420,
-        height: 420,
-        child: Column(
-          children: [
-            TextField(
-              autofocus: true,
-              decoration: const InputDecoration(
-                prefixIcon: Icon(Icons.search),
-                hintText: 'Search by name, SKU or category',
-                border: OutlineInputBorder(),
-                isDense: true,
-              ),
-              onChanged: (value) => setState(() => _query = value),
-            ),
-            const SizedBox(height: AppDimensions.paddingSmall),
-            Expanded(
-              child: matches.isEmpty
-                  ? Center(
-                      child: Text(
-                        'No items match "$_query".',
-                        style: AppTextStyles.bodySmall
-                            .copyWith(color: AppColors.textMuted),
-                      ),
-                    )
-                  : ListView.builder(
-                      itemCount: matches.length,
-                      itemBuilder: (context, index) {
-                        final item = matches[index];
-
-                        return Material(
-                          color: Colors.transparent,
-                          child: ListTile(
-                            title: Text(item.name),
-                            subtitle: Text(
-                              [item.sku, item.categoryLabel]
-                                  .where((s) => s != null && s.isNotEmpty)
-                                  .join(' • '),
-                            ),
-                            trailing: Text(item.unitOfMeasure ?? ''),
-                            onTap: () => Navigator.of(context).pop(item),
-                          ),
-                        );
-                      },
-                    ),
-            ),
-          ],
-        ),
-      ),
-      actions: [
-        TextButton(
-          onPressed: () => Navigator.of(context).pop(),
-          child: const Text('Cancel'),
-        ),
-      ],
-    );
-  }
-}

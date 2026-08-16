@@ -9,7 +9,7 @@ import '../../../../data/models/patient/patient_model.dart';
 import '../../../providers/patient/patient_search_provider.dart';
 import '../../../theme/app_colors.dart';
 import '../../../theme/app_dimensions.dart';
-import 'picker_dialog_chrome.dart';
+import '../../../widgets/shared/picker_dialog_chrome.dart';
 import 'package:smile_concept_web/core/errors/error_message.dart';
 
 /// A tappable field that opens a searchable patient picker dialog.

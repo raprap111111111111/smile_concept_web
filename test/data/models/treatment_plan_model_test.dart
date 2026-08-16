@@ -190,6 +190,36 @@ void main() {
     });
   });
 
+  group('consumables_recorded', () {
+    test('defaults to false when the endpoint did not compute it', () {
+      final plan = TreatmentPlanModel.fromJson({
+        'id': 1,
+        'name': 'Plan',
+        'status': 'completed',
+        'total_estimated_amount': '0',
+      });
+
+      expect(plan.consumablesRecorded, isFalse);
+    });
+
+    test('reads both the boolean and the integer the API may send', () {
+      Map<String, dynamic> base(dynamic flag) => {
+            'id': 1,
+            'name': 'Plan',
+            'status': 'completed',
+            'total_estimated_amount': '0',
+            'consumables_recorded': flag,
+          };
+
+      expect(TreatmentPlanModel.fromJson(base(true)).consumablesRecorded,
+          isTrue);
+      expect(TreatmentPlanModel.fromJson(base(1)).consumablesRecorded, isTrue);
+      expect(TreatmentPlanModel.fromJson(base(false)).consumablesRecorded,
+          isFalse);
+      expect(TreatmentPlanModel.fromJson(base(0)).consumablesRecorded, isFalse);
+    });
+  });
+
   group('TreatmentPlanItemModel', () {
     test('names an unresolvable treatment instead of rendering blank', () {
       final item = TreatmentPlanItemModel.fromJson({

@@ -3,6 +3,7 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../core/network/dio_client.dart';
 import '../datasources/remote/treatment_plan_remote_datasource.dart';
+import '../models/treatment/plan_consumables_model.dart';
 import '../models/treatment/treatment_plan_model.dart';
 
 class TreatmentPlanResult {
@@ -121,6 +122,24 @@ class TreatmentPlanRepository {
       id: id,
       status: status,
       reason: reason,
+    );
+  }
+
+  // ── CONSUMABLES ────────────────────────────────────────────
+  Future<PlanConsumablesStatusModel> fetchConsumables(int planId) =>
+      remoteDataSource.fetchConsumables(planId);
+
+  Future<RecordSuppliesResultModel> recordConsumables({
+    required int planId,
+    required int branchId,
+    required List<Map<String, dynamic>> lines,
+    String? notes,
+  }) {
+    return remoteDataSource.recordConsumables(
+      planId: planId,
+      branchId: branchId,
+      lines: lines,
+      notes: notes,
     );
   }
 
