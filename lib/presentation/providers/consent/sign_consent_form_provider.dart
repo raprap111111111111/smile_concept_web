@@ -1,4 +1,3 @@
-import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../../core/network/dio_client.dart';
@@ -545,7 +544,6 @@ class ConsentFormNotifier extends AutoDisposeNotifier<ConsentFormState> {
     };
   }
 
-  @visibleForTesting
   void reset() => state = build();
 }
 

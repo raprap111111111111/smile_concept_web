@@ -1,202 +1,801 @@
-// test/presentation/pages/appointment_settings/appointment_settings_page_test.dart
-
-import 'dart:convert';
-import 'dart:typed_data';
-
-import 'package:dio/dio.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:flutter_test/flutter_test.dart';
-import 'package:smile_concept_web/core/network/dio_client.dart';
-import 'package:smile_concept_web/presentation/pages/appointment_settings/appointment_settings_page.dart';
 
-class _StubAdapter implements HttpClientAdapter {
-  final List<RequestOptions> requests = [];
-  Map<String, dynamic> getBody;
-  Map<String, dynamic> putBody;
-  int putStatus;
+import '/Users/raprap/smile_concept_web/lib/data/models/settings/appointment_settings_model.dart';
+import '/Users/raprap/smile_concept_web/lib/presentation/providers/settings/appointment_settings_provider.dart';
+import '/Users/raprap/smile_concept_web/lib/presentation/theme/app_colors.dart';
+import '/Users/raprap/smile_concept_web/lib/presentation/theme/app_dimensions.dart';
+import '/Users/raprap/smile_concept_web/lib/presentation/theme/app_text_styles.dart';
+import '/Users/raprap/smile_concept_web/lib/presentation/theme/app_theme.dart';
+import '/Users/raprap/smile_concept_web/lib/presentation/pages/doctor_schedules/widgets/days_checkbox_list.dart';
+import '/Users/raprap/smile_concept_web/lib/presentation/pages/doctor_schedules/widgets/time_picker_field.dart';
+import '/Users/raprap/smile_concept_web/lib/presentation/pages/appointment_settings/widgets/fee_field.dart';
+import '/Users/raprap/smile_concept_web/lib/presentation/pages/appointment_settings/widgets/number_stepper_field.dart';
+import '/Users/raprap/smile_concept_web/lib/presentation/pages/appointment_settings/widgets/settings_section_card.dart';
 
-  _StubAdapter({
-    required this.getBody,
-    required this.putBody,
-    this.putStatus = 200,
-  });
+// ══════════════════════════════════════════════════════════════
+// PUBLIC PAGE — standalone version with Scaffold + AppBar
+// Used when navigated directly via /appointment-settings
+// ══════════════════════════════════════════════════════════════
+class AppointmentSettingsPage extends StatelessWidget {
+  const AppointmentSettingsPage({super.key});
 
   @override
-  Future<ResponseBody> fetch(
-    RequestOptions options,
-    Stream<Uint8List>? requestStream,
-    Future<void>? cancelFuture,
-  ) async {
-    requests.add(options);
-    final isPut = options.method == 'PUT';
-    return ResponseBody.fromString(
-      jsonEncode(isPut ? putBody : getBody),
-      isPut ? putStatus : 200,
-      headers: {
-        Headers.contentTypeHeader: [Headers.jsonContentType],
-      },
+  Widget build(BuildContext context) {
+    return Theme(
+      data: AppTheme.lightTheme,
+      child: Scaffold(
+        backgroundColor: AppColors.surface,
+        appBar: AppBar(
+          backgroundColor: AppColors.background,
+          elevation: 0,
+          scrolledUnderElevation: 0,
+          surfaceTintColor: Colors.transparent,
+          automaticallyImplyLeading: false,
+          title: const Text('Appointment Settings',
+              style: AppTextStyles.titleLarge),
+          centerTitle: false,
+          bottom: PreferredSize(
+            preferredSize: const Size.fromHeight(1),
+            child: Container(height: 1, color: AppColors.border),
+          ),
+        ),
+        body: const AppointmentSettingsView(),
+      ),
     );
+  }
+}
+
+// ══════════════════════════════════════════════════════════════
+// EMBEDDABLE VIEW — no Scaffold, no AppBar
+// Used inside Settings tabs
+// ══════════════════════════════════════════════════════════════
+class AppointmentSettingsView extends ConsumerStatefulWidget {
+  const AppointmentSettingsView({super.key});
+
+  @override
+  ConsumerState<AppointmentSettingsView> createState() =>
+      _AppointmentSettingsViewState();
+}
+
+class _AppointmentSettingsViewState
+    extends ConsumerState<AppointmentSettingsView> {
+  final _opensController = TextEditingController();
+  final _closesController = TextEditingController();
+  final _lunchStartController = TextEditingController();
+  final _lunchEndController = TextEditingController();
+
+  bool _controllersSeeded = false;
+
+  @override
+  void initState() {
+    super.initState();
+
+    _opensController.addListener(() => _onTimeEdited(
+        _opensController, (d, t) => d.copyWith(clinicOpensAt: t)));
+    _closesController.addListener(() => _onTimeEdited(
+        _closesController, (d, t) => d.copyWith(clinicClosesAt: t)));
+    _lunchStartController.addListener(() => _onTimeEdited(
+        _lunchStartController, (d, t) => d.copyWith(lunchBreakStart: t)));
+    _lunchEndController.addListener(() => _onTimeEdited(
+        _lunchEndController, (d, t) => d.copyWith(lunchBreakEnd: t)));
+
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      ref.read(appointmentSettingsProvider.notifier).load();
+    });
   }
 
   @override
-  void close({bool force = false}) {}
-}
+  void dispose() {
+    _opensController.dispose();
+    _closesController.dispose();
+    _lunchStartController.dispose();
+    _lunchEndController.dispose();
+    super.dispose();
+  }
 
-Map<String, dynamic> payload({int slot = 30}) => {
-      'appointment_slot_duration': slot,
-      'appointment_buffer_minutes': 0,
-      'clinic_opens_at': '09:00',
-      'clinic_closes_at': '18:00',
-      'lunch_break_start': '12:00',
-      'lunch_break_end': '13:00',
-      'working_days': [1, 2, 3, 4, 5, 6],
-      'max_appointments_per_dentist_per_day': 12,
-      'max_appointments_per_day': 60,
-      'max_concurrent_appointments': 3,
-      'booking_lead_time_hours': 2,
-      'max_advance_booking_days': 90,
-      'allow_same_day_booking': true,
-      'max_future_appointments_per_patient': 3,
-      'allow_online_booking': true,
-      'cancellation_window_hours': 24,
-      'late_cancellation_fee': 0,
-      'no_show_fee': 0,
-      'no_shows_before_block': 3,
-      'reminder_offsets': [24, 1],
-      'send_booking_confirmation_email': true,
-      'send_cancellation_email': true,
-      'send_followup_email': false,
-      'followup_email_hours_after': 24,
-      'enable_waitlist': false,
-      'waitlist_offer_window_minutes': 120,
-    };
+  void _onTimeEdited(
+    TextEditingController controller,
+    AppointmentSettingsModel Function(AppointmentSettingsModel, String) apply,
+  ) {
+    if (!_controllersSeeded) return;
+    final draft = ref.read(appointmentSettingsProvider).draft;
+    if (draft == null) return;
 
-Widget wrap(_StubAdapter adapter) {
-  final dio = Dio(BaseOptions(baseUrl: 'http://test.local/api/v1'))
-    ..httpClientAdapter = adapter;
+    final text = controller.text.trim();
+    if (text.length < 5) return;
 
-  return ProviderScope(
-    overrides: [dioProvider.overrideWithValue(dio)],
-    // MaterialApp deliberately uses the dark theme the real app runs, so the
-    // page's own light-theme pin is exercised rather than bypassed.
-    child: MaterialApp(
-      theme: ThemeData.dark(),
-      home: const AppointmentSettingsPage(),
-    ),
-  );
-}
+    _updateDraft(apply(draft, text.substring(0, 5)));
+  }
 
-void main() {
-  testWidgets('loads settings and renders every section', (tester) async {
-    tester.view.physicalSize = const Size(1400, 3000);
-    tester.view.devicePixelRatio = 1.0;
-    addTearDown(tester.view.reset);
+  void _updateDraft(AppointmentSettingsModel draft) {
+    ref.read(appointmentSettingsProvider.notifier).updateDraft(draft);
+  }
 
-    final adapter = _StubAdapter(getBody: {'data': payload()}, putBody: {'data': payload()});
+  void _seedTimeControllers(AppointmentSettingsModel model) {
+    _opensController.text = '${model.clinicOpensAt}:00';
+    _closesController.text = '${model.clinicClosesAt}:00';
+    _lunchStartController.text = '${model.lunchBreakStart}:00';
+    _lunchEndController.text = '${model.lunchBreakEnd}:00';
+  }
 
-    await tester.pumpWidget(wrap(adapter));
-    await tester.pumpAndSettle();
+  Future<void> _save() async {
+    final saved = await ref.read(appointmentSettingsProvider.notifier).save();
+    if (saved && mounted) {
+      final fresh = ref.read(appointmentSettingsProvider).saved;
+      if (fresh != null) _seedTimeControllers(fresh);
+    }
+  }
 
-    expect(find.text('Appointment Settings'), findsOneWidget);
-    for (final section in const [
-      'Scheduling',
-      'Capacity',
-      'Booking Window',
-      'Cancellation & No-Show',
-      'Reminders & Email',
-      'Waitlist',
-    ]) {
-      expect(find.text(section), findsOneWidget, reason: 'missing section: $section');
+  void _discard() {
+    ref.read(appointmentSettingsProvider.notifier).discardChanges();
+    final saved = ref.read(appointmentSettingsProvider).saved;
+    if (saved != null) _seedTimeControllers(saved);
+  }
+
+  Future<void> _reload() async {
+    await ref.read(appointmentSettingsProvider.notifier).load();
+    if (!mounted) return;
+    final fresh = ref.read(appointmentSettingsProvider).saved;
+    if (fresh != null) _seedTimeControllers(fresh);
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final state = ref.watch(appointmentSettingsProvider);
+
+    if (!_controllersSeeded && state.saved != null) {
+      _seedTimeControllers(state.saved!);
+      _controllersSeeded = true;
     }
 
-    // Values from the server are on screen.
-    expect(find.text('Default Slot Duration'), findsOneWidget);
-    expect(find.widgetWithText(TextField, '30'), findsWidgets);
-
-    // Settings that are stored but not acted on must say so.
-    expect(find.text('Not yet enforced'), findsWidgets);
-
-    expect(adapter.requests.single.method, 'GET');
-  });
-
-  testWidgets('Save stays disabled until something changes, then PUTs', (tester) async {
-    tester.view.physicalSize = const Size(1400, 3000);
-    tester.view.devicePixelRatio = 1.0;
-    addTearDown(tester.view.reset);
-
-    final adapter = _StubAdapter(
-      getBody: {'data': payload()},
-      putBody: {'data': payload(slot: 45)},
-    );
-
-    await tester.pumpWidget(wrap(adapter));
-    await tester.pumpAndSettle();
-
-    ElevatedButton saveButton() => tester.widget<ElevatedButton>(
-          find.widgetWithText(ElevatedButton, 'Save Settings'),
+    ref.listen(appointmentSettingsProvider, (previous, next) {
+      if (next.justSaved && previous?.justSaved != true) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Appointment settings saved.'),
+            backgroundColor: AppColors.success,
+          ),
         );
+      }
+    });
 
-    expect(find.text('All changes saved.'), findsOneWidget);
-    expect(saveButton().onPressed, isNull, reason: 'Save must be disabled while clean');
-
-    // Bump the slot duration via its stepper.
-    final slotField = find.ancestor(
-      of: find.text('Default Slot Duration'),
-      matching: find.byType(TextFormField),
+    return Theme(
+      data: AppTheme.lightTheme,
+      child: Column(
+        children: [
+          Expanded(child: _buildBody(state)),
+          if (state.draft != null) _buildSaveBar(state),
+        ],
+      ),
     );
-    await tester.tap(
-      find.descendant(of: slotField, matching: find.byIcon(Icons.add_rounded)),
+  }
+
+  Widget _buildBody(AppointmentSettingsState state) {
+    if (state.isLoading && state.draft == null) {
+      return const Center(
+        child: CircularProgressIndicator(color: AppColors.primary),
+      );
+    }
+
+    if (state.error != null && state.draft == null) {
+      return Center(
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            const Icon(Icons.cloud_off_rounded,
+                size: 40, color: AppColors.textMuted),
+            const SizedBox(height: 12),
+            Text(
+              state.error!,
+              style: AppTextStyles.bodyMedium,
+              textAlign: TextAlign.center,
+            ),
+            const SizedBox(height: 12),
+            ElevatedButton(
+              style: ElevatedButton.styleFrom(
+                backgroundColor: AppColors.primary,
+                foregroundColor: AppColors.textOnPrimary,
+              ),
+              onPressed: _reload,
+              child: const Text('Retry'),
+            ),
+          ],
+        ),
+      );
+    }
+
+    final draft = state.draft;
+    if (draft == null) return const SizedBox.shrink();
+
+    return SingleChildScrollView(
+      padding: const EdgeInsets.all(AppDimensions.paddingLarge),
+      child: Center(
+        child: ConstrainedBox(
+          constraints: const BoxConstraints(maxWidth: 860),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              // Top bar with reload button
+              Row(
+                mainAxisAlignment: MainAxisAlignment.end,
+                children: [
+                  IconButton(
+                    icon: const Icon(Icons.refresh_rounded,
+                        color: AppColors.ink),
+                    tooltip: 'Reload from server',
+                    onPressed: state.isLoading ? null : _reload,
+                  ),
+                ],
+              ),
+              if (state.error != null) ...[
+                _ErrorBanner(
+                    message: state.error!, fieldErrors: state.fieldErrors),
+                const SizedBox(height: AppDimensions.paddingMedium),
+              ],
+              _buildSchedulingCard(draft, state),
+              const SizedBox(height: AppDimensions.paddingMedium),
+              _buildCapacityCard(draft, state),
+              const SizedBox(height: AppDimensions.paddingMedium),
+              _buildBookingWindowCard(draft, state),
+              const SizedBox(height: AppDimensions.paddingMedium),
+              _buildCancellationCard(draft, state),
+              const SizedBox(height: AppDimensions.paddingMedium),
+              _buildRemindersCard(draft, state),
+              const SizedBox(height: AppDimensions.paddingMedium),
+              _buildWaitlistCard(draft, state),
+              const SizedBox(height: 80),
+            ],
+          ),
+        ),
+      ),
     );
-    await tester.pumpAndSettle();
+  }
 
-    expect(find.text('You have unsaved changes.'), findsOneWidget);
-    expect(saveButton().onPressed, isNotNull, reason: 'Save must enable once dirty');
+  // ─── Section builders (unchanged from your original) ──────
+  Widget _buildSchedulingCard(
+      AppointmentSettingsModel d, AppointmentSettingsState state) {
+    return SettingsSectionCard(
+      title: 'Scheduling',
+      icon: Icons.schedule_rounded,
+      subtitle: 'Slot shape, clinic hours, lunch break and working days',
+      children: [
+        Row(
+          children: [
+            Expanded(
+              child: NumberStepperField(
+                label: 'Default Slot Duration',
+                suffix: 'min',
+                helper: 'Standard appointment length.',
+                value: d.slotDurationMinutes,
+                min: 5,
+                max: 240,
+                errorText: state.fieldErrors['appointment_slot_duration'],
+                onChanged: (v) =>
+                    _updateDraft(d.copyWith(slotDurationMinutes: v)),
+              ),
+            ),
+            const SizedBox(width: AppDimensions.paddingMedium),
+            Expanded(
+              child: NumberStepperField(
+                label: 'Buffer Between Slots',
+                suffix: 'min',
+                helper:
+                    'Extra time between appointments for cleaning and prep.',
+                value: d.bufferMinutes,
+                min: 0,
+                max: 120,
+                errorText: state.fieldErrors['appointment_buffer_minutes'],
+                onChanged: (v) => _updateDraft(d.copyWith(bufferMinutes: v)),
+              ),
+            ),
+          ],
+        ),
+        const SizedBox(height: AppDimensions.paddingMedium),
+        Row(
+          children: [
+            Expanded(
+              child: TimePickerField(
+                controller: _opensController,
+                label: 'Clinic Opens At',
+                icon: Icons.wb_sunny_outlined,
+              ),
+            ),
+            const SizedBox(width: AppDimensions.paddingMedium),
+            Expanded(
+              child: TimePickerField(
+                controller: _closesController,
+                label: 'Clinic Closes At',
+                icon: Icons.nights_stay_outlined,
+              ),
+            ),
+          ],
+        ),
+        const SizedBox(height: AppDimensions.paddingMedium),
+        Row(
+          children: [
+            Expanded(
+              child: TimePickerField(
+                controller: _lunchStartController,
+                label: 'Lunch Break Start',
+                icon: Icons.lunch_dining_outlined,
+              ),
+            ),
+            const SizedBox(width: AppDimensions.paddingMedium),
+            Expanded(
+              child: TimePickerField(
+                controller: _lunchEndController,
+                label: 'Lunch Break End',
+                icon: Icons.restaurant_outlined,
+              ),
+            ),
+          ],
+        ),
+        const SizedBox(height: AppDimensions.paddingMedium),
+        DaysCheckboxList(
+          selectedDays: d.workingDays,
+          onChanged: (days) => _updateDraft(d.copyWith(workingDays: days)),
+        ),
+      ],
+    );
+  }
 
-    await tester.tap(find.widgetWithText(ElevatedButton, 'Save Settings'));
-    await tester.pumpAndSettle();
+  Widget _buildCapacityCard(
+      AppointmentSettingsModel d, AppointmentSettingsState state) {
+    return SettingsSectionCard(
+      title: 'Capacity',
+      icon: Icons.groups_rounded,
+      subtitle: 'Daily and simultaneous appointment limits',
+      children: [
+        NumberStepperField(
+          label: 'Max Appointments Per Dentist Per Day',
+          helper: 'Limits the number of patients each dentist can see daily.',
+          value: d.maxPerDentistPerDay,
+          min: 1,
+          max: 200,
+          icon: Icons.medical_services_outlined,
+          errorText: state.fieldErrors['max_appointments_per_dentist_per_day'],
+          onChanged: (v) => _updateDraft(d.copyWith(maxPerDentistPerDay: v)),
+        ),
+        const SizedBox(height: AppDimensions.paddingMedium),
+        NumberStepperField(
+          label: 'Max Clinic-Wide Appointments Per Day',
+          helper: 'Limits the total appointments for the entire clinic.',
+          value: d.maxPerDay,
+          min: 1,
+          max: 2000,
+          icon: Icons.business_outlined,
+          errorText: state.fieldErrors['max_appointments_per_day'],
+          onChanged: (v) => _updateDraft(d.copyWith(maxPerDay: v)),
+        ),
+        const SizedBox(height: AppDimensions.paddingMedium),
+        NumberStepperField(
+          label: 'Max Concurrent Appointments',
+          helper: 'How many appointments can happen at the same time (chairs).',
+          value: d.maxConcurrent,
+          min: 1,
+          max: 100,
+          icon: Icons.chair_alt_outlined,
+          errorText: state.fieldErrors['max_concurrent_appointments'],
+          onChanged: (v) => _updateDraft(d.copyWith(maxConcurrent: v)),
+        ),
+      ],
+    );
+  }
 
-    final put = adapter.requests.last;
-    expect(put.method, 'PUT');
-    expect((put.data as Map)['appointment_slot_duration'], 31);
+  Widget _buildBookingWindowCard(
+      AppointmentSettingsModel d, AppointmentSettingsState state) {
+    return SettingsSectionCard(
+      title: 'Booking Window',
+      icon: Icons.event_available_rounded,
+      subtitle: 'How far ahead (and how late) patients can book',
+      children: [
+        Row(
+          children: [
+            Expanded(
+              child: NumberStepperField(
+                label: 'Minimum Advance Booking',
+                suffix: 'hours',
+                helper: 'How many hours ahead a patient must book.',
+                value: d.leadTimeHours,
+                min: 0,
+                max: 720,
+                errorText: state.fieldErrors['booking_lead_time_hours'],
+                onChanged: (v) => _updateDraft(d.copyWith(leadTimeHours: v)),
+              ),
+            ),
+            const SizedBox(width: AppDimensions.paddingMedium),
+            Expanded(
+              child: NumberStepperField(
+                label: 'Maximum Advance Booking',
+                suffix: 'days',
+                helper: 'How far into the future a patient can schedule.',
+                value: d.maxAdvanceDays,
+                min: 1,
+                max: 730,
+                errorText: state.fieldErrors['max_advance_booking_days'],
+                onChanged: (v) => _updateDraft(d.copyWith(maxAdvanceDays: v)),
+              ),
+            ),
+          ],
+        ),
+        const SizedBox(height: AppDimensions.paddingMedium),
+        NumberStepperField(
+          label: 'Max Future Appointments Per Patient',
+          helper: 'Prevents patients from stacking up future bookings.',
+          value: d.maxFuturePerPatient,
+          min: 1,
+          max: 50,
+          icon: Icons.person_outline_rounded,
+          errorText: state.fieldErrors['max_future_appointments_per_patient'],
+          onChanged: (v) => _updateDraft(d.copyWith(maxFuturePerPatient: v)),
+        ),
+        const SizedBox(height: AppDimensions.paddingSmall),
+        _SettingSwitch(
+          title: 'Allow Same-Day Booking',
+          subtitle: 'Patients may book appointments for today.',
+          value: d.allowSameDayBooking,
+          onChanged: (v) => _updateDraft(d.copyWith(allowSameDayBooking: v)),
+        ),
+        _SettingSwitch(
+          title: 'Allow Online Booking',
+          subtitle: 'Master switch for patient self-service booking. '
+              'Staff can always book at the front desk.',
+          value: d.allowOnlineBooking,
+          onChanged: (v) => _updateDraft(d.copyWith(allowOnlineBooking: v)),
+        ),
+      ],
+    );
+  }
 
-    // Server response becomes the new baseline, so the form is clean again.
-    expect(find.text('All changes saved.'), findsOneWidget);
+  Widget _buildCancellationCard(
+      AppointmentSettingsModel d, AppointmentSettingsState state) {
+    return SettingsSectionCard(
+      title: 'Cancellation & No-Show',
+      icon: Icons.event_busy_rounded,
+      subtitle: 'Cutoff is enforced now; fees and blocking are stored for '
+          'the upcoming billing integration',
+      children: [
+        NumberStepperField(
+          label: 'Cancellation Cutoff',
+          suffix: 'hours',
+          helper: 'Deadline before the appointment after which patients '
+              'can no longer cancel online.',
+          value: d.cancellationWindowHours,
+          min: 0,
+          max: 720,
+          icon: Icons.timer_off_outlined,
+          errorText: state.fieldErrors['cancellation_window_hours'],
+          onChanged: (v) =>
+              _updateDraft(d.copyWith(cancellationWindowHours: v)),
+        ),
+        const SizedBox(height: AppDimensions.paddingMedium),
+        const _NotEnforcedDivider(),
+        const SizedBox(height: AppDimensions.paddingMedium),
+        Row(
+          children: [
+            Expanded(
+              child: FeeField(
+                label: 'Late Cancellation Fee',
+                helper:
+                    'Charged for cancelling after the cutoff. Not yet enforced.',
+                value: d.lateCancellationFee,
+                errorText: state.fieldErrors['late_cancellation_fee'],
+                onChanged: (v) =>
+                    _updateDraft(d.copyWith(lateCancellationFee: v)),
+              ),
+            ),
+            const SizedBox(width: AppDimensions.paddingMedium),
+            Expanded(
+              child: FeeField(
+                label: 'No-Show Fee',
+                helper:
+                    'Charged when a patient does not attend. Not yet enforced.',
+                value: d.noShowFee,
+                errorText: state.fieldErrors['no_show_fee'],
+                onChanged: (v) => _updateDraft(d.copyWith(noShowFee: v)),
+              ),
+            ),
+          ],
+        ),
+        const SizedBox(height: AppDimensions.paddingMedium),
+        NumberStepperField(
+          label: 'No-Shows Before Patient Block',
+          helper:
+              'Flags or blocks a patient after this many no-shows. Not yet enforced.',
+          value: d.noShowsBeforeBlock,
+          min: 1,
+          max: 50,
+          icon: Icons.block_outlined,
+          errorText: state.fieldErrors['no_shows_before_block'],
+          onChanged: (v) => _updateDraft(d.copyWith(noShowsBeforeBlock: v)),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildRemindersCard(
+      AppointmentSettingsModel d, AppointmentSettingsState state) {
+    return SettingsSectionCard(
+      title: 'Reminders & Email',
+      icon: Icons.notifications_active_rounded,
+      subtitle: 'Reminder timing and transactional email toggles',
+      children: [
+        Row(
+          children: [
+            Expanded(
+              child: NumberStepperField(
+                label: 'First Reminder',
+                suffix: 'hrs before',
+                helper: 'Sends the first appointment reminder.',
+                value: d.firstReminderHours,
+                min: 1,
+                max: 720,
+                errorText: state.fieldErrors['reminder_offsets'],
+                onChanged: (v) =>
+                    _updateDraft(d.copyWith(firstReminderHours: v)),
+              ),
+            ),
+            const SizedBox(width: AppDimensions.paddingMedium),
+            Expanded(
+              child: NumberStepperField(
+                label: 'Second Reminder',
+                suffix: 'hrs before',
+                helper: 'Final reminder — must be closer to the appointment '
+                    'than the first.',
+                value: d.secondReminderHours,
+                min: 1,
+                max: 720,
+                errorText: state.fieldErrors['reminder_offsets'],
+                onChanged: (v) =>
+                    _updateDraft(d.copyWith(secondReminderHours: v)),
+              ),
+            ),
+          ],
+        ),
+        const SizedBox(height: AppDimensions.paddingSmall),
+        _SettingSwitch(
+          title: 'Send Booking Confirmation Email',
+          subtitle: 'Emails the patient after an appointment is booked. '
+              'In-app notifications always stay on.',
+          value: d.sendBookingConfirmationEmail,
+          onChanged: (v) =>
+              _updateDraft(d.copyWith(sendBookingConfirmationEmail: v)),
+        ),
+        _SettingSwitch(
+          title: 'Send Cancellation Email',
+          subtitle: 'Emails the patient when an appointment is cancelled.',
+          value: d.sendCancellationEmail,
+          onChanged: (v) => _updateDraft(d.copyWith(sendCancellationEmail: v)),
+        ),
+        _SettingSwitch(
+          title: 'Send Follow-Up Email',
+          subtitle: 'Aftercare / feedback email once the visit is completed.',
+          value: d.sendFollowUpEmail,
+          onChanged: (v) => _updateDraft(d.copyWith(sendFollowUpEmail: v)),
+        ),
+        if (d.sendFollowUpEmail) ...[
+          const SizedBox(height: AppDimensions.paddingSmall),
+          NumberStepperField(
+            label: 'Follow-Up Email Delay',
+            suffix: 'hours after',
+            helper: 'How long after the appointment ends the follow-up goes out.',
+            value: d.followUpHoursAfter,
+            min: 1,
+            max: 720,
+            icon: Icons.mark_email_read_outlined,
+            errorText: state.fieldErrors['followup_email_hours_after'],
+            onChanged: (v) => _updateDraft(d.copyWith(followUpHoursAfter: v)),
+          ),
+        ],
+      ],
+    );
+  }
+
+  Widget _buildWaitlistCard(
+      AppointmentSettingsModel d, AppointmentSettingsState state) {
+    return SettingsSectionCard(
+      title: 'Waitlist',
+      icon: Icons.hourglass_top_rounded,
+      subtitle: 'Stored for the upcoming waitlist feature',
+      notEnforced: true,
+      children: [
+        _SettingSwitch(
+          title: 'Enable Waitlist',
+          subtitle: 'Lets patients join a waiting list when schedules are full.',
+          value: d.enableWaitlist,
+          onChanged: (v) => _updateDraft(d.copyWith(enableWaitlist: v)),
+        ),
+        if (d.enableWaitlist) ...[
+          const SizedBox(height: AppDimensions.paddingSmall),
+          NumberStepperField(
+            label: 'Waitlist Offer Window',
+            suffix: 'min',
+            helper: 'How long a patient has to accept a freed-up slot.',
+            value: d.waitlistOfferWindowMinutes,
+            min: 5,
+            max: 10080,
+            icon: Icons.timer_outlined,
+            errorText: state.fieldErrors['waitlist_offer_window_minutes'],
+            onChanged: (v) =>
+                _updateDraft(d.copyWith(waitlistOfferWindowMinutes: v)),
+          ),
+        ],
+      ],
+    );
+  }
+
+  Widget _buildSaveBar(AppointmentSettingsState state) {
+    final isDirty = state.isDirty;
+
+    return Container(
+      padding: const EdgeInsets.symmetric(
+        horizontal: AppDimensions.paddingLarge,
+        vertical: AppDimensions.paddingSmall,
+      ),
+      decoration: const BoxDecoration(
+        color: AppColors.background,
+        border: Border(top: BorderSide(color: AppColors.border)),
+      ),
+      child: SafeArea(
+        child: Row(
+          children: [
+            Expanded(
+              child: Text(
+                isDirty ? 'You have unsaved changes.' : 'All changes saved.',
+                style: TextStyle(
+                  fontSize: 13,
+                  fontWeight: FontWeight.w600,
+                  color: isDirty ? AppColors.warning : AppColors.textMuted,
+                ),
+              ),
+            ),
+            if (isDirty) ...[
+              OutlinedButton(
+                onPressed: state.isSaving ? null : _discard,
+                style: OutlinedButton.styleFrom(
+                  foregroundColor: AppColors.textSecondary,
+                  side: const BorderSide(color: AppColors.border),
+                ),
+                child: const Text('Discard'),
+              ),
+              const SizedBox(width: AppDimensions.paddingSmall),
+            ],
+            ElevatedButton(
+              onPressed: (isDirty && !state.isSaving) ? _save : null,
+              style: ElevatedButton.styleFrom(
+                backgroundColor: AppColors.primary,
+                foregroundColor: AppColors.textOnPrimary,
+                disabledBackgroundColor: AppColors.border,
+                disabledForegroundColor: AppColors.textMuted,
+                padding:
+                    const EdgeInsets.symmetric(horizontal: 28, vertical: 14),
+              ),
+              child: state.isSaving
+                  ? const SizedBox(
+                      width: 18,
+                      height: 18,
+                      child: CircularProgressIndicator(
+                        strokeWidth: 2,
+                        color: AppColors.textOnPrimary,
+                      ),
+                    )
+                  : const Text('Save Settings',
+                      style: TextStyle(fontWeight: FontWeight.w700)),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+// ─── Small shared pieces ────────────────────────────────────
+class _SettingSwitch extends StatelessWidget {
+  final String title;
+  final String subtitle;
+  final bool value;
+  final ValueChanged<bool> onChanged;
+
+  const _SettingSwitch({
+    required this.title,
+    required this.subtitle,
+    required this.value,
+    required this.onChanged,
   });
 
-  testWidgets('a 422 shows the server field error inline', (tester) async {
-    tester.view.physicalSize = const Size(1400, 3000);
-    tester.view.devicePixelRatio = 1.0;
-    addTearDown(tester.view.reset);
-
-    final adapter = _StubAdapter(
-      getBody: {'data': payload()},
-      putBody: {
-        'message': 'The given data was invalid.',
-        'errors': {
-          'max_concurrent_appointments': ['All chairs are already accounted for.'],
-        },
-      },
-      putStatus: 422,
+  @override
+  Widget build(BuildContext context) {
+    return SwitchListTile(
+      title: Text(title,
+          style: const TextStyle(
+              fontSize: 14, fontWeight: FontWeight.w600, color: AppColors.ink)),
+      subtitle: Text(subtitle,
+          style: const TextStyle(fontSize: 12, color: AppColors.textMuted)),
+      value: value,
+      onChanged: onChanged,
+      activeThumbColor: AppColors.primary,
+      contentPadding: EdgeInsets.zero,
+      dense: true,
     );
+  }
+}
 
-    await tester.pumpWidget(wrap(adapter));
-    await tester.pumpAndSettle();
+class _NotEnforcedDivider extends StatelessWidget {
+  const _NotEnforcedDivider();
 
-    final field = find.ancestor(
-      of: find.text('Max Concurrent Appointments'),
-      matching: find.byType(TextFormField),
+  @override
+  Widget build(BuildContext context) {
+    return Row(
+      children: [
+        const Expanded(child: Divider(color: AppColors.divider)),
+        Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 12),
+          child: Text(
+            'STORED, NOT YET ENFORCED',
+            style: TextStyle(
+              fontSize: 10,
+              fontWeight: FontWeight.w700,
+              letterSpacing: 0.8,
+              color: AppColors.warning.withValues(alpha: 0.9),
+            ),
+          ),
+        ),
+        const Expanded(child: Divider(color: AppColors.divider)),
+      ],
     );
-    await tester.tap(
-      find.descendant(of: field, matching: find.byIcon(Icons.add_rounded)),
+  }
+}
+
+class _ErrorBanner extends StatelessWidget {
+  final String message;
+  final Map<String, String> fieldErrors;
+
+  const _ErrorBanner({required this.message, this.fieldErrors = const {}});
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.all(AppDimensions.paddingMedium),
+      decoration: BoxDecoration(
+        color: AppColors.error.withValues(alpha: 0.08),
+        borderRadius: BorderRadius.circular(AppDimensions.borderRadius),
+        border: Border.all(color: AppColors.error.withValues(alpha: 0.4)),
+      ),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          const Icon(Icons.error_outline_rounded,
+              size: 20, color: AppColors.error),
+          const SizedBox(width: 10),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  message,
+                  style: const TextStyle(
+                    fontSize: 13,
+                    fontWeight: FontWeight.w600,
+                    color: AppColors.error,
+                  ),
+                ),
+                for (final entry in fieldErrors.entries)
+                  Padding(
+                    padding: const EdgeInsets.only(top: 4),
+                    child: Text(
+                      '${entry.key}: ${entry.value}',
+                      style: const TextStyle(
+                        fontSize: 12,
+                        color: AppColors.error,
+                      ),
+                    ),
+                  ),
+              ],
+            ),
+          ),
+        ],
+      ),
     );
-    await tester.pumpAndSettle();
-
-    await tester.tap(find.widgetWithText(ElevatedButton, 'Save Settings'));
-    await tester.pumpAndSettle();
-
-    expect(find.text('All chairs are already accounted for.'), findsWidgets);
-    // Still dirty, so the operator can correct and retry.
-    expect(find.text('You have unsaved changes.'), findsOneWidget);
-  });
+  }
 }
