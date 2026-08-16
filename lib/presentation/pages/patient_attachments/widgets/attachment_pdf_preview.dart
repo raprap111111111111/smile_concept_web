@@ -1,18 +1,22 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
+
 import '/core/config/api_config.dart';
 import '/data/models/patient_attachment/patient_attachment_model.dart';
 import '/presentation/theme/app_colors.dart';
 import '/presentation/theme/app_dimensions.dart';
 import '/presentation/theme/app_text_styles.dart';
+import '/presentation/pages/patient_attachments/patient_attachment_detail/utils/attachment_printer.dart'; 
 import '../utils/file_launcher.dart';
 
-class AttachmentPdfPreview extends StatelessWidget {
+// ✅ Changed from StatelessWidget → ConsumerWidget so we can use ref
+class AttachmentPdfPreview extends ConsumerWidget {
   final PatientAttachment attachment;
 
   const AttachmentPdfPreview({super.key, required this.attachment});
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
     final url = ApiConfig.attachmentFileUrl(attachment.id);
 
     return GestureDetector(
@@ -33,22 +37,46 @@ class AttachmentPdfPreview extends StatelessWidget {
                 color: AppColors.error.withValues(alpha: 0.1),
                 shape: BoxShape.circle,
               ),
-              child: const Icon(Icons.picture_as_pdf, size: 48, color: AppColors.error),
+              child: const Icon(Icons.picture_as_pdf,
+                  size: 48, color: AppColors.error),
             ),
             const SizedBox(height: AppDimensions.paddingMedium),
             Text('PDF Document', style: AppTextStyles.titleMedium),
             const SizedBox(height: 4),
-            Text(attachment.fileName, style: AppTextStyles.bodySmall,
-                maxLines: 1, overflow: TextOverflow.ellipsis),
+            Text(
+              attachment.fileName,
+              style: AppTextStyles.bodySmall,
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+            ),
             const SizedBox(height: AppDimensions.paddingMedium),
-            ElevatedButton.icon(
-              onPressed: () => FileLauncher.openUrl(context, url),
-              icon: const Icon(Icons.open_in_new, size: 16),
-              label: const Text('Open PDF'),
-              style: ElevatedButton.styleFrom(
-                backgroundColor: AppColors.error,
-                foregroundColor: Colors.white,
-              ),
+
+            // ✅ Row of action buttons (Open + Print)
+            Row(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                ElevatedButton.icon(
+                  onPressed: () => FileLauncher.openUrl(context, url),
+                  icon: const Icon(Icons.open_in_new, size: 16),
+                  label: const Text('Open PDF'),
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: AppColors.error,
+                    foregroundColor: Colors.white,
+                  ),
+                ),
+                const SizedBox(width: 8),
+                // ✅ NEW — Print button
+                OutlinedButton.icon(
+                  onPressed: () =>
+                      AttachmentPrinter.print(context, ref, attachment),
+                  icon: const Icon(Icons.print_outlined, size: 16),
+                  label: const Text('Print'),
+                  style: OutlinedButton.styleFrom(
+                    foregroundColor: AppColors.error,
+                    side: const BorderSide(color: AppColors.error),
+                  ),
+                ),
+              ],
             ),
           ],
         ),
