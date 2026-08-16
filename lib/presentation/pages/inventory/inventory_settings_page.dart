@@ -1,5 +1,3 @@
-// lib/presentation/pages/inventory/inventory_settings_page.dart
-
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -12,21 +10,54 @@ import '../../theme/app_dimensions.dart';
 import '../../theme/app_text_styles.dart';
 import '../../theme/app_theme.dart';
 
-/// Clinic-wide stock rules.
-///
-/// The endpoint requires a complete body, so this edits one whole settings
-/// object and saves it in one go — a partial save would let a half-loaded form
-/// write back over settings it never showed.
-class InventorySettingsPage extends ConsumerStatefulWidget {
+// ══════════════════════════════════════════════════════════════
+// PUBLIC PAGE — standalone version with Scaffold + AppBar
+// ══════════════════════════════════════════════════════════════
+class InventorySettingsPage extends StatelessWidget {
   const InventorySettingsPage({super.key});
 
   @override
-  ConsumerState<InventorySettingsPage> createState() =>
-      _InventorySettingsPageState();
+  Widget build(BuildContext context) {
+    return Theme(
+      data: AppTheme.lightTheme,
+      child: Scaffold(
+        backgroundColor: AppColors.surface,
+        appBar: AppBar(
+          backgroundColor: AppColors.background,
+          elevation: 0,
+          surfaceTintColor: Colors.transparent,
+          title: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              const Text('Inventory Settings',
+                  style: AppTextStyles.titleMedium),
+              Text(
+                'Rules that apply across every branch',
+                style: AppTextStyles.bodySmall
+                    .copyWith(color: AppColors.textMuted),
+              ),
+            ],
+          ),
+        ),
+        body: const InventorySettingsView(),
+      ),
+    );
+  }
 }
 
-class _InventorySettingsPageState
-    extends ConsumerState<InventorySettingsPage> {
+// ══════════════════════════════════════════════════════════════
+// EMBEDDABLE VIEW — no Scaffold, no AppBar
+// ══════════════════════════════════════════════════════════════
+class InventorySettingsView extends ConsumerStatefulWidget {
+  const InventorySettingsView({super.key});
+
+  @override
+  ConsumerState<InventorySettingsView> createState() =>
+      _InventorySettingsViewState();
+}
+
+class _InventorySettingsViewState
+    extends ConsumerState<InventorySettingsView> {
   InventorySettingsModel? _draft;
   bool _isSaving = false;
 
@@ -38,7 +69,6 @@ class _InventorySettingsPageState
 
     try {
       await ref.read(inventorySettingsWriterProvider).save(draft);
-
       ref.invalidate(inventorySettingsProvider);
 
       if (mounted) {
@@ -55,38 +85,9 @@ class _InventorySettingsPageState
   Widget build(BuildContext context) {
     final settingsAsync = ref.watch(inventorySettingsProvider);
 
-    // main.dart still runs ThemeData.dark(); this page is designed light, so
-    // it pins the light theme the same way the appointment and schedule pages
-    // do — otherwise the number fields and switches inherit dark defaults.
     return Theme(
       data: AppTheme.lightTheme,
-      child: _buildScaffold(context, settingsAsync),
-    );
-  }
-
-  Widget _buildScaffold(
-    BuildContext context,
-    AsyncValue<InventorySettingsModel> settingsAsync,
-  ) {
-    return Scaffold(
-      backgroundColor: AppColors.surface,
-      appBar: AppBar(
-        backgroundColor: AppColors.background,
-        elevation: 0,
-        surfaceTintColor: Colors.transparent,
-        title: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            const Text('Inventory Settings', style: AppTextStyles.titleMedium),
-            Text(
-              'Rules that apply across every branch',
-              style: AppTextStyles.bodySmall
-                  .copyWith(color: AppColors.textMuted),
-            ),
-          ],
-        ),
-      ),
-      body: settingsAsync.when(
+      child: settingsAsync.when(
         loading: () => const Center(
           child: CircularProgressIndicator(color: AppColors.primary),
         ),
@@ -128,8 +129,7 @@ class _InventorySettingsPageState
                           'from stock using each treatment\'s consumables list.',
                       value: settings.autoDeductEnabled,
                       onChanged: (value) => _update(
-                        settings.copyWith(autoDeductEnabled: value),
-                      ),
+                          settings.copyWith(autoDeductEnabled: value)),
                     ),
                     _SwitchTile(
                       title: 'Allow negative stock',
@@ -139,10 +139,8 @@ class _InventorySettingsPageState
                           'blocked by a stock number.',
                       value: settings.allowNegativeStock,
                       onChanged: (value) => _update(
-                        settings.copyWith(allowNegativeStock: value),
-                      ),
+                          settings.copyWith(allowNegativeStock: value)),
                     ),
-
                     const SizedBox(height: AppDimensions.paddingLarge),
                     _section('Expiry'),
                     _SwitchTile(
@@ -159,10 +157,9 @@ class _InventorySettingsPageState
                       value: settings.expiryWarningDays,
                       min: 1,
                       max: 365,
-                      onChanged: (value) =>
-                          _update(settings.copyWith(expiryWarningDays: value)),
+                      onChanged: (value) => _update(
+                          settings.copyWith(expiryWarningDays: value)),
                     ),
-
                     const SizedBox(height: AppDimensions.paddingLarge),
                     _section('Reordering'),
                     _NumberTile(
@@ -172,8 +169,7 @@ class _InventorySettingsPageState
                       min: 0,
                       max: 100000,
                       onChanged: (value) => _update(
-                        settings.copyWith(defaultMinimumThreshold: value),
-                      ),
+                          settings.copyWith(defaultMinimumThreshold: value)),
                     ),
                     _SwitchTile(
                       title: 'Send low-stock alerts',
@@ -182,16 +178,15 @@ class _InventorySettingsPageState
                           'point, plus batches about to expire.',
                       value: settings.lowStockAlertsEnabled,
                       onChanged: (value) => _update(
-                        settings.copyWith(lowStockAlertsEnabled: value),
-                      ),
+                          settings.copyWith(lowStockAlertsEnabled: value)),
                     ),
                     _NumberTile(
                       label: 'Send the digest at (hour, 0-23)',
                       value: settings.lowStockAlertHour,
                       min: 0,
                       max: 23,
-                      onChanged: (value) =>
-                          _update(settings.copyWith(lowStockAlertHour: value)),
+                      onChanged: (value) => _update(
+                          settings.copyWith(lowStockAlertHour: value)),
                     ),
                     _NumberTile(
                       label: 'Days before alerting on the same item again',
@@ -199,10 +194,8 @@ class _InventorySettingsPageState
                       min: 0,
                       max: 90,
                       onChanged: (value) => _update(
-                        settings.copyWith(lowStockCooldownDays: value),
-                      ),
+                          settings.copyWith(lowStockCooldownDays: value)),
                     ),
-
                     const SizedBox(height: AppDimensions.paddingLarge),
                     ElevatedButton.icon(
                       onPressed: _isSaving || _draft == null ? null : _save,
@@ -210,8 +203,7 @@ class _InventorySettingsPageState
                           ? const SizedBox(
                               width: 16,
                               height: 16,
-                              child:
-                                  CircularProgressIndicator(strokeWidth: 2),
+                              child: CircularProgressIndicator(strokeWidth: 2),
                             )
                           : const Icon(Icons.save_outlined),
                       label: Text(
@@ -223,8 +215,7 @@ class _InventorySettingsPageState
                       ),
                       style: ElevatedButton.styleFrom(
                         padding: const EdgeInsets.symmetric(
-                          vertical: AppDimensions.paddingMedium,
-                        ),
+                            vertical: AppDimensions.paddingMedium),
                         backgroundColor: AppColors.primary,
                         foregroundColor: AppColors.textOnPrimary,
                       ),
@@ -260,6 +251,7 @@ class _InventorySettingsPageState
   }
 }
 
+// ─── Reused widgets (unchanged) ─────────────────────────────
 class _SwitchTile extends StatelessWidget {
   final String title;
   final String subtitle;
@@ -275,8 +267,6 @@ class _SwitchTile extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    // Wrapped in its own Material so the tile's ink and background paint on a
-    // surface of their own rather than through the bordered container.
     return Container(
       margin: const EdgeInsets.only(bottom: AppDimensions.paddingSmall),
       decoration: BoxDecoration(
@@ -353,9 +343,6 @@ class _NumberTileState extends State<_NumberTile> {
         ),
         onChanged: (raw) {
           final parsed = int.tryParse(raw);
-
-          // Out-of-range values are simply not reported: the server rejects
-          // them anyway, and holding one would only fail on save.
           if (parsed != null && parsed >= widget.min && parsed <= widget.max) {
             widget.onChanged(parsed);
           }
