@@ -18,6 +18,11 @@ class TreatmentPlanModel {
   final TreatmentPlanPatientModel? patient;
   final TreatmentPlanDoctorModel? doctor;
 
+  /// Whether supplies were already deducted for this plan. Only the list and
+  /// detail endpoints compute it; mutation responses leave it false and the
+  /// page re-fetches right after.
+  final bool consumablesRecorded;
+
   const TreatmentPlanModel({
     required this.id,
     required this.userId,
@@ -31,6 +36,7 @@ class TreatmentPlanModel {
     this.items = const [],
     this.patient,
     this.doctor,
+    this.consumablesRecorded = false,
   });
 
   factory TreatmentPlanModel.fromJson(Map<String, dynamic> json) {
@@ -69,6 +75,8 @@ class TreatmentPlanModel {
         ..sort((a, b) => a.sequenceOrder.compareTo(b.sequenceOrder)),
       patient: patient,
       doctor: doctor,
+      consumablesRecorded: json['consumables_recorded'] == true ||
+          json['consumables_recorded'] == 1,
     );
   }
 

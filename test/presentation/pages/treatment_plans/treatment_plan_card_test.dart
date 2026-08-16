@@ -9,7 +9,11 @@ import 'package:smile_concept_web/presentation/theme/app_colors.dart';
 void main() {
   /// Hosted under `ThemeData.dark()` — what main.dart boots — on the white card
   /// colour the list actually paints.
-  Future<void> pumpCard(WidgetTester tester, TreatmentPlanModel plan) {
+  Future<void> pumpCard(
+    WidgetTester tester,
+    TreatmentPlanModel plan, {
+    bool canRecordSupplies = false,
+  }) {
     return tester.pumpWidget(
       MaterialApp(
         theme: ThemeData.dark(),
@@ -22,8 +26,10 @@ void main() {
                 plan: plan,
                 canDelete: false,
                 canChangeStatus: false,
+                canRecordSupplies: canRecordSupplies,
                 onDelete: () {},
                 onChangeStatus: () {},
+                onRecordSupplies: () {},
               ),
             ),
           ),
@@ -31,6 +37,21 @@ void main() {
       ),
     );
   }
+
+  TreatmentPlanModel planWith({
+    required String status,
+    bool consumablesRecorded = false,
+  }) =>
+      TreatmentPlanModel.fromJson({
+        'id': 20,
+        'name': 'Molar rescue mission',
+        'status': status,
+        'total_estimated_amount': '2000.00',
+        'consumables_recorded': consumablesRecorded,
+        'patient': {'id': 31, 'name': 'Jane Cruz'},
+        'doctor': {'id': 4, 'name': 'Dr. Reyes'},
+        'steps': <dynamic>[],
+      });
 
   TreatmentPlanModel planWithTwoSteps() => TreatmentPlanModel.fromJson({
         'id': 12,
@@ -141,5 +162,48 @@ void main() {
 
     expect(find.text('0 treatment steps'), findsOneWidget);
     expect(find.text('₱0.00'), findsOneWidget);
+  });
+
+  // ── Recording supplies ──────────────────────────────────────
+
+  testWidgets('a completed plan offers recording when permitted',
+      (tester) async {
+    await pumpCard(
+      tester,
+      planWith(status: 'completed'),
+      canRecordSupplies: true,
+    );
+
+    expect(find.text('Record Supplies'), findsOneWidget);
+    expect(find.text('Supplies recorded'), findsNothing);
+  });
+
+  testWidgets('a plan still in progress never offers recording',
+      (tester) async {
+    await pumpCard(
+      tester,
+      planWith(status: 'accepted'),
+      canRecordSupplies: true,
+    );
+
+    expect(find.text('Record Supplies'), findsNothing);
+  });
+
+  testWidgets('without the permission the action stays hidden', (tester) async {
+    await pumpCard(tester, planWith(status: 'completed'));
+
+    expect(find.text('Record Supplies'), findsNothing);
+  });
+
+  testWidgets('once recorded the card says so instead of offering again',
+      (tester) async {
+    await pumpCard(
+      tester,
+      planWith(status: 'completed', consumablesRecorded: true),
+      canRecordSupplies: true,
+    );
+
+    expect(find.text('Supplies recorded'), findsOneWidget);
+    expect(find.text('Record Supplies'), findsNothing);
   });
 }

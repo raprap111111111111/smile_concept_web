@@ -213,6 +213,8 @@ class Perm {
   static const String treatmentPlanReopen = 'treatment-plan.reopen';
   static const String treatmentPlanChangeStatus =
       'treatment-plan.change-status';
+  static const String treatmentPlanRecordConsumables =
+      'treatment-plan.record-consumables';
 
   // ═══════════════════════════════════════════════════════════
   // 💊 PRESCRIPTIONS

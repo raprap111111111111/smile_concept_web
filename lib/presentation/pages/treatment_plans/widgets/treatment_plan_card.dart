@@ -10,17 +10,26 @@ class TreatmentPlanCard extends StatelessWidget {
   final TreatmentPlanModel plan;
   final bool canDelete;
   final bool canChangeStatus;
+  final bool canRecordSupplies;
   final VoidCallback onDelete;
   final VoidCallback onChangeStatus;
+  final VoidCallback? onRecordSupplies;
 
   const TreatmentPlanCard({
     super.key,
     required this.plan,
     required this.canDelete,
     required this.canChangeStatus,
+    this.canRecordSupplies = false,
     required this.onDelete,
     required this.onChangeStatus,
+    this.onRecordSupplies,
   });
+
+  /// Offered once the work is done and nothing has been deducted yet. A
+  /// recorded plan shows a chip instead — recording happens once.
+  bool get _showsRecordSupplies =>
+      plan.isCompleted && canRecordSupplies && !plan.consumablesRecorded;
 
   @override
   Widget build(BuildContext context) {
@@ -151,7 +160,8 @@ class TreatmentPlanCard extends StatelessWidget {
           ),
 
           // ─── Actions ────────────────────────
-          if (canDelete || canChangeStatus) ...[
+          if (canDelete || canChangeStatus || _showsRecordSupplies ||
+              plan.consumablesRecorded) ...[
             const Divider(color: AppColors.line, height: 1),
             Padding(
               padding: const EdgeInsets.symmetric(
@@ -161,6 +171,29 @@ class TreatmentPlanCard extends StatelessWidget {
               child: Row(
                 mainAxisAlignment: MainAxisAlignment.end,
                 children: [
+                  if (plan.consumablesRecorded) ...[
+                    const _SuppliesRecordedChip(),
+                    const Spacer(),
+                  ],
+                  if (_showsRecordSupplies) ...[
+                    TextButton.icon(
+                      onPressed: onRecordSupplies,
+                      icon: const Icon(Icons.inventory_2_outlined, size: 16),
+                      label: const Text('Record Supplies'),
+                      style: TextButton.styleFrom(
+                        foregroundColor: AppColors.primaryDark,
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 14,
+                          vertical: 10,
+                        ),
+                        textStyle: const TextStyle(
+                          fontWeight: FontWeight.w800,
+                          fontSize: 13,
+                        ),
+                      ),
+                    ),
+                    const SizedBox(width: 4),
+                  ],
                   if (canChangeStatus)
                     TextButton.icon(
                       onPressed: onChangeStatus,
@@ -201,6 +234,38 @@ class TreatmentPlanCard extends StatelessWidget {
               ),
             ),
           ],
+        ],
+      ),
+    );
+  }
+}
+
+/// Says the stock side of this plan is settled, so nobody deducts twice.
+class _SuppliesRecordedChip extends StatelessWidget {
+  const _SuppliesRecordedChip();
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
+      decoration: BoxDecoration(
+        color: AppColors.statusCompletedSoft,
+        borderRadius: BorderRadius.circular(AppDimensions.borderRadius),
+      ),
+      child: const Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Icon(Icons.inventory_2_outlined,
+              size: 14, color: AppColors.statusCompletedInk),
+          SizedBox(width: 6),
+          Text(
+            'Supplies recorded',
+            style: TextStyle(
+              fontSize: 12,
+              fontWeight: FontWeight.w700,
+              color: AppColors.statusCompletedInk,
+            ),
+          ),
         ],
       ),
     );

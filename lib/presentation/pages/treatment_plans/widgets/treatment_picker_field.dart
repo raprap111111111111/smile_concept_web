@@ -7,7 +7,7 @@ import '../../../../data/models/treatment/treatment_model.dart';
 import '../../../../data/models/treatment/treatment_plan_model.dart';
 import '../../../theme/app_colors.dart';
 import '../../../theme/app_dimensions.dart';
-import 'picker_dialog_chrome.dart';
+import '../../../widgets/shared/picker_dialog_chrome.dart';
 
 /// Tappable field that opens the catalog picker for one plan step.
 ///

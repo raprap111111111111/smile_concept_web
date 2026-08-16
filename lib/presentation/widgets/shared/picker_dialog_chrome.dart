@@ -1,12 +1,12 @@
-// lib/presentation/pages/treatment_plans/widgets/picker_dialog_chrome.dart
+// lib/presentation/widgets/shared/picker_dialog_chrome.dart
 
 import 'package:flutter/material.dart';
 
-import '../../../theme/app_colors.dart';
-import '../../../theme/app_dimensions.dart';
+import '../../theme/app_colors.dart';
+import '../../theme/app_dimensions.dart';
 
-/// Shared header and empty/error states for the plan builder's picker dialogs,
-/// so the patient and treatment pickers stay visually identical.
+/// Shared header and empty/error states for every searchable picker dialog —
+/// patient, treatment and supply — so they stay visually identical.
 class PickerDialogHeader extends StatelessWidget {
   final IconData icon;
   final String title;
