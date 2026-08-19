@@ -7,7 +7,6 @@ import '../../theme/app_colors.dart';
 import '../../theme/app_dimensions.dart';
 import '../../theme/app_text_styles.dart';
 import 'tabs/appointment_settings_tab.dart';
-import 'tabs/general_settings_tab.dart';
 import 'tabs/inventory_settings_tab.dart';
 
 class SettingsPage extends ConsumerStatefulWidget {
@@ -23,13 +22,6 @@ class _SettingsPageState extends ConsumerState<SettingsPage> {
   late int _selectedIndex;
 
   final _tabs = const [
-    _SettingsTab(
-      key: 'general',
-      icon: Icons.tune_rounded,
-      label: 'General',
-      description: 'Currency, tax rate, invoice prefix',
-      page: GeneralSettingsTab(),
-    ),
     _SettingsTab(
       key: 'appointments',
       icon: Icons.calendar_today_outlined,
