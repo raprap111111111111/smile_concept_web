@@ -161,11 +161,20 @@ class AppointmentStatusBadge extends StatelessWidget {
           ),
       ],
       onSelected: (value) {
-        if (value == 'cancelled') {
-          onCancel?.call();
-        } else {
-          onStatusChanged?.call(value);
-        }
+        // Defer the callback to the next frame so the PopupMenu's own
+        // route has finished popping and its element tree has torn down
+        // before we open a new dialog or trigger a state change that
+        // rebuilds the parent list. Firing these synchronously inside
+        // onSelected races with the menu's dismiss animation and trips
+        // `_dependents.isEmpty` when the card that hosts this badge
+        // gets rebuilt mid-callback.
+        WidgetsBinding.instance.addPostFrameCallback((_) {
+          if (value == 'cancelled') {
+            onCancel?.call();
+          } else {
+            onStatusChanged?.call(value);
+          }
+        });
       },
       child: _buildBadge(isClickable: true),
     );

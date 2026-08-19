@@ -1,0 +1,167 @@
+lib
+├── core
+│   ├── config
+│   │   ├── api_config.dart
+│   │   └── app_constants.dart
+│   ├── errors
+│   │   ├── error_message.dart
+│   │   ├── exceptions.dart
+│   │   └── failures.dart
+│   ├── network
+│   │   ├── api_response.dart
+│   │   ├── dio_client.dart
+│   │   ├── interceptors
+│   │   └── websocket
+│   ├── permissions
+│   │   └── app_permissions.dart
+│   ├── services
+│   │   ├── local_storage_service.dart
+│   │   ├── psgc_service.dart
+│   │   └── secure_storage_service.dart
+│   ├── utils
+│   │   ├── logger.dart
+│   │   ├── money.dart
+│   │   ├── toast_helper.dart
+│   │   └── validators.dart
+│   └── widgets
+│       └── authenticated_image.dart
+├── data
+│   ├── datasources
+│   │   ├── local
+│   │   └── remote
+│   ├── models
+│   │   ├── activity_log
+│   │   ├── appointment
+│   │   ├── auth
+│   │   ├── billing
+│   │   ├── branch
+│   │   ├── clinical_records
+│   │   ├── common
+│   │   ├── consent
+│   │   ├── dashboard
+│   │   ├── dental
+│   │   ├── doctor
+│   │   ├── doctor_schedule
+│   │   ├── inventory
+│   │   ├── invoice
+│   │   ├── lab_case
+│   │   ├── notification
+│   │   ├── patient
+│   │   ├── patient_attachment
+│   │   ├── prescription
+│   │   ├── profile
+│   │   ├── setting
+│   │   ├── settings
+│   │   └── treatment
+│   ├── repositories
+│   │   ├── activity_log_repository.dart
+│   │   ├── appointment_repository.dart
+│   │   ├── appointment_settings_repository.dart
+│   │   ├── auth_repository.dart
+│   │   ├── branch_repository.dart
+│   │   ├── clinical_records_repository.dart
+│   │   ├── consent_repository.dart
+│   │   ├── dashboard_repository.dart
+│   │   ├── doctor_repository.dart
+│   │   ├── doctor_schedule_repository.dart
+│   │   ├── inventory_repository.dart
+│   │   ├── invoice_repository.dart
+│   │   ├── item_repository.dart
+│   │   ├── lab_case_repository.dart
+│   │   ├── notification_repository.dart
+│   │   ├── patient_repository.dart
+│   │   ├── permission_repository.dart
+│   │   ├── prescription_repository.dart
+│   │   ├── profile_repository.dart
+│   │   ├── role_repository.dart
+│   │   ├── setting_repository.dart
+│   │   ├── treatment_plan_repository.dart
+│   │   ├── treatment_repository.dart
+│   │   └── user_repository.dart
+│   └── services
+│       ├── patient_attachment_service.dart
+│       └── patient_folder_service.dart
+├── injection_container.dart
+├── main_dev.dart
+├── main.dart
+├── presentation
+│   ├── layouts
+│   │   ├── main_layout.dart
+│   │   └── widgets
+│   ├── pages
+│   │   ├── activity_logs
+│   │   ├── appointment_settings
+│   │   ├── appointments
+│   │   ├── auth
+│   │   ├── billing
+│   │   ├── branch
+│   │   ├── clinical_records
+│   │   ├── consent
+│   │   ├── dashboard
+│   │   ├── doctor_schedules
+│   │   ├── doctors
+│   │   ├── home
+│   │   ├── inventory
+│   │   ├── invoices
+│   │   ├── lab_cases
+│   │   ├── landing
+│   │   ├── notifications
+│   │   ├── patient_attachments
+│   │   ├── patients
+│   │   ├── prescriptions
+│   │   ├── profile
+│   │   ├── recalls
+│   │   ├── roles
+│   │   ├── settings
+│   │   ├── splash
+│   │   ├── treatment_plans
+│   │   ├── treatments
+│   │   ├── unauthorized
+│   │   └── users
+│   ├── providers
+│   │   ├── activity_log
+│   │   ├── appointment
+│   │   ├── auth
+│   │   ├── branch
+│   │   ├── clinical_records
+│   │   ├── consent
+│   │   ├── doctor
+│   │   ├── doctor_schedule
+│   │   ├── inventory
+│   │   ├── invoice
+│   │   ├── lab_case
+│   │   ├── layout
+│   │   ├── notification
+│   │   ├── patient
+│   │   ├── patient_attachment
+│   │   ├── patient_folder
+│   │   ├── prescription
+│   │   ├── profile
+│   │   ├── realtime
+│   │   ├── setting
+│   │   ├── settings
+│   │   ├── theme
+│   │   ├── treatment
+│   │   └── user
+│   ├── route
+│   │   ├── app_router.dart
+│   │   ├── auth_redirect.dart
+│   │   ├── page_transitions.dart
+│   │   ├── route_names.dart
+│   │   ├── route_permissions.dart
+│   │   ├── router_notifier.dart
+│   │   ├── router_redirect.dart
+│   │   └── routes
+│   ├── theme
+│   │   ├── app_colors.dart
+│   │   ├── app_dimensions.dart
+│   │   ├── app_text_styles.dart
+│   │   ├── app_theme.dart
+│   │   └── chart_palette.dart
+│   └── widgets
+│       ├── common
+│       └── shared
+└── screens
+    └── unauthorized_screen.dart
+
+106 directories, 59 files

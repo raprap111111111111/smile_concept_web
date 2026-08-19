@@ -216,6 +216,8 @@ class _AppointmentsPageState extends ConsumerState<AppointmentsPage> {
     if (updated == null || !mounted) return;
 
     await _loadCalendarCountsForMonth(updated.startTime);
+    if (!mounted) return;
+
     setState(() {
       _selectedDay = updated.startTime;
       _focusedDay = updated.startTime;
@@ -232,18 +234,22 @@ class _AppointmentsPageState extends ConsumerState<AppointmentsPage> {
 
   Future<void> _delete(AppointmentModel appointment) async {
     final ok = await _confirmDelete(appointment);
-    if (!ok) return;
+    if (!ok || !mounted) return;
 
     try {
       await ref
           .read(appointmentRepositoryProvider)
           .deleteAppointment(appointment.id);
 
+      if (!mounted) return;
+
       ref
           .read(appointmentNotifierProvider.notifier)
           .removeAppointment(appointment.id);
 
       await _loadCalendarCountsForMonth(_focusedDay);
+      if (!mounted) return;
+
       if (_selectedDay != null) {
         await _loadAppointmentsForDay(_selectedDay!);
       }
@@ -270,107 +276,106 @@ class _AppointmentsPageState extends ConsumerState<AppointmentsPage> {
     String status, {
     String? reason,
   }) async {
-    final success =
-        await ref.read(appointmentNotifierProvider.notifier).updateStatus(
-              id: appointment.id,
-              status: status,
-              cancellationReason: reason,
-            );
+    // Capture messenger + navigator BEFORE any await so we can still
+    // post feedback if the widget disposes mid-request. Both are
+    // State objects on the enclosing Scaffold/Navigator, which outlive
+    // this widget's element.
+    final messenger = ScaffoldMessenger.of(context);
+    final theme = Theme.of(context);
+
+    final success = await ref
+        .read(appointmentNotifierProvider.notifier)
+        .updateStatus(
+          id: appointment.id,
+          status: status,
+          cancellationReason: reason,
+        );
 
     if (!mounted) return;
 
-    if (success) {
+    if (!success) {
+      final error =
+          ref.read(appointmentNotifierProvider).error ?? 'Unknown error';
+      _showError(messenger, error, theme);
+      return;
+    }
+
+    // Show success feedback FIRST — while we know the widget is stable.
+    _showSuccess(
+      messenger,
+      'Status updated to ${status.toUpperCase()}',
+      theme,
+    );
+
+    // Defer the refresh to the NEXT frame. If we call these inline, the
+    // setState() inside _loadCalendarCountsForMonth fires while the
+    // status-update rebuild is still settling, which invalidates the
+    // widget's element tree mid-frame and trips framework.dart:6268
+    // (`_dependents.isEmpty is not true`).
+    //
+    // Waiting one frame lets Flutter finish the current build/layout pass
+    // before we ask it to rebuild again with the new data.
+    WidgetsBinding.instance.addPostFrameCallback((_) async {
+      if (!mounted) return;
+
       await _loadCalendarCountsForMonth(_focusedDay);
+      if (!mounted) return;
+
       if (_selectedDay != null) {
         await _loadAppointmentsForDay(_selectedDay!);
       }
-      if (mounted) {
-        ToastHelper.success(
-          context,
-          'Status updated to ${status.toUpperCase()}',
-        );
-      }
-    } else {
-      final error =
-          ref.read(appointmentNotifierProvider).error ?? 'Unknown error';
-      ToastHelper.error(context, error);
-    }
+    });
   }
 
-  Future<void> _showCancelDialog(AppointmentModel appointment) async {
-    final reasonController = TextEditingController();
-    final formKey = GlobalKey<FormState>();
+  /// Non-context helpers so the snackbar code isn't repeated. They
+  /// take the pre-captured messenger, so they're safe to call after
+  /// awaits without a mounted check.
+  void _showSuccess(
+    ScaffoldMessengerState messenger,
+    String message,
+    ThemeData theme,
+  ) {
+    messenger.hideCurrentSnackBar();
+    messenger.showSnackBar(
+      SnackBar(
+        content: Text(message),
+        backgroundColor: theme.colorScheme.primary,
+        behavior: SnackBarBehavior.floating,
+      ),
+    );
+  }
 
+  void _showError(
+    ScaffoldMessengerState messenger,
+    String message,
+    ThemeData theme,
+  ) {
+    messenger.hideCurrentSnackBar();
+    messenger.showSnackBar(
+      SnackBar(
+        content: Text(message),
+        backgroundColor: theme.colorScheme.error,
+        behavior: SnackBarBehavior.floating,
+      ),
+    );
+  }
+
+  /// Shows the cancellation reason prompt. On confirm, marks the
+  /// appointment as cancelled with the supplied reason.
+  Future<void> _showCancelDialog(AppointmentModel appointment) async {
     final result = await showDialog<String>(
       context: context,
-      // Dialogs build off the root navigator, so they miss any Theme a page
-      // wraps itself in — pin the light theme here too, or the reason field
-      // draws near-white text on the white dialog.
-      builder: (context) => Theme(
+      barrierDismissible: true,
+      // Dialogs build off the root navigator, so they miss any Theme a
+      // page wraps itself in — pin the light theme here too, or the
+      // reason field draws near-white text on the white dialog.
+      builder: (dialogContext) => Theme(
         data: AppTheme.lightTheme,
-        child: AlertDialog(
-          backgroundColor: AppColors.background,
-          shape: RoundedRectangleBorder(
-            borderRadius:
-                BorderRadius.circular(AppDimensions.borderRadiusLarge),
-          ),
-          title: Row(
-            children: [
-              Container(
-                padding: const EdgeInsets.all(8),
-                decoration: BoxDecoration(
-                  color: AppColors.error.withValues(alpha: 0.10),
-                  borderRadius: BorderRadius.circular(10),
-                ),
-                child: const Icon(
-                  Icons.warning_amber_rounded,
-                  color: AppColors.error,
-                  size: 20,
-                ),
-              ),
-              const SizedBox(width: AppDimensions.paddingSmall),
-              Text('Cancel Appointment', style: AppTextStyles.titleMedium),
-            ],
-          ),
-          content: Form(
-            key: formKey,
-            child: TextFormField(
-              controller: reasonController,
-              style: AppTextStyles.inputText,
-              decoration: const InputDecoration(
-                labelText: 'Reason for cancellation *',
-                hintText: 'e.g., Schedule conflict, sick',
-              ),
-              maxLines: 3,
-              maxLength: 500,
-              validator: (value) {
-                if (value == null || value.trim().isEmpty) {
-                  return 'Reason is required';
-                }
-                return null;
-              },
-            ),
-          ),
-          actions: [
-            TextButton(
-              onPressed: () => Navigator.pop(context),
-              child: const Text('Keep'),
-            ),
-            FilledButton(
-              style: FilledButton.styleFrom(backgroundColor: AppColors.error),
-              onPressed: () {
-                if (formKey.currentState!.validate()) {
-                  Navigator.pop(context, reasonController.text.trim());
-                }
-              },
-              child: const Text('Cancel Appointment'),
-            ),
-          ],
-        ),
+        child: const _CancelAppointmentDialog(),
       ),
     );
 
-    reasonController.dispose();
+    if (!mounted) return;
 
     if (result != null && result.isNotEmpty) {
       await _updateStatus(appointment, 'cancelled', reason: result);
@@ -541,7 +546,6 @@ class _AppointmentsPageState extends ConsumerState<AppointmentsPage> {
                   ),
                 ),
                 const SizedBox(width: AppDimensions.paddingMedium),
-                // ✅ Wrap Column in Expanded so text can shrink/wrap
                 Expanded(
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
@@ -550,7 +554,7 @@ class _AppointmentsPageState extends ConsumerState<AppointmentsPage> {
                       Text(
                         canViewAll ? 'All Appointments' : 'My Appointments',
                         style: AppTextStyles.headlineSmall,
-                        overflow: TextOverflow.ellipsis, // ✅ prevent overflow
+                        overflow: TextOverflow.ellipsis,
                         maxLines: 1,
                       ),
                       const SizedBox(height: 2),
@@ -559,7 +563,7 @@ class _AppointmentsPageState extends ConsumerState<AppointmentsPage> {
                             ? 'Your upcoming and past visits'
                             : 'Manage patient bookings by date',
                         style: AppTextStyles.bodySmall,
-                        overflow: TextOverflow.ellipsis, // ✅ prevent overflow
+                        overflow: TextOverflow.ellipsis,
                         maxLines: 1,
                       ),
                     ],
@@ -1130,7 +1134,9 @@ class _AppointmentsPageState extends ConsumerState<AppointmentsPage> {
   }
 }
 
-// ── Reusable widgets ────────────────────────────────────────
+// ═══════════════════════════════════════════════════════════
+// Reusable private widgets
+// ═══════════════════════════════════════════════════════════
 
 /// List/calendar switch shown to patients only.
 class _ViewToggle extends StatelessWidget {
@@ -1437,6 +1443,109 @@ class _NoAccessView extends StatelessWidget {
           ),
         ),
       ),
+    );
+  }
+}
+
+/// Cancellation reason prompt.
+///
+/// Extracted into its own StatefulWidget so the [TextEditingController]
+/// and [GlobalKey] live with the dialog element, not with the calling
+/// page. Flutter disposes this whole subtree when the route pops,
+/// which lets the focus system tear down cleanly — creating those
+/// resources in the caller and disposing them after `await showDialog`
+/// races that teardown and trips the framework's `_dependents.isEmpty`
+/// assertion.
+class _CancelAppointmentDialog extends StatefulWidget {
+  const _CancelAppointmentDialog();
+
+  @override
+  State<_CancelAppointmentDialog> createState() =>
+      _CancelAppointmentDialogState();
+}
+
+class _CancelAppointmentDialogState extends State<_CancelAppointmentDialog> {
+  late final TextEditingController _reasonController;
+  late final GlobalKey<FormState> _formKey;
+
+  @override
+  void initState() {
+    super.initState();
+    _reasonController = TextEditingController();
+    _formKey = GlobalKey<FormState>();
+  }
+
+  @override
+  void dispose() {
+    // Framework calls this at the right time — after the focus system
+    // has released the field, so nothing is still listening.
+    _reasonController.dispose();
+    super.dispose();
+  }
+
+  void _handleSubmit() {
+    if (_formKey.currentState?.validate() ?? false) {
+      Navigator.of(context).pop(_reasonController.text.trim());
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return AlertDialog(
+      backgroundColor: AppColors.background,
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(AppDimensions.borderRadiusLarge),
+      ),
+      title: Row(
+        children: [
+          Container(
+            padding: const EdgeInsets.all(8),
+            decoration: BoxDecoration(
+              color: AppColors.error.withValues(alpha: 0.10),
+              borderRadius: BorderRadius.circular(10),
+            ),
+            child: const Icon(
+              Icons.warning_amber_rounded,
+              color: AppColors.error,
+              size: 20,
+            ),
+          ),
+          const SizedBox(width: AppDimensions.paddingSmall),
+          Text('Cancel Appointment', style: AppTextStyles.titleMedium),
+        ],
+      ),
+      content: Form(
+        key: _formKey,
+        child: TextFormField(
+          controller: _reasonController,
+          style: AppTextStyles.inputText,
+          autofocus: true,
+          decoration: const InputDecoration(
+            labelText: 'Reason for cancellation *',
+            hintText: 'e.g., Schedule conflict, sick',
+          ),
+          maxLines: 3,
+          maxLength: 500,
+          validator: (value) {
+            if (value == null || value.trim().isEmpty) {
+              return 'Reason is required';
+            }
+            return null;
+          },
+          onFieldSubmitted: (_) => _handleSubmit(),
+        ),
+      ),
+      actions: [
+        TextButton(
+          onPressed: () => Navigator.of(context).pop(),
+          child: const Text('Keep'),
+        ),
+        FilledButton(
+          style: FilledButton.styleFrom(backgroundColor: AppColors.error),
+          onPressed: _handleSubmit,
+          child: const Text('Cancel Appointment'),
+        ),
+      ],
     );
   }
 }

@@ -257,13 +257,22 @@ class AppointmentNotifier extends StateNotifier<AppointmentListState> {
     );
   }
 
+  /// Updates one appointment's status and swaps it into the list.
+  ///
+  /// We deliberately do NOT emit an intermediate `isUpdatingStatus: true`
+  /// state here. That extra rebuild caused the entire appointment list
+  /// to reflow while the triggering PopupMenu was still in its dismiss
+  /// animation, corrupting the widget tree and tripping the framework's
+  /// `_dependents.isEmpty` assertion.
+  ///
+  /// A single emit after the network call is enough: the calling page
+  /// surfaces feedback via its own snackbar and the individual card
+  /// picks up the new status on its next natural rebuild.
   Future<bool> updateStatus({
     required int id,
     required String status,
     String? cancellationReason,
   }) async {
-    state = state.copyWith(isUpdatingStatus: true, clearError: true);
-
     try {
       final updated = await _repository.updateAppointmentStatus(
         id: id,
@@ -273,18 +282,14 @@ class AppointmentNotifier extends StateNotifier<AppointmentListState> {
 
       state = state.copyWith(
         appointments: state.appointments
-            .map((appointment) => appointment.id == id ? updated : appointment)
+            .map((a) => a.id == id ? updated : a)
             .toList(),
-        isUpdatingStatus: false,
+        clearError: true,
       );
 
       return true;
     } catch (e) {
-      state = state.copyWith(
-        error: describeError(e),
-        isUpdatingStatus: false,
-      );
-
+      state = state.copyWith(error: describeError(e));
       return false;
     }
   }
