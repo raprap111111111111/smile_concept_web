@@ -27,7 +27,14 @@ import 'steps/step_5_signature.dart';
 // ═══════════════════════════════════════════════════════════════════════════
 // Step metadata
 // ═══════════════════════════════════════════════════════════════════════════
-const _kStepLabels = ['Patient', 'Info', 'Medical', 'Consent', 'Intraoral', 'Sign'];
+const _kStepLabels = [
+  'Patient',
+  'Info',
+  'Medical',
+  'Consent',
+  'Intraoral',
+  'Sign'
+];
 const _kStepTitles = [
   'Select Patient',
   'Patient Information',
@@ -66,8 +73,7 @@ class SignConsentDialog extends ConsumerStatefulWidget {
   }
 
   @override
-  ConsumerState<SignConsentDialog> createState() =>
-      _SignConsentDialogState();
+  ConsumerState<SignConsentDialog> createState() => _SignConsentDialogState();
 }
 
 class _SignConsentDialogState extends ConsumerState<SignConsentDialog> {
@@ -144,8 +150,7 @@ class _SignConsentDialogState extends ConsumerState<SignConsentDialog> {
             padding: const EdgeInsets.all(AppDimensions.paddingSmall),
             decoration: BoxDecoration(
               color: AppColors.accentLight,
-              borderRadius:
-                  BorderRadius.circular(AppDimensions.borderRadius),
+              borderRadius: BorderRadius.circular(AppDimensions.borderRadius),
             ),
             child: const Icon(
               Icons.assignment_outlined,
@@ -158,8 +163,7 @@ class _SignConsentDialogState extends ConsumerState<SignConsentDialog> {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Text(_kStepTitles[_step],
-                    style: AppTextStyles.titleMedium),
+                Text(_kStepTitles[_step], style: AppTextStyles.titleMedium),
                 if (patient != null)
                   Text('Patient: ${patient.name}',
                       style: AppTextStyles.labelSmall),
@@ -179,15 +183,21 @@ class _SignConsentDialogState extends ConsumerState<SignConsentDialog> {
   // ═════════════════════════════════════════════════════════
   // Body — route to step widgets
   // ═════════════════════════════════════════════════════════
-  Widget _buildBody() => switch (_step) {
-        0 => const Step0PatientPicker(),
-        1 => const Step1PatientInfo(),
-        2 => const Step2MedicalHistory(),
-        3 => const Step3ConsentClauses(),
-        4 => const Step4Intraoral(),
-        5 => Step5Signature(sigKey: _sigKey),
-        _ => const SizedBox.shrink(),
-      };
+
+// ✅ AFTER
+  Widget _buildBody() {
+    return IndexedStack(
+      index: _step,
+      children: [
+        const Step0PatientPicker(),
+        const Step1PatientInfo(),
+        const Step2MedicalHistory(),
+        const Step3ConsentClauses(),
+        const Step4Intraoral(),
+        Step5Signature(sigKey: _sigKey),
+      ],
+    );
+  }
 
   // ═════════════════════════════════════════════════════════
   // Footer
@@ -200,16 +210,14 @@ class _SignConsentDialogState extends ConsumerState<SignConsentDialog> {
         children: [
           if (_step > 0)
             TextButton.icon(
-              onPressed:
-                  isSubmitting ? null : () => setState(() => _step--),
+              onPressed: isSubmitting ? null : () => setState(() => _step--),
               icon: const Icon(Icons.arrow_back, size: 18),
               label: const Text('Back'),
             ),
           const SizedBox(width: 8),
           TextButton(
-            onPressed: isSubmitting
-                ? null
-                : () => Navigator.of(context).pop(false),
+            onPressed:
+                isSubmitting ? null : () => Navigator.of(context).pop(false),
             child: const Text('Cancel'),
           ),
           const SizedBox(width: 8),
@@ -226,8 +234,7 @@ class _SignConsentDialogState extends ConsumerState<SignConsentDialog> {
         onPressed: canProceed ? () => setState(() => _step++) : null,
         icon: const Icon(Icons.arrow_forward, size: 18),
         label: const Text('Continue'),
-        style:
-            FilledButton.styleFrom(backgroundColor: AppColors.primary),
+        style: FilledButton.styleFrom(backgroundColor: AppColors.primary),
       );
     }
     return FilledButton.icon(
@@ -274,8 +281,7 @@ class _SignConsentDialogState extends ConsumerState<SignConsentDialog> {
 
     final sig = _sigKey.currentState;
     if (sig == null || sig.isEmpty) {
-      AppSnackbar.show(context, 'Please provide a signature.',
-          isError: true);
+      AppSnackbar.show(context, 'Please provide a signature.', isError: true);
       return;
     }
 
@@ -306,9 +312,7 @@ class _SignConsentDialogState extends ConsumerState<SignConsentDialog> {
         'role=$signerRole '
         'patient_info=${payload['patient_info']}');
 
-    final result = await ref
-        .read(consentActionProvider.notifier)
-        .sign(
+    final result = await ref.read(consentActionProvider.notifier).sign(
           ConsentSignRequest(
             consentTemplateId: 1,
             userId: patient.userId,

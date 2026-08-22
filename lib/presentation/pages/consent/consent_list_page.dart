@@ -307,6 +307,7 @@ class _ConsentTable extends StatelessWidget {
 }
 
 // ─── Header ──────────────────────────────────────────────────────────────────
+// ─── Header ──────────────────────────────────────────────────────────────────
 class _ConsentsHeader extends StatelessWidget {
   final String title;
   final String subtitle;
@@ -329,7 +330,9 @@ class _ConsentsHeader extends StatelessWidget {
     return Row(
       mainAxisAlignment: MainAxisAlignment.spaceBetween,
       children: [
-        _buildTitle(),
+        // ✅ 1. Wrap title in Expanded so it shrinks on smaller screens
+        Expanded(child: _buildTitle()),
+        const SizedBox(width: AppDimensions.paddingMedium),
         _buildActions(),
       ],
     );
@@ -353,13 +356,27 @@ class _ConsentsHeader extends StatelessWidget {
           ),
         ),
         const SizedBox(width: AppDimensions.paddingMedium),
-        Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Text(title, style: AppTextStyles.headlineSmall),
-            const SizedBox(height: 4),
-            Text(subtitle, style: AppTextStyles.bodySmall),
-          ],
+        // ✅ 2. Wrap text column in Expanded & add ellipsis to prevent text overflow
+        Expanded(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Text(
+                title,
+                style: AppTextStyles.headlineSmall,
+                overflow: TextOverflow.ellipsis,
+                maxLines: 1,
+              ),
+              const SizedBox(height: 4),
+              Text(
+                subtitle,
+                style: AppTextStyles.bodySmall,
+                overflow: TextOverflow.ellipsis,
+                maxLines: 1,
+              ),
+            ],
+          ),
         ),
       ],
     );
@@ -367,8 +384,8 @@ class _ConsentsHeader extends StatelessWidget {
 
   Widget _buildActions() {
     return Row(
+      mainAxisSize: MainAxisSize.min,
       children: [
-        // ✅ AnimatedOpacity instead of conditional Padding — smoother UX
         AnimatedOpacity(
           opacity: isLoading ? 1.0 : 0.0,
           duration: const Duration(milliseconds: 200),
@@ -768,8 +785,7 @@ class _NavBtn extends StatelessWidget {
             child: Icon(
               icon,
               size: 20,
-              color:
-                  enabled ? AppColors.textSecondary : AppColors.textTertiary,
+              color: enabled ? AppColors.textSecondary : AppColors.textTertiary,
             ),
           ),
         ),
@@ -815,9 +831,8 @@ class _PageNumberBtn extends StatelessWidget {
               style: TextStyle(
                 fontSize: 13,
                 fontWeight: FontWeight.w700,
-                color: active
-                    ? AppColors.textOnPrimary
-                    : AppColors.textSecondary,
+                color:
+                    active ? AppColors.textOnPrimary : AppColors.textSecondary,
               ),
             ),
           ),

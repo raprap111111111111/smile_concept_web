@@ -295,7 +295,7 @@ class ConsentFormState {
 // ═══════════════════════════════════════════════════════════════════════════
 // Notifier
 // ═══════════════════════════════════════════════════════════════════════════
-class ConsentFormNotifier extends AutoDisposeNotifier<ConsentFormState> {
+class ConsentFormNotifier extends Notifier<ConsentFormState> {
   @override
   ConsentFormState build() {
     // Initialise clause maps
@@ -547,8 +547,7 @@ class ConsentFormNotifier extends AutoDisposeNotifier<ConsentFormState> {
   void reset() => state = build();
 }
 
-// ✅ AFTER — provider dies when no widgets watch it
 final consentFormProvider =
-    NotifierProvider.autoDispose<ConsentFormNotifier, ConsentFormState>(
+    NotifierProvider<ConsentFormNotifier, ConsentFormState>(
   ConsentFormNotifier.new,
 );
