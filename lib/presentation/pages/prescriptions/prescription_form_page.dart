@@ -10,12 +10,12 @@ import '../../theme/app_dimensions.dart';
 import '../../theme/app_text_styles.dart';
 import 'widgets/form/doctor_dropdown.dart';
 import 'widgets/form/empty_medicine_state.dart';
-import 'widgets/form/medicine_item_card.dart';  
-import 'widgets/form/medicine_item_form.dart';   
+import 'widgets/form/medicine_item_card.dart';
+import 'widgets/form/medicine_item_form.dart';
 import 'widgets/form/patient_dropdown.dart';
 import 'widgets/form/prescription_form_header.dart';
 import 'widgets/form/prescription_form_section.dart';
-import '/presentation/widgets/shared//access_denied_view.dart';
+import '/presentation/widgets/shared/access_denied_view.dart';
 import '../../widgets/shared/app_snackbar.dart';
 import 'package:smile_concept_web/core/errors/error_message.dart';
 
@@ -34,8 +34,7 @@ class PrescriptionFormPage extends ConsumerStatefulWidget {
       _PrescriptionFormPageState();
 }
 
-class _PrescriptionFormPageState
-    extends ConsumerState<PrescriptionFormPage> {
+class _PrescriptionFormPageState extends ConsumerState<PrescriptionFormPage> {
   final _formKey = GlobalKey<FormState>();
   final _notesController = TextEditingController();
   final List<MedicineItemForm> _items = [];
@@ -43,6 +42,30 @@ class _PrescriptionFormPageState
   int? _selectedDoctorId;
   int? _selectedPatientId;
   bool _isSubmitting = false;
+
+  // ✅ Shared light theme input style (matches Treatment Plan form)
+  static InputDecoration _inputDeco(String hint) {
+    return InputDecoration(
+      hintText: hint,
+      isDense: true,
+      filled: true,
+      fillColor: AppColors.surface, // Or AppColors.background if you prefer lighter
+      hintStyle: AppTextStyles.bodySmall.copyWith(color: AppColors.textTertiary),
+      contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 16),
+      border: OutlineInputBorder(
+        borderRadius: BorderRadius.circular(12),
+        borderSide: const BorderSide(color: AppColors.border),
+      ),
+      enabledBorder: OutlineInputBorder(
+        borderRadius: BorderRadius.circular(12),
+        borderSide: const BorderSide(color: AppColors.border),
+      ),
+      focusedBorder: OutlineInputBorder(
+        borderRadius: BorderRadius.circular(12),
+        borderSide: const BorderSide(color: AppColors.primary, width: 1.5),
+      ),
+    );
+  }
 
   @override
   void initState() {
@@ -85,8 +108,7 @@ class _PrescriptionFormPageState
           .loadPrescriptions(forceRefresh: true);
 
       if (mounted) {
-        AppSnackbar.show(
-            context, 'Prescription created successfully');
+        AppSnackbar.show(context, 'Prescription created successfully');
         context.pop();
       }
     } catch (e) {
@@ -114,18 +136,15 @@ class _PrescriptionFormPageState
     if (!_formKey.currentState!.validate()) return false;
 
     if (_selectedDoctorId == null) {
-      AppSnackbar.show(context, 'Please select a doctor.',
-          isError: true);
+      AppSnackbar.show(context, 'Please select a doctor.', isError: true);
       return false;
     }
     if (_selectedPatientId == null) {
-      AppSnackbar.show(context, 'Please select a patient.',
-          isError: true);
+      AppSnackbar.show(context, 'Please select a patient.', isError: true);
       return false;
     }
     if (_items.isEmpty) {
-      AppSnackbar.show(context,
-          'Please add at least one medicine.',
+      AppSnackbar.show(context, 'Please add at least one medicine.',
           isError: true);
       return false;
     }
@@ -135,8 +154,7 @@ class _PrescriptionFormPageState
 
   Future<void> _createPrescription() async {
     final remote = ref.read(prescriptionRemoteDataSourceProvider);
-    final itemsPayload =
-        _items.map((item) => item.toPayload()).toList();
+    final itemsPayload = _items.map((item) => item.toPayload()).toList();
 
     await remote.createPrescription(
       doctorId: _selectedDoctorId!,
@@ -201,20 +219,17 @@ class _PrescriptionFormPageState
     return PrescriptionFormSection(
       number: '1',
       title: 'Assignment',
-      subtitle:
-          'Select the doctor and patient for this prescription',
+      subtitle: 'Select the doctor and patient for this prescription',
       icon: Icons.assignment_ind_outlined,
       children: [
         DoctorDropdown(
           selectedDoctorId: _selectedDoctorId,
-          onChanged: (val) =>
-              setState(() => _selectedDoctorId = val),
+          onChanged: (val) => setState(() => _selectedDoctorId = val),
         ),
         const SizedBox(height: AppDimensions.paddingMedium),
         PatientDropdown(
           selectedPatientId: _selectedPatientId,
-          onChanged: (val) =>
-              setState(() => _selectedPatientId = val),
+          onChanged: (val) => setState(() => _selectedPatientId = val),
         ),
       ],
     );
@@ -242,14 +257,13 @@ class _PrescriptionFormPageState
       style: FilledButton.styleFrom(
         backgroundColor: AppColors.accentWithOpacity(0.15),
         foregroundColor: AppColors.primaryDark,
-        padding:
-            const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
+        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
         shape: RoundedRectangleBorder(
           borderRadius: BorderRadius.circular(99),
         ),
       ),
-      icon: const Icon(Icons.add, size: 16),
-      label: const Text('Add Medicine'),
+      icon: const Icon(Icons.add, size: 18),
+      label: const Text('Add Medicine', style: TextStyle(fontWeight: FontWeight.w600)),
     );
   }
 
@@ -258,15 +272,12 @@ class _PrescriptionFormPageState
       _items.length,
       (index) => Padding(
         padding: EdgeInsets.only(
-          bottom: index == _items.length - 1
-              ? 0
-              : AppDimensions.paddingMedium,
+          bottom: index == _items.length - 1 ? 0 : AppDimensions.paddingMedium,
         ),
         child: MedicineItemCard(
           item: _items[index],
           index: index,
-          onRemove:
-              _items.length > 1 ? () => _removeItem(index) : null,
+          onRemove: _items.length > 1 ? () => _removeItem(index) : null,
         ),
       ),
     );
@@ -283,12 +294,8 @@ class _PrescriptionFormPageState
         TextFormField(
           controller: _notesController,
           maxLines: 4,
-          style: AppTextStyles.bodyMedium
-              .copyWith(color: AppColors.ink),
-          decoration: const InputDecoration(
-            hintText:
-                'Add any notes or instructions for the patient...',
-          ),
+          style: AppTextStyles.bodyMedium.copyWith(color: AppColors.textPrimary),
+          decoration: _inputDeco('Anything the treating doctor should know...'), // ✅ Matches theme
         ),
       ],
     );
@@ -297,16 +304,14 @@ class _PrescriptionFormPageState
   // ── AppBar ───────────────────────────────────────────────
   PreferredSizeWidget _buildAppBar({required bool canSubmit}) {
     return AppBar(
-      backgroundColor: AppColors.background,
+      backgroundColor: AppColors.surface,
       surfaceTintColor: Colors.transparent,
       elevation: 0,
       leading: IconButton(
         onPressed: () => context.pop(),
-        icon: const Icon(Icons.arrow_back,
-            color: AppColors.textSecondary),
+        icon: const Icon(Icons.arrow_back, color: AppColors.textSecondary),
       ),
-      title: const Text('New Prescription',
-          style: AppTextStyles.titleLarge),
+      title: const Text('New Prescription', style: AppTextStyles.titleLarge),
       bottom: PreferredSize(
         preferredSize: const Size.fromHeight(1),
         child: Container(height: 1, color: AppColors.line),
@@ -317,34 +322,27 @@ class _PrescriptionFormPageState
 
   Widget _buildSaveButton() {
     return Padding(
-      padding:
-          const EdgeInsets.only(right: AppDimensions.paddingLarge),
+      padding: const EdgeInsets.only(right: AppDimensions.paddingLarge, top: 8, bottom: 8),
       child: FilledButton.icon(
         onPressed: _isSubmitting ? null : _submit,
         style: FilledButton.styleFrom(
           backgroundColor: AppColors.primary,
           foregroundColor: Colors.white,
-          padding:
-              const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
+          padding: const EdgeInsets.symmetric(horizontal: 20),
           shape: RoundedRectangleBorder(
-            borderRadius:
-                BorderRadius.circular(AppDimensions.borderRadius),
+            borderRadius: BorderRadius.circular(8),
           ),
         ),
         icon: _isSubmitting
             ? const SizedBox(
                 width: 16,
                 height: 16,
-                child: CircularProgressIndicator(
-                  strokeWidth: 2,
-                  color: Colors.white,
-                ),
+                child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white),
               )
             : const Icon(Icons.check, size: 18),
         label: Text(
-          _isSubmitting ? 'Saving...' : 'Save Prescription',
-          style:
-              AppTextStyles.labelLarge.copyWith(color: Colors.white),
+          _isSubmitting ? 'Saving...' : 'Create Prescription',
+          style: AppTextStyles.labelLarge.copyWith(color: Colors.white),
         ),
       ),
     );

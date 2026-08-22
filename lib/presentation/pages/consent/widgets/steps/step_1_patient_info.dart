@@ -96,17 +96,25 @@ class _Step1PatientInfoState extends ConsumerState<Step1PatientInfo> {
     _occupationCtrl = TextEditingController(text: s.occupation);
     _dentalInsuranceCtrl = TextEditingController(text: s.dentalInsurance);
     _effectiveDateCtrl = TextEditingController(text: s.effectiveDate);
-    _parentGuardianNameCtrl =
-        TextEditingController(text: s.parentGuardianName);
-    _parentGuardianOccupationCtrl =
-        TextEditingController(text: s.parentGuardianOccupation);
+    _parentGuardianNameCtrl = TextEditingController(text: s.parentGuardianName);
+    _parentGuardianOccupationCtrl = TextEditingController(text: s.parentGuardianOccupation);
     _guardianNameCtrl = TextEditingController(text: s.guardianName);
     _guardianRelationCtrl = TextEditingController(text: s.guardianRelation);
-    _guardianOccupationCtrl =
-        TextEditingController(text: s.guardianOccupation);
+    _guardianOccupationCtrl = TextEditingController(text: s.guardianOccupation);
     _guardianAddressCtrl = TextEditingController(text: s.guardianAddress);
 
-    _religion = s.religion.isEmpty ? null : s.religion;
+    _hydrateFieldsFromState(s);
+    _lastRelation = s.patientRelation;
+  }
+
+  void _hydrateFieldsFromState(ConsentFormState s) {
+    if (_nameCtrl.text != s.name) _nameCtrl.text = s.name;
+    if (_birthdateCtrl.text != s.birthdate) _birthdateCtrl.text = s.birthdate;
+    if (_streetCtrl.text != s.street) _streetCtrl.text = s.street;
+    if (_occupationCtrl.text != s.occupation) _occupationCtrl.text = s.occupation;
+    if (_dentalInsuranceCtrl.text != s.dentalInsurance) _dentalInsuranceCtrl.text = s.dentalInsurance;
+
+    _religion = _kReligions.contains(s.religion) ? s.religion : null;
     _region = s.region.isEmpty ? null : s.region;
     _province = s.province.isEmpty ? null : s.province;
     _city = s.city.isEmpty ? null : s.city;
@@ -114,7 +122,6 @@ class _Step1PatientInfoState extends ConsumerState<Step1PatientInfo> {
 
     _birthdate = _tryParse(s.birthdate);
     _effectiveDate = _tryParse(s.effectiveDate);
-    _lastRelation = s.patientRelation;
   }
 
   DateTime? _tryParse(String s) {
@@ -129,22 +136,18 @@ class _Step1PatientInfoState extends ConsumerState<Step1PatientInfo> {
   @override
   void dispose() {
     _flush();
-    for (final ctrl in [
-      _nameCtrl,
-      _birthdateCtrl,
-      _streetCtrl,
-      _occupationCtrl,
-      _dentalInsuranceCtrl,
-      _effectiveDateCtrl,
-      _parentGuardianNameCtrl,
-      _parentGuardianOccupationCtrl,
-      _guardianNameCtrl,
-      _guardianRelationCtrl,
-      _guardianOccupationCtrl,
-      _guardianAddressCtrl,
-    ]) {
-      ctrl.dispose();
-    }
+    _nameCtrl.dispose();
+    _birthdateCtrl.dispose();
+    _streetCtrl.dispose();
+    _occupationCtrl.dispose();
+    _dentalInsuranceCtrl.dispose();
+    _effectiveDateCtrl.dispose();
+    _parentGuardianNameCtrl.dispose();
+    _parentGuardianOccupationCtrl.dispose();
+    _guardianNameCtrl.dispose();
+    _guardianRelationCtrl.dispose();
+    _guardianOccupationCtrl.dispose();
+    _guardianAddressCtrl.dispose();
     super.dispose();
   }
 
@@ -201,12 +204,19 @@ class _Step1PatientInfoState extends ConsumerState<Step1PatientInfo> {
   @override
   Widget build(BuildContext context) {
     final state = ref.watch(consentFormProvider);
-    final isGuardian =
-        state.patientRelation == PatientRelation.minorDependent;
+    final isGuardian = state.patientRelation == PatientRelation.minorDependent;
     final isSelf = state.patientRelation == PatientRelation.self;
 
-    WidgetsBinding.instance.addPostFrameCallback((_) {
-      _reactToRelationChange(state.patientRelation, state.selectedPatient);
+    ref.listen<ConsentFormState>(consentFormProvider, (prev, next) {
+      final patientChanged = prev?.selectedPatient?.id != next.selectedPatient?.id;
+
+      if (patientChanged) {
+        setState(() => _hydrateFieldsFromState(next));
+      }
+
+      if (prev?.patientRelation != next.patientRelation) {
+        _reactToRelationChange(next.patientRelation, next.selectedPatient);
+      }
     });
 
     return SingleChildScrollView(
@@ -261,6 +271,8 @@ class _Step1PatientInfoState extends ConsumerState<Step1PatientInfo> {
             const SizedBox(width: 12),
             Expanded(
               child: DropdownButtonFormField<String>(
+                dropdownColor: AppColors.surface, // ✅ Theme matching light background
+                style: AppTextStyles.bodyMedium.copyWith(color: AppColors.textPrimary),
                 initialValue: _kReligions.contains(_religion) ? _religion : null,
                 isExpanded: true,
                 decoration: const InputDecoration(
@@ -269,8 +281,13 @@ class _Step1PatientInfoState extends ConsumerState<Step1PatientInfo> {
                   prefixIcon: Icon(Icons.church_outlined),
                 ),
                 items: _kReligions
-                    .map((r) =>
-                        DropdownMenuItem(value: r, child: Text(r)))
+                    .map((r) => DropdownMenuItem(
+                          value: r,
+                          child: Text(
+                            r,
+                            style: const TextStyle(color: AppColors.textPrimary),
+                          ),
+                        ))
                     .toList(),
                 onChanged: (v) {
                   setState(() => _religion = v);
@@ -281,7 +298,7 @@ class _Step1PatientInfoState extends ConsumerState<Step1PatientInfo> {
           ]),
           const SizedBox(height: 16),
 
-          // ── Home Address (REAL PSGC — cascading) ─────────────────────────
+          // ── Home Address (PSGC cascading) ───────────────────────────────
           const SectionTitle(
             title: 'Home Address',
             icon: Icons.location_on_outlined,
@@ -427,7 +444,7 @@ class _Step1PatientInfoState extends ConsumerState<Step1PatientInfo> {
   }
 
   // ═════════════════════════════════════════════════════════════════════════
-  // PSGC Address Picker — REAL cascading dropdowns
+  // PSGC Address Picker
   // ═════════════════════════════════════════════════════════════════════════
   Widget _buildPsgcAddressPicker() {
     final psgcAsync = ref.watch(_psgcProvider);
@@ -474,28 +491,23 @@ class _Step1PatientInfoState extends ConsumerState<Step1PatientInfo> {
         ),
       ),
       data: (data) {
-        // ── Extract lists based on current cascade ────────────────────
         final regions = _extractRegions(data);
         final provinces =
             _region == null ? <String>[] : _extractProvinces(data, _region!);
         final cities = (_region == null || _province == null)
             ? <String>[]
             : _extractCities(data, _region!, _province!);
-        final barangays =
-            (_region == null || _province == null || _city == null)
-                ? <String>[]
-                : _extractBarangays(data, _region!, _province!, _city!);
-
-        debugPrint('🗺 PSGC cascade: '
-            'region=$_region, provinces=${provinces.length}, '
-            'province=$_province, cities=${cities.length}, '
-            'city=$_city, barangays=${barangays.length}');
+        final barangays = (_region == null || _province == null || _city == null)
+            ? <String>[]
+            : _extractBarangays(data, _region!, _province!, _city!);
 
         return Column(
           children: [
             Row(children: [
               Expanded(
                 child: DropdownButtonFormField<String>(
+                  dropdownColor: AppColors.surface, // ✅ Light background
+                  style: AppTextStyles.bodyMedium.copyWith(color: AppColors.textPrimary),
                   initialValue: regions.contains(_region) ? _region : null,
                   isExpanded: true,
                   decoration: const InputDecoration(
@@ -509,12 +521,11 @@ class _Step1PatientInfoState extends ConsumerState<Step1PatientInfo> {
                             child: Text(
                               r,
                               overflow: TextOverflow.ellipsis,
-                              style: const TextStyle(fontSize: 13),
+                              style: const TextStyle(fontSize: 13, color: AppColors.textPrimary),
                             ),
                           ))
                       .toList(),
                   onChanged: (v) {
-                    debugPrint('🗺 Region SELECTED: "$v"');
                     setState(() {
                       _region = v;
                       _province = null;
@@ -528,6 +539,8 @@ class _Step1PatientInfoState extends ConsumerState<Step1PatientInfo> {
               const SizedBox(width: 12),
               Expanded(
                 child: DropdownButtonFormField<String>(
+                  dropdownColor: AppColors.surface, // ✅ Light background
+                  style: AppTextStyles.bodyMedium.copyWith(color: AppColors.textPrimary),
                   initialValue: provinces.contains(_province) ? _province : null,
                   isExpanded: true,
                   decoration: InputDecoration(
@@ -545,14 +558,13 @@ class _Step1PatientInfoState extends ConsumerState<Step1PatientInfo> {
                             child: Text(
                               p,
                               overflow: TextOverflow.ellipsis,
-                              style: const TextStyle(fontSize: 13),
+                              style: const TextStyle(fontSize: 13, color: AppColors.textPrimary),
                             ),
                           ))
                       .toList(),
                   onChanged: (_region == null || provinces.isEmpty)
                       ? null
                       : (v) {
-                          debugPrint('🗺 Province SELECTED: "$v"');
                           setState(() {
                             _province = v;
                             _city = null;
@@ -567,6 +579,8 @@ class _Step1PatientInfoState extends ConsumerState<Step1PatientInfo> {
             Row(children: [
               Expanded(
                 child: DropdownButtonFormField<String>(
+                  dropdownColor: AppColors.surface, // ✅ Light background
+                  style: AppTextStyles.bodyMedium.copyWith(color: AppColors.textPrimary),
                   initialValue: cities.contains(_city) ? _city : null,
                   isExpanded: true,
                   decoration: InputDecoration(
@@ -584,14 +598,13 @@ class _Step1PatientInfoState extends ConsumerState<Step1PatientInfo> {
                             child: Text(
                               c,
                               overflow: TextOverflow.ellipsis,
-                              style: const TextStyle(fontSize: 13),
+                              style: const TextStyle(fontSize: 13, color: AppColors.textPrimary),
                             ),
                           ))
                       .toList(),
                   onChanged: (_province == null || cities.isEmpty)
                       ? null
                       : (v) {
-                          debugPrint('🗺 City SELECTED: "$v"');
                           setState(() {
                             _city = v;
                             _barangay = null;
@@ -603,13 +616,14 @@ class _Step1PatientInfoState extends ConsumerState<Step1PatientInfo> {
               const SizedBox(width: 12),
               Expanded(
                 child: DropdownButtonFormField<String>(
+                  dropdownColor: AppColors.surface, // ✅ Light background
+                  style: AppTextStyles.bodyMedium.copyWith(color: AppColors.textPrimary),
                   initialValue: barangays.contains(_barangay) ? _barangay : null,
                   isExpanded: true,
                   decoration: InputDecoration(
                     labelText: 'Barangay',
                     border: const OutlineInputBorder(),
-                    prefixIcon:
-                        const Icon(Icons.holiday_village_outlined),
+                    prefixIcon: const Icon(Icons.holiday_village_outlined),
                     helperText: _city == null
                         ? 'Select City first'
                         : '${barangays.length} available',
@@ -621,14 +635,13 @@ class _Step1PatientInfoState extends ConsumerState<Step1PatientInfo> {
                             child: Text(
                               b,
                               overflow: TextOverflow.ellipsis,
-                              style: const TextStyle(fontSize: 13),
+                              style: const TextStyle(fontSize: 13, color: AppColors.textPrimary),
                             ),
                           ))
                       .toList(),
                   onChanged: (_city == null || barangays.isEmpty)
                       ? null
                       : (v) {
-                          debugPrint('🗺 Barangay SELECTED: "$v"');
                           setState(() => _barangay = v);
                           _flush();
                         },
@@ -641,18 +654,11 @@ class _Step1PatientInfoState extends ConsumerState<Step1PatientInfo> {
     );
   }
 
-  // ═════════════════════════════════════════════════════════════════════════
-  // PSGC Extraction helpers
-  // ═════════════════════════════════════════════════════════════════════════
   List<String> _extractRegions(Map<String, dynamic> data) {
-    return data.values
-        .map((r) => (r as Map)['region_name'] as String)
-        .toList()
-      ..sort();
+    return data.values.map((r) => (r as Map)['region_name'] as String).toList()..sort();
   }
 
-  List<String> _extractProvinces(
-      Map<String, dynamic> data, String regionName) {
+  List<String> _extractProvinces(Map<String, dynamic> data, String regionName) {
     final region = _findRegion(data, regionName);
     if (region == null) return [];
     final provList = region['province_list'];
@@ -660,8 +666,7 @@ class _Step1PatientInfoState extends ConsumerState<Step1PatientInfo> {
     return provList.keys.cast<String>().toList()..sort();
   }
 
-  List<String> _extractCities(
-      Map<String, dynamic> data, String regionName, String provinceName) {
+  List<String> _extractCities(Map<String, dynamic> data, String regionName, String provinceName) {
     final region = _findRegion(data, regionName);
     if (region == null) return [];
     final province = (region['province_list'] as Map?)?[provinceName];
@@ -671,12 +676,7 @@ class _Step1PatientInfoState extends ConsumerState<Step1PatientInfo> {
     return muniList.keys.cast<String>().toList()..sort();
   }
 
-  List<String> _extractBarangays(
-    Map<String, dynamic> data,
-    String regionName,
-    String provinceName,
-    String cityName,
-  ) {
+  List<String> _extractBarangays(Map<String, dynamic> data, String regionName, String provinceName, String cityName) {
     final region = _findRegion(data, regionName);
     if (region == null) return [];
     final province = (region['province_list'] as Map?)?[provinceName];
@@ -688,20 +688,14 @@ class _Step1PatientInfoState extends ConsumerState<Step1PatientInfo> {
     return brgyList.cast<String>().toList()..sort();
   }
 
-  Map<String, dynamic>? _findRegion(
-      Map<String, dynamic> data, String regionName) {
+  Map<String, dynamic>? _findRegion(Map<String, dynamic> data, String regionName) {
     for (final r in data.values) {
-      if (r is Map<String, dynamic> && r['region_name'] == regionName) {
-        return r;
-      }
+      if (r is Map<String, dynamic> && r['region_name'] == regionName) return r;
     }
     return null;
   }
 }
 
-// ═════════════════════════════════════════════════════════════════════════
-// _NameField
-// ═════════════════════════════════════════════════════════════════════════
 class _NameField extends StatelessWidget {
   final TextEditingController controller;
   final bool readOnly;
@@ -727,8 +721,7 @@ class _NameField extends StatelessWidget {
         border: const OutlineInputBorder(),
         prefixIcon: const Icon(Icons.person_outline),
         suffixIcon: readOnly
-            ? const Icon(Icons.lock,
-                size: 18, color: AppColors.textSecondary)
+            ? const Icon(Icons.lock, size: 18, color: AppColors.textSecondary)
             : null,
         filled: readOnly,
         fillColor: readOnly ? AppColors.surface : null,
@@ -737,9 +730,6 @@ class _NameField extends StatelessWidget {
   }
 }
 
-// ═════════════════════════════════════════════════════════════════════════
-// _DateField
-// ═════════════════════════════════════════════════════════════════════════
 class _DateField extends StatelessWidget {
   final String label;
   final TextEditingController controller;

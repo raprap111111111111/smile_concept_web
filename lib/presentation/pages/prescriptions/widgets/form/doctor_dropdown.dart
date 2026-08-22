@@ -1,9 +1,11 @@
 // lib/presentation/pages/prescriptions/widgets/form/doctor_dropdown.dart
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import '../../../../providers/doctor/doctor_list_provider.dart';
-import '/presentation/widgets/shared/status_field.dart';
 
+import '../../../../providers/doctor/doctor_list_provider.dart';
+import '../../../../theme/app_colors.dart';
+import '../../../../theme/app_text_styles.dart';
+import '/presentation/widgets/shared/status_field.dart';
 
 class DoctorDropdown extends ConsumerStatefulWidget {
   final int? selectedDoctorId;
@@ -37,14 +39,41 @@ class _DoctorDropdownState extends ConsumerState<DoctorDropdown> {
         }
 
         return DropdownButtonFormField<int>(
-          // Use initialValue via key-based rebuild instead of deprecated value
           initialValue: widget.selectedDoctorId,
           isExpanded: true,
-          decoration: const InputDecoration(
+          // ✅ Light dropdown menu (fixes black background)
+          dropdownColor: AppColors.surface,
+          style: AppTextStyles.bodyMedium.copyWith(color: AppColors.textPrimary),
+          icon: const Icon(Icons.keyboard_arrow_down_rounded,
+              color: AppColors.textSecondary),
+          decoration: InputDecoration(
             labelText: 'Doctor *',
-            prefixIcon: Icon(Icons.person_outlined),
+            hintText: 'Select doctor',
+            prefixIcon: const Icon(Icons.person_outlined),
+            isDense: true,
+            filled: true,
+            fillColor: AppColors.surface,
+            contentPadding:
+                const EdgeInsets.symmetric(horizontal: 16, vertical: 16),
+            border: OutlineInputBorder(
+              borderRadius: BorderRadius.circular(12),
+              borderSide: const BorderSide(color: AppColors.border),
+            ),
+            enabledBorder: OutlineInputBorder(
+              borderRadius: BorderRadius.circular(12),
+              borderSide: const BorderSide(color: AppColors.border),
+            ),
+            focusedBorder: OutlineInputBorder(
+              borderRadius: BorderRadius.circular(12),
+              borderSide:
+                  const BorderSide(color: AppColors.primary, width: 1.5),
+            ),
           ),
-          hint: const Text('Select doctor'),
+          hint: Text(
+            'Select doctor',
+            style: AppTextStyles.bodyMedium
+                .copyWith(color: AppColors.textTertiary),
+          ),
           items: doctors
               .map(
                 (doc) => DropdownMenuItem<int>(
@@ -52,6 +81,8 @@ class _DoctorDropdownState extends ConsumerState<DoctorDropdown> {
                   child: Text(
                     doc.displayLabel,
                     overflow: TextOverflow.ellipsis,
+                    style: AppTextStyles.bodyMedium
+                        .copyWith(color: AppColors.textPrimary),
                   ),
                 ),
               )
