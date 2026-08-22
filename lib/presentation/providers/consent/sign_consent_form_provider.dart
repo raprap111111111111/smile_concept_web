@@ -42,7 +42,7 @@ class ConsentFormState {
   final String name;
   final String birthdate;
   final String religion;
-  final String homeAddress;      // computed full "street, brgy, city, prov, region"
+  final String homeAddress; // computed full "street, brgy, city, prov, region"
   final String occupation;
   final String dentalInsurance;
   final String effectiveDate;
@@ -310,9 +310,38 @@ class ConsentFormNotifier extends Notifier<ConsentFormState> {
 
   // ── Patient ────────────────────────────────────────────────────────────
   void selectPatient(PatientModel p) {
+    // Format birthdate for the date picker (MM/dd/yyyy) if backend sends ISO
+    String formattedBirthdate = '';
+    if (p.birthdate != null && p.birthdate!.trim().isNotEmpty) {
+      try {
+        final dt = DateTime.tryParse(p.birthdate!);
+        if (dt != null) {
+          formattedBirthdate = '${dt.month.toString().padLeft(2, '0')}/'
+              '${dt.day.toString().padLeft(2, '0')}/'
+              '${dt.year}';
+        } else {
+          formattedBirthdate = p.birthdate!;
+        }
+      } catch (_) {
+        formattedBirthdate = p.birthdate!;
+      }
+    }
+
     state = state.copyWith(
       selectedPatient: p,
       name: p.name,
+      birthdate: formattedBirthdate,
+      homeAddress: p.address ?? '',
+      city: p.city ?? '',
+      province: p.province ?? '',
+      occupation: p.occupation ?? '',
+      dentalInsurance: p.insuranceProvider ?? '',
+      // Prefill medical bits that exist on PatientModel
+      bloodType: p.bloodType ?? '',
+      isPregnant: p.isPregnant,
+      hasAllergies:
+          (p.allergies != null && p.allergies!.trim().isNotEmpty) ? true : null,
+      otherAllergies: p.allergies ?? '',
     );
   }
 
@@ -383,8 +412,7 @@ class ConsentFormNotifier extends Notifier<ConsentFormState> {
     state = switch (field) {
       'treatmentCondition' => state.copyWith(treatmentCondition: value),
       'illnessDetails' => state.copyWith(illnessDetails: value),
-      'hospitalizationDetails' =>
-          state.copyWith(hospitalizationDetails: value),
+      'hospitalizationDetails' => state.copyWith(hospitalizationDetails: value),
       'medications' => state.copyWith(medications: value),
       'bleedingTime' => state.copyWith(bleedingTime: value),
       'bloodType' => state.copyWith(bloodType: value),

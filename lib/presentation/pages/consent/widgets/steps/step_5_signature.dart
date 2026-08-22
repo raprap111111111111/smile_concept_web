@@ -25,59 +25,56 @@ class Step5Signature extends ConsumerWidget {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
-          // ─── Signer Role ────────────────────────────────────────────────
           const SectionTitle(
             title: 'Who is signing?',
             icon: Icons.person_outline,
           ),
           const SizedBox(height: 8),
 
-          // ✅ NEW: single RadioGroup wrapping all radios
-          RadioGroup<SignerRole>(
-            groupValue: state.signerRole,
-            onChanged: (v) {
-              if (v != null) notifier.setSignerRole(v);
-            },
-            child: Column(
-              children: [
-                RadioListTile<SignerRole>(
-                  value: SignerRole.self,
-                  title: Text('Patient ($patientName)'),
-                  subtitle: const Text('Patient signs for themselves'),
-                  dense: true,
-                ),
-                RadioListTile<SignerRole>(
-                  value: SignerRole.guardian,
-                  title: const Text('Parent / Guardian'),
-                  subtitle: const Text('Guardian signs on behalf of minor'),
-                  dense: true,
-                ),
-                RadioListTile<SignerRole>(
-                  value: SignerRole.staff,
-                  title: const Text('Staff Witnessed'),
-                  subtitle: const Text('Staff facilitated signing'),
-                  dense: true,
-                ),
-              ],
-            ),
+          // Light themed radio cards
+          _SignerOption(
+            selected: state.signerRole == SignerRole.self,
+            title: 'Patient ($patientName)',
+            subtitle: 'Patient signs for themselves',
+            onTap: () => notifier.setSignerRole(SignerRole.self),
+          ),
+          const SizedBox(height: 8),
+          _SignerOption(
+            selected: state.signerRole == SignerRole.guardian,
+            title: 'Parent / Guardian',
+            subtitle: 'Guardian signs on behalf of minor',
+            onTap: () => notifier.setSignerRole(SignerRole.guardian),
+          ),
+          const SizedBox(height: 8),
+          _SignerOption(
+            selected: state.signerRole == SignerRole.staff,
+            title: 'Staff Witnessed',
+            subtitle: 'Staff facilitated signing',
+            onTap: () => notifier.setSignerRole(SignerRole.staff),
           ),
 
           const SizedBox(height: 20),
 
-          // ─── Signature Pad ──────────────────────────────────────────────
           SectionTitle(
             title: switch (state.signerRole) {
-              SignerRole.self     => 'Patient Signature',
+              SignerRole.self => 'Patient Signature',
               SignerRole.guardian => 'Guardian Signature',
-              SignerRole.staff    => 'Signature',
+              SignerRole.staff => 'Signature',
             },
             icon: Icons.draw_outlined,
           ),
           const SizedBox(height: 8),
-          SignaturePadWidget(key: sigKey),
+          Container(
+            decoration: BoxDecoration(
+              color: AppColors.surface,
+              borderRadius: BorderRadius.circular(12),
+              border: Border.all(color: AppColors.border),
+            ),
+            clipBehavior: Clip.antiAlias,
+            child: SignaturePadWidget(key: sigKey),
+          ),
           const SizedBox(height: 16),
 
-          // ─── Disclaimer ─────────────────────────────────────────────────
           Container(
             padding: const EdgeInsets.all(AppDimensions.paddingMedium),
             decoration: BoxDecoration(
@@ -101,13 +98,83 @@ class Step5Signature extends ConsumerWidget {
                     'By signing, I acknowledge reading, understanding, '
                     'and agreeing to all clauses, medical information, '
                     'and intraoral findings provided in this consent form.',
-                    style: AppTextStyles.labelSmall,
+                    style: AppTextStyles.labelSmall.copyWith(
+                      color: AppColors.textPrimary,
+                    ),
                   ),
                 ),
               ],
             ),
           ),
         ],
+      ),
+    );
+  }
+}
+
+class _SignerOption extends StatelessWidget {
+  final bool selected;
+  final String title;
+  final String subtitle;
+  final VoidCallback onTap;
+
+  const _SignerOption({
+    required this.selected,
+    required this.title,
+    required this.subtitle,
+    required this.onTap,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Material(
+      color: selected ? AppColors.accentLight : AppColors.surface,
+      borderRadius: BorderRadius.circular(12),
+      child: InkWell(
+        onTap: onTap,
+        borderRadius: BorderRadius.circular(12),
+        child: Container(
+          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+          decoration: BoxDecoration(
+            borderRadius: BorderRadius.circular(12),
+            border: Border.all(
+              color: selected ? AppColors.primary : AppColors.border,
+              width: selected ? 1.5 : 1,
+            ),
+          ),
+          child: Row(
+            children: [
+              Icon(
+                selected
+                    ? Icons.radio_button_checked
+                    : Icons.radio_button_off,
+                color: selected ? AppColors.primary : AppColors.textTertiary,
+                size: 20,
+              ),
+              const SizedBox(width: 12),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      title,
+                      style: AppTextStyles.bodyMedium.copyWith(
+                        color: AppColors.textPrimary,
+                        fontWeight: FontWeight.w600,
+                      ),
+                    ),
+                    Text(
+                      subtitle,
+                      style: AppTextStyles.labelSmall.copyWith(
+                        color: AppColors.textSecondary,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ],
+          ),
+        ),
       ),
     );
   }

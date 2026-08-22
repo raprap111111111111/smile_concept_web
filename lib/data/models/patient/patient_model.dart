@@ -8,6 +8,15 @@ class PatientModel {
   final String? phone;
   final String? profilePhotoUrl;
 
+  // Demographic & Address fields
+  final String? birthdate;
+  final String? occupation;
+  final String? address;
+  final String? city;
+  final String? province;
+  final String? insuranceProvider;
+
+  // Medical fields
   final String? allergies;
   final String? medicalHistory;
   final String? bloodType;
@@ -28,6 +37,12 @@ class PatientModel {
     required this.email,
     this.phone,
     this.profilePhotoUrl,
+    this.birthdate,
+    this.occupation,
+    this.address,
+    this.city,
+    this.province,
+    this.insuranceProvider,
     this.allergies,
     this.medicalHistory,
     this.bloodType,
@@ -41,6 +56,7 @@ class PatientModel {
     this.updatedAt,
   });
 
+  // ✅ Getters required by patient detail & list pages
   int? get branchId => null;
 
   PatientProfileModel get patientProfile => PatientProfileModel(
@@ -69,29 +85,47 @@ class PatientModel {
       });
     }
 
+    final profile = (json['patient_profile'] is Map)
+        ? json['patient_profile'] as Map<String, dynamic>
+        : json;
+
     return PatientModel(
       id: (json['id'] as num?)?.toInt() ?? 0,
-      userId: (json['user_id'] as num?)?.toInt() ?? 0,
-      name: userMap?['name']?.toString() ?? 'Unknown',
-      email: userMap?['email']?.toString() ?? '',
-      phone: userMap?['phone']?.toString(),
+      userId: (json['user_id'] as num?)?.toInt() ??
+          (userMap?['id'] as num?)?.toInt() ??
+          0,
+      name: userMap?['name']?.toString() ??
+          json['name']?.toString() ??
+          'Unknown',
+      email: userMap?['email']?.toString() ??
+          json['email']?.toString() ??
+          '',
+      phone: userMap?['phone']?.toString() ?? json['phone']?.toString(),
       profilePhotoUrl: userMap?['profile_photo_url']?.toString(),
-      allergies: json['allergies']?.toString(),
-      medicalHistory: json['medical_history']?.toString(),
-      bloodType: json['blood_type']?.toString(),
-      emergencyContactName: json['emergency_contact_name']?.toString(),
-      emergencyContactPhone: json['emergency_contact_phone']?.toString(),
+
+      // Demographic & Profile extraction
+      birthdate: profile['date_of_birth']?.toString(),
+      occupation: profile['occupation']?.toString(),
+      address: profile['address']?.toString(),
+      city: profile['city']?.toString(),
+      province: profile['province']?.toString(),
+      insuranceProvider: profile['insurance_provider']?.toString(),
+
+      allergies: profile['allergies']?.toString(),
+      medicalHistory: profile['medical_history']?.toString(),
+      bloodType: profile['blood_type']?.toString(),
+      emergencyContactName: profile['emergency_contact_name']?.toString(),
+      emergencyContactPhone: profile['emergency_contact_phone']?.toString(),
       requiresEpinephrineFreeAnesthesia:
-          asBool(json['requires_epinephrine_free_anesthesia']),
-      hasCardiacConditions: asBool(json['has_cardiac_conditions']),
-      isPregnant: asBool(json['is_pregnant']),
-      hasBleedingDisorders: asBool(json['has_bleeding_disorders']),
+          asBool(profile['requires_epinephrine_free_anesthesia']),
+      hasCardiacConditions: asBool(profile['has_cardiac_conditions']),
+      isPregnant: asBool(profile['is_pregnant']),
+      hasBleedingDisorders: asBool(profile['has_bleeding_disorders']),
       createdAt: json['created_at']?.toString(),
       updatedAt: json['updated_at']?.toString(),
     );
   }
 
-  /// Used for UPDATE only (no user fields)
   Map<String, dynamic> toJson() => {
         'allergies': allergies,
         'medical_history': medicalHistory,

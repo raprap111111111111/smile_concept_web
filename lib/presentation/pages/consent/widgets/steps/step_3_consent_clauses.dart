@@ -1,7 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
-
 import '../../../../../data/models/consent/consent_form_data.dart';
 import '../../../../theme/app_colors.dart';
 import '../../../../theme/app_dimensions.dart';
@@ -24,23 +23,18 @@ class Step3ConsentClauses extends ConsumerWidget {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
-          // ── Header ──────────────────────────────────────────────────────
           Container(
-            padding:
-                const EdgeInsets.all(AppDimensions.paddingMedium),
+            padding: const EdgeInsets.all(AppDimensions.paddingMedium),
             decoration: BoxDecoration(
               color: AppColors.surface,
-              borderRadius:
-                  BorderRadius.circular(AppDimensions.borderRadius),
+              borderRadius: BorderRadius.circular(AppDimensions.borderRadius),
               border: Border.all(color: AppColors.border),
             ),
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Text('Consent Clauses',
-                    style: AppTextStyles.titleMedium),
-                const SizedBox(
-                    height: AppDimensions.paddingSmall),
+                Text('Consent Clauses', style: AppTextStyles.titleMedium),
+                const SizedBox(height: AppDimensions.paddingSmall),
                 Text(
                   'Please acknowledge each clause by checking the box '
                   'and providing your initials.',
@@ -52,21 +46,29 @@ class Step3ConsentClauses extends ConsumerWidget {
           ),
           const SizedBox(height: AppDimensions.paddingLarge),
 
-          // ── Quick Actions ────────────────────────────────────────────────
           Row(
             children: [
               Expanded(
                 child: OutlinedButton.icon(
                   onPressed: () =>
                       notifier.autoFillInitials(defaultInitials),
+                  style: OutlinedButton.styleFrom(
+                    foregroundColor: AppColors.primary,
+                    side: const BorderSide(color: AppColors.border),
+                    backgroundColor: AppColors.surface,
+                  ),
                   icon: const Icon(Icons.auto_fix_high, size: 16),
-                  label: Text(
-                      'Auto-fill all with "$defaultInitials"'),
+                  label: Text('Auto-fill all with "$defaultInitials"'),
                 ),
               ),
               const SizedBox(width: 8),
               OutlinedButton.icon(
                 onPressed: notifier.clearAllClauses,
+                style: OutlinedButton.styleFrom(
+                  foregroundColor: AppColors.textSecondary,
+                  side: const BorderSide(color: AppColors.border),
+                  backgroundColor: AppColors.surface,
+                ),
                 icon: const Icon(Icons.clear_all, size: 16),
                 label: const Text('Clear All'),
               ),
@@ -87,7 +89,6 @@ class Step3ConsentClauses extends ConsumerWidget {
           ),
           const SizedBox(height: 12),
 
-          // ── Clause Rows ──────────────────────────────────────────────────
           ...kConsentClauses.map(
             (clause) => _ClauseRow(
               clauseKey: clause['key']!,
@@ -106,7 +107,6 @@ class Step3ConsentClauses extends ConsumerWidget {
   }
 }
 
-// ─── Clause Row ─────────────────────────────────────────────────────────────
 class _ClauseRow extends StatefulWidget {
   final String clauseKey;
   final String title;
@@ -140,7 +140,6 @@ class _ClauseRowState extends State<_ClauseRow> {
   @override
   void didUpdateWidget(_ClauseRow oldWidget) {
     super.didUpdateWidget(oldWidget);
-    // Sync when provider updates (e.g., auto-fill / clear)
     if (widget.initial != _ctrl.text) {
       _ctrl.text = widget.initial;
     }
@@ -161,7 +160,7 @@ class _ClauseRowState extends State<_ClauseRow> {
         color: widget.agreed
             ? AppColors.success.withValues(alpha: 0.05)
             : AppColors.surface,
-        borderRadius: BorderRadius.circular(6),
+        borderRadius: BorderRadius.circular(10),
         border: Border.all(
           color: widget.agreed
               ? AppColors.success.withValues(alpha: 0.3)
@@ -174,9 +173,15 @@ class _ClauseRowState extends State<_ClauseRow> {
             value: widget.agreed,
             onChanged: (v) => widget.onAgreedChanged(v ?? false),
             activeColor: AppColors.success,
+            side: const BorderSide(color: AppColors.border),
           ),
           Expanded(
-            child: Text(widget.title, style: AppTextStyles.bodySmall),
+            child: Text(
+              widget.title,
+              style: AppTextStyles.bodySmall.copyWith(
+                color: AppColors.textPrimary,
+              ),
+            ),
           ),
           SizedBox(
             width: 90,
@@ -186,17 +191,35 @@ class _ClauseRowState extends State<_ClauseRow> {
               maxLength: 5,
               textCapitalization: TextCapitalization.characters,
               onChanged: widget.onInitialChanged,
-              style: const TextStyle(
+              style: AppTextStyles.bodyMedium.copyWith(
                 fontWeight: FontWeight.bold,
                 letterSpacing: 1.2,
+                color: AppColors.textPrimary,
               ),
-              decoration: const InputDecoration(
+              decoration: InputDecoration(
                 hintText: 'Initial',
+                hintStyle: AppTextStyles.bodySmall.copyWith(
+                  color: AppColors.textTertiary,
+                ),
                 counterText: '',
                 isDense: true,
+                filled: true,
+                fillColor: AppColors.background,
                 contentPadding:
-                    EdgeInsets.symmetric(horizontal: 8, vertical: 8),
-                border: OutlineInputBorder(),
+                    const EdgeInsets.symmetric(horizontal: 8, vertical: 8),
+                border: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(8),
+                  borderSide: const BorderSide(color: AppColors.border),
+                ),
+                enabledBorder: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(8),
+                  borderSide: const BorderSide(color: AppColors.border),
+                ),
+                focusedBorder: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(8),
+                  borderSide:
+                      const BorderSide(color: AppColors.primary, width: 1.5),
+                ),
               ),
             ),
           ),

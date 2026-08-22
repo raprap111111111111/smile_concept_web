@@ -27,6 +27,8 @@ final selectedDoctorProvider = StateProvider<int?>((ref) => null);
 final selectedBranchProvider = StateProvider<int?>((ref) => null);
 final selectedDateProvider = StateProvider<DateTime?>((ref) => null);
 
+enum BookingRelation { self, guardianMinor }
+
 class BookAppointmentPage extends ConsumerStatefulWidget {
   const BookAppointmentPage({super.key});
 
@@ -37,24 +39,46 @@ class BookAppointmentPage extends ConsumerStatefulWidget {
 
 class _BookAppointmentPageState extends ConsumerState<BookAppointmentPage> {
   final _formKey = GlobalKey<FormState>();
+
   final _fullNameController = TextEditingController();
   final _mobileController = TextEditingController();
   final _emailController = TextEditingController();
+  final _childNameController = TextEditingController();
   final _reasonController = TextEditingController();
   final _notesController = TextEditingController();
 
   bool _isSubmitting = false;
 
+  /// null until user picks — forces them to choose first
+  BookingRelation? _relation;
+
   int? _selectedPatientId;
   String? _selectedPatientName;
 
-  @override
-  void initState() {
-    super.initState();
-    final currentUser = ref.read(authStateProvider).user;
-    _fullNameController.text = currentUser?.name ?? '';
-    _mobileController.text = currentUser?.phone ?? '';
-    _emailController.text = currentUser?.email ?? '';
+  static InputDecoration _deco(String hint, IconData icon, {bool locked = false}) {
+    return InputDecoration(
+      hintText: hint,
+      prefixIcon: Icon(icon, color: AppColors.textSecondary),
+      suffixIcon: locked
+          ? const Icon(Icons.lock_outline, size: 18, color: AppColors.textTertiary)
+          : null,
+      filled: true,
+      fillColor: AppColors.surface,
+      isDense: true,
+      contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 16),
+      border: OutlineInputBorder(
+        borderRadius: BorderRadius.circular(12),
+        borderSide: const BorderSide(color: AppColors.border),
+      ),
+      enabledBorder: OutlineInputBorder(
+        borderRadius: BorderRadius.circular(12),
+        borderSide: const BorderSide(color: AppColors.border),
+      ),
+      focusedBorder: OutlineInputBorder(
+        borderRadius: BorderRadius.circular(12),
+        borderSide: const BorderSide(color: AppColors.primary, width: 1.5),
+      ),
+    );
   }
 
   @override
@@ -62,16 +86,42 @@ class _BookAppointmentPageState extends ConsumerState<BookAppointmentPage> {
     _fullNameController.dispose();
     _mobileController.dispose();
     _emailController.dispose();
+    _childNameController.dispose();
     _reasonController.dispose();
     _notesController.dispose();
     super.dispose();
+  }
+
+  bool get _isStaff {
+    return ref.read(permissionServiceProvider).can(Perm.appointmentCreateForOthers);
+  }
+
+  void _applyLoggedInUserAsGuardianOrSelf() {
+    final user = ref.read(authStateProvider).user;
+    if (user == null) return;
+    _fullNameController.text = user.name;
+    _mobileController.text = user.phone ?? '';
+    _emailController.text = user.email;
+  }
+
+  void _onRelationPicked(BookingRelation r) {
+    setState(() {
+      _relation = r;
+      _childNameController.clear();
+
+      if (!_isStaff) {
+        // Patient portal: logged-in user is always the account / guardian contact
+        _applyLoggedInUserAsGuardianOrSelf();
+      } else if (r == BookingRelation.self && _selectedPatientName != null) {
+        _fullNameController.text = _selectedPatientName!;
+      }
+    });
   }
 
   Future<void> _fetchSlots() async {
     final doctorId = ref.read(selectedDoctorProvider);
     final branchId = ref.read(selectedBranchProvider);
     final date = ref.read(selectedDateProvider);
-
     if (doctorId == null || branchId == null || date == null) return;
 
     await ref.read(availabilityNotifierProvider.notifier).fetchSlots(
@@ -87,68 +137,66 @@ class _BookAppointmentPageState extends ConsumerState<BookAppointmentPage> {
       initialDate: ref.read(selectedDateProvider) ?? DateTime.now(),
       firstDate: DateTime.now(),
       lastDate: DateTime.now().add(const Duration(days: 365)),
-      builder: (context, child) {
-        return Theme(
-          data: Theme.of(context).copyWith(
-            colorScheme: const ColorScheme.light(
-              primary: AppColors.primary,
-              onPrimary: AppColors.textOnPrimary,
-              surface: AppColors.background,
-              onSurface: AppColors.ink,
-            ),
-          ),
-          child: child!,
-        );
-      },
     );
-
-    if (picked != null) {
-      ref.read(selectedDateProvider.notifier).state = picked;
-      ref.read(availabilityNotifierProvider.notifier).clearSlots();
-      await _fetchSlots();
-    }
+    if (picked == null) return;
+    ref.read(selectedDateProvider.notifier).state = picked;
+    ref.read(availabilityNotifierProvider.notifier).clearSlots();
+    await _fetchSlots();
   }
 
   Future<void> _bookAppointment(TimeSlot slot) async {
+    if (_relation == null) {
+      _showError('Please choose Self / Patient or Guardian / Minor first.');
+      return;
+    }
     if (!_formKey.currentState!.validate()) return;
 
     final doctorId = ref.read(selectedDoctorProvider);
     final branchId = ref.read(selectedBranchProvider);
     final date = ref.read(selectedDateProvider);
-
-    final permissionService = ref.read(permissionServiceProvider);
     final currentUser = ref.read(authStateProvider).user;
-
-    final canCreateSelf = permissionService.can(Perm.appointmentCreate);
-    final canCreateForOthers =
-        permissionService.can(Perm.appointmentCreateForOthers);
-
-    if (!canCreateSelf && !canCreateForOthers) {
-      _showError('You do not have permission to book appointments.');
-      return;
-    }
+    final canCreateForOthers = _isStaff;
 
     if (doctorId == null || branchId == null || date == null) return;
 
     if (canCreateForOthers && _selectedPatientId == null) {
-      _showError('Please select a patient.');
+      _showError('Please select a patient account.');
+      return;
+    }
+
+    if (_relation == BookingRelation.guardianMinor &&
+        _childNameController.text.trim().isEmpty) {
+      _showError("Please enter the child / minor's full name.");
       return;
     }
 
     setState(() => _isSubmitting = true);
 
     try {
-      final repo = ref.read(appointmentRepositoryProvider);
-
       final startDateTime = DateTime(
         date.year, date.month, date.day,
         slot.startDateTime.hour, slot.startDateTime.minute,
       );
-
       final endDateTime = DateTime(
         date.year, date.month, date.day,
         slot.endDateTime.hour, slot.endDateTime.minute,
       );
+
+      final isGuardian = _relation == BookingRelation.guardianMinor;
+
+      // Attendee name on the calendar
+      final attendeeName = isGuardian
+          ? _childNameController.text.trim()
+          : _fullNameController.text.trim();
+
+      String? reason = _reasonController.text.trim();
+      if (reason.isEmpty) reason = null;
+      if (isGuardian) {
+        final child = _childNameController.text.trim();
+        reason =
+            '[Booking For: Child / Minor${child.isEmpty ? '' : ' - $child'}] ${reason ?? ''}'
+                .trim();
+      }
 
       final request = AppointmentRequest(
         doctorId: doctorId,
@@ -156,27 +204,28 @@ class _BookAppointmentPageState extends ConsumerState<BookAppointmentPage> {
         startTime: startDateTime,
         endTime: endDateTime,
         status: 'pending',
+        // Account owner = patient user (staff) OR logged-in guardian/patient
         userId: canCreateForOthers ? _selectedPatientId : currentUser?.id,
-        patientName: _fullNameController.text.trim(),
+        patientName: attendeeName,
         patientPhone: _mobileController.text.trim(),
         patientEmail: _emailController.text.trim(),
-        reasonForVisit: _reasonController.text.trim(),
+        reasonForVisit: reason,
         additionalNotes: _notesController.text.trim().isEmpty
             ? null
             : _notesController.text.trim(),
       );
 
-      final result = await repo.createAppointment(request);
+      final result =
+          await ref.read(appointmentRepositoryProvider).createAppointment(request);
       ref.read(appointmentNotifierProvider.notifier).addAppointment(result);
 
-      if (mounted) {
-        _showSuccess('Appointment created successfully.');
-        Navigator.of(context).pop(result);
-      }
-    } catch (error) {
+      if (!mounted) return;
+      _showSuccess('Appointment created successfully.');
+      Navigator.of(context).pop(result);
+    } catch (e) {
       if (!mounted) return;
       setState(() => _isSubmitting = false);
-      _showError(describeError(error, fallback: 'Failed to book'));
+      _showError(describeError(e, fallback: 'Failed to book'));
     }
   }
 
@@ -186,9 +235,6 @@ class _BookAppointmentPageState extends ConsumerState<BookAppointmentPage> {
         content: Text(msg, style: const TextStyle(color: Colors.white)),
         backgroundColor: AppColors.error,
         behavior: SnackBarBehavior.floating,
-        shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(AppDimensions.borderRadius),
-        ),
       ),
     );
   }
@@ -199,53 +245,30 @@ class _BookAppointmentPageState extends ConsumerState<BookAppointmentPage> {
         content: Text(msg, style: const TextStyle(color: Colors.white)),
         backgroundColor: AppColors.success,
         behavior: SnackBarBehavior.floating,
-        shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(AppDimensions.borderRadius),
-        ),
       ),
     );
   }
 
   @override
   Widget build(BuildContext context) {
-    // main.dart still runs ThemeData.dark(); this page is designed light, so it
-    // pins the intended light theme rather than inheriting dark input styles —
-    // otherwise field text renders near-white on the white form card.
     return Theme(
       data: AppTheme.lightTheme,
-      child: _buildScaffold(context),
-    );
-  }
-
-  Widget _buildScaffold(BuildContext context) {
-    final availState = ref.watch(availabilityNotifierProvider);
-    final selectedDate = ref.watch(selectedDateProvider);
-    final selectedSlot = availState.selectedSlot;
-
-    final permissionService = ref.watch(permissionServiceProvider);
-    final canCreateForOthers =
-        permissionService.can(Perm.appointmentCreateForOthers);
-
-    return Scaffold(
-      backgroundColor: AppColors.surface,
-      body: SafeArea(
-        child: SingleChildScrollView(
-          padding: const EdgeInsets.all(AppDimensions.paddingLarge),
-          child: Center(
-            child: ConstrainedBox(
-              constraints: const BoxConstraints(maxWidth: 720),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.stretch,
-                children: [
-                  _buildHeader(),
-                  const SizedBox(height: AppDimensions.paddingLarge),
-                  _buildFormCard(
-                    availState: availState,
-                    selectedDate: selectedDate,
-                    selectedSlot: selectedSlot,
-                    canCreateForOthers: canCreateForOthers,
-                  ),
-                ],
+      child: Scaffold(
+        backgroundColor: AppColors.surface,
+        body: SafeArea(
+          child: SingleChildScrollView(
+            padding: const EdgeInsets.all(AppDimensions.paddingLarge),
+            child: Center(
+              child: ConstrainedBox(
+                constraints: const BoxConstraints(maxWidth: 720),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.stretch,
+                  children: [
+                    _header(),
+                    const SizedBox(height: AppDimensions.paddingLarge),
+                    _formBody(),
+                  ],
+                ),
               ),
             ),
           ),
@@ -254,21 +277,13 @@ class _BookAppointmentPageState extends ConsumerState<BookAppointmentPage> {
     );
   }
 
-  // ── HEADER ─────────────────────────────────────────────────
-  Widget _buildHeader() {
+  Widget _header() {
     return Container(
       padding: const EdgeInsets.all(AppDimensions.paddingLarge),
       decoration: BoxDecoration(
         color: AppColors.background,
         borderRadius: BorderRadius.circular(AppDimensions.borderRadiusLarge),
         border: Border.all(color: AppColors.border),
-        boxShadow: const [
-          BoxShadow(
-            color: AppColors.cardShadow,
-            blurRadius: 16,
-            offset: Offset(0, 6),
-          ),
-        ],
       ),
       child: Row(
         children: [
@@ -278,480 +293,557 @@ class _BookAppointmentPageState extends ConsumerState<BookAppointmentPage> {
             decoration: BoxDecoration(
               gradient: AppColors.primaryGradient,
               borderRadius: BorderRadius.circular(14),
-              boxShadow: [
-                BoxShadow(
-                  color: AppColors.primary.withValues(alpha: 0.25),
-                  blurRadius: 14,
-                  offset: const Offset(0, 6),
-                ),
-              ],
             ),
-            child: const Icon(
-              Icons.event_available_rounded,
-              color: AppColors.textOnPrimary,
-              size: 26,
-            ),
+            child: const Icon(Icons.event_available_rounded,
+                color: AppColors.textOnPrimary, size: 26),
           ),
-          const SizedBox(width: AppDimensions.paddingMedium),
+          const SizedBox(width: 12),
           Expanded(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Text('Book Appointment', style: AppTextStyles.headlineSmall),
-                const SizedBox(height: 2),
                 Text(
-                  'Fill in the details below to schedule a visit',
+                  'First choose: Patient or Guardian',
                   style: AppTextStyles.bodySmall,
                 ),
               ],
             ),
           ),
           IconButton(
-            tooltip: 'Close',
             onPressed: () => Navigator.of(context).pop(),
-            icon: const Icon(Icons.close_rounded,
-                color: AppColors.textSecondary),
+            icon: const Icon(Icons.close_rounded, color: AppColors.textSecondary),
           ),
         ],
       ),
     );
   }
 
-  // ── FORM CARD ──────────────────────────────────────────────
-  Widget _buildFormCard({
-    required dynamic availState,
-    required DateTime? selectedDate,
-    required TimeSlot? selectedSlot,
-    required bool canCreateForOthers,
-  }) {
+  Widget _formBody() {
+    final availState = ref.watch(availabilityNotifierProvider);
+    final selectedDate = ref.watch(selectedDateProvider);
+    final selectedSlot = availState.selectedSlot;
+    final staff = ref.watch(permissionServiceProvider).can(Perm.appointmentCreateForOthers);
+
+    final hasRelation = _relation != null;
+    final isSelf = _relation == BookingRelation.self;
+    final isGuardian = _relation == BookingRelation.guardianMinor;
+
     return Container(
       padding: const EdgeInsets.all(AppDimensions.paddingLarge),
       decoration: BoxDecoration(
         color: AppColors.background,
         borderRadius: BorderRadius.circular(AppDimensions.borderRadiusLarge),
         border: Border.all(color: AppColors.border),
-        boxShadow: const [
-          BoxShadow(
-            color: AppColors.cardShadow,
-            blurRadius: 16,
-            offset: Offset(0, 6),
-          ),
-        ],
       ),
       child: Form(
         key: _formKey,
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
-            // ── Patient Info Section ─────────────────────
-            _sectionTitle('Patient Information'),
-            const SizedBox(height: AppDimensions.paddingMedium),
-
-            _fieldLabel('Full Name', required: true),
-            TextFormField(
-              controller: _fullNameController,
-              style: AppTextStyles.inputText,
-              textInputAction: TextInputAction.next,
-              validator: (value) => Validators.validateName(
-                value,
-                fieldName: 'Full name',
-              ),
-              decoration: const InputDecoration(
-                hintText: 'Enter your full name',
-                prefixIcon: Icon(Icons.person_outline_rounded),
-              ),
+            // ═══════════════════════════════════════════════════
+            // STEP 0 — FIRST THING USER SEES (like consent)
+            // ═══════════════════════════════════════════════════
+            _sectionTitle('Who is this appointment for?'),
+            const SizedBox(height: 8),
+            Text(
+              'Choose one before filling the rest of the form.',
+              style: AppTextStyles.bodySmall.copyWith(color: AppColors.textSecondary),
             ),
-            const SizedBox(height: AppDimensions.paddingMedium),
+            const SizedBox(height: 12),
 
-            _fieldLabel('Mobile Number', required: true),
-            TextFormField(
-              controller: _mobileController,
-              style: AppTextStyles.inputText,
-              keyboardType: TextInputType.phone,
-              textInputAction: TextInputAction.next,
-              validator: (value) {
-                final requiredError = Validators.required(
-                  value,
-                  fieldName: 'Mobile number',
-                );
-                if (requiredError != null) return requiredError;
-                return Validators.validatePhone(value);
-              },
-              decoration: const InputDecoration(
-                hintText: 'e.g., 0917-000-0000',
-                prefixIcon: Icon(Icons.phone_outlined),
-              ),
-            ),
-            const SizedBox(height: AppDimensions.paddingMedium),
-
-            _fieldLabel('Email', required: true),
-            TextFormField(
-              controller: _emailController,
-              style: AppTextStyles.inputText,
-              keyboardType: TextInputType.emailAddress,
-              textInputAction: TextInputAction.next,
-              validator: Validators.validateEmail,
-              decoration: const InputDecoration(
-                hintText: 'name@example.com',
-                prefixIcon: Icon(Icons.email_outlined),
-              ),
-            ),
-            const SizedBox(height: AppDimensions.paddingLarge),
-
-            // ── Appointment Details Section ─────────────
-            _sectionTitle('Appointment Details'),
-            const SizedBox(height: AppDimensions.paddingMedium),
-
-            _fieldLabel('Doctor', required: true),
-            _buildDoctorField(),
-            const SizedBox(height: AppDimensions.paddingMedium),
-
-            _fieldLabel('Branch', required: true),
-            _buildBranchField(),
-            const SizedBox(height: AppDimensions.paddingMedium),
-
-            if (canCreateForOthers) ...[
-              _fieldLabel('Patient', required: true),
-              PatientSearchField(
-                selectedPatientId: _selectedPatientId,
-                selectedPatientName: _selectedPatientName,
-                onPatientSelected: (PatientModel? patient) {
-                  setState(() {
-                    _selectedPatientId = patient?.userId;
-                    _selectedPatientName = patient?.name;
-                  });
-                },
-              ),
-              const SizedBox(height: AppDimensions.paddingMedium),
-            ],
-
-            _fieldLabel('Appointment Date', required: true),
-            InkWell(
-              onTap: () => _selectDate(context),
-              borderRadius: BorderRadius.circular(AppDimensions.borderRadius),
-              child: Container(
-                padding: const EdgeInsets.symmetric(
-                  horizontal: 14,
-                  vertical: 16,
+            Row(
+              children: [
+                Expanded(
+                  child: _RelationCard(
+                    title: 'Self / Patient',
+                    subtitle: 'I am the patient attending',
+                    icon: Icons.person_outline,
+                    selected: isSelf,
+                    onTap: () => _onRelationPicked(BookingRelation.self),
+                  ),
                 ),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: _RelationCard(
+                    title: 'Guardian / Minor',
+                    subtitle: 'I am parent/guardian booking for a child',
+                    icon: Icons.family_restroom_outlined,
+                    selected: isGuardian,
+                    onTap: () => _onRelationPicked(BookingRelation.guardianMinor),
+                  ),
+                ),
+              ],
+            ),
+
+            // Rest of form only after choice (same UX as consent step 0 → step 1)
+            if (!hasRelation) ...[
+              const SizedBox(height: 24),
+              Container(
+                padding: const EdgeInsets.all(16),
                 decoration: BoxDecoration(
-                  color: AppColors.surface,
+                  color: AppColors.accentLight.withValues(alpha: 0.35),
+                  borderRadius: BorderRadius.circular(12),
                   border: Border.all(color: AppColors.border),
-                  borderRadius:
-                      BorderRadius.circular(AppDimensions.borderRadius),
                 ),
                 child: Row(
                   children: [
-                    const Icon(
-                      Icons.calendar_today_outlined,
-                      color: AppColors.primary,
-                      size: 20,
-                    ),
+                    const Icon(Icons.touch_app_outlined, color: AppColors.primary),
                     const SizedBox(width: 12),
                     Expanded(
                       child: Text(
-                        selectedDate == null
-                            ? 'Select date'
-                            : DateFormat('EEE, MMM dd yyyy')
-                                .format(selectedDate),
+                        'Select Self / Patient or Guardian / Minor to continue.',
                         style: AppTextStyles.bodyMedium.copyWith(
-                          color: selectedDate != null
-                              ? AppColors.ink
-                              : AppColors.textMuted,
+                          color: AppColors.primaryDark,
                           fontWeight: FontWeight.w600,
                         ),
                       ),
                     ),
-                    const Icon(
-                      Icons.arrow_drop_down_rounded,
-                      color: AppColors.textSecondary,
-                    ),
                   ],
                 ),
               ),
-            ),
-            const SizedBox(height: AppDimensions.paddingMedium),
+            ],
 
-            _fieldLabel('Purpose of Visit', required: true),
-            TextFormField(
-              controller: _reasonController,
-              style: AppTextStyles.inputText,
-              maxLines: 3,
-              maxLength: 500,
-              validator: (value) => Validators.required(
-                value,
-                fieldName: 'Purpose of visit',
-              ),
-              decoration: const InputDecoration(
-                hintText: 'e.g., Toothache, Cleaning, Check-up',
-                prefixIcon: Icon(Icons.notes_outlined),
-                alignLabelWithHint: true,
-              ),
-            ),
-            const SizedBox(height: AppDimensions.paddingMedium),
+            if (hasRelation) ...[
+              const SizedBox(height: 28),
+              _sectionTitle('Patient details'),
+              const SizedBox(height: 12),
 
-            _fieldLabel('Additional Notes'),
-            TextFormField(
-              controller: _notesController,
-              style: AppTextStyles.inputText,
-              maxLines: 3,
-              maxLength: 1000,
-              decoration: const InputDecoration(
-                hintText: 'Anything else the team should know?',
-                prefixIcon: Icon(Icons.note_add_outlined),
-                alignLabelWithHint: true,
-              ),
-            ),
-            const SizedBox(height: AppDimensions.paddingLarge),
-
-            // ── Time Slots Section ──────────────────────
-            _sectionTitle('Appointment Time'),
-            const SizedBox(height: AppDimensions.paddingMedium),
-
-            if (selectedDate == null)
-              _infoBanner(
-                'Please select a date first to see available time slots.',
-                icon: Icons.info_outline_rounded,
-              )
-            else if (availState.isLoading)
-              const Padding(
-                padding: EdgeInsets.symmetric(vertical: 24),
-                child: Center(
-                  child: CircularProgressIndicator(color: AppColors.primary),
+              // Staff: which account owns the booking
+              if (staff) ...[
+                _fieldLabel(
+                  isGuardian
+                      ? 'Parent / guardian patient account'
+                      : 'Patient account',
+                  required: true,
                 ),
-              )
-            else if (availState.error != null)
-              _infoBanner(
-                'Error loading slots: ${availState.error}',
-                icon: Icons.error_outline_rounded,
-                isError: true,
-              )
-            else if (availState.slots.isEmpty)
-              _infoBanner(
-                'No slots available for this date.\nTry selecting a different date.',
-                icon: Icons.event_busy_rounded,
-              )
-            else
-              TimeSlotPicker(
-                state: availState,
-                onSlotSelected: (slot) {
-                  ref
-                      .read(availabilityNotifierProvider.notifier)
-                      .selectSlot(slot);
+                PatientSearchField(
+                  selectedPatientId: _selectedPatientId,
+                  selectedPatientName: _selectedPatientName,
+                  onPatientSelected: (PatientModel? p) {
+                    setState(() {
+                      _selectedPatientId = p?.userId;
+                      _selectedPatientName = p?.name;
+                      if (p == null) return;
+                      if (isSelf) {
+                        _fullNameController.text = p.name;
+                      } else {
+                        // guardian contact from account
+                        _fullNameController.text = p.name;
+                      }
+                      if ((p.phone ?? '').isNotEmpty) {
+                        _mobileController.text = p.phone!;
+                      }
+                      if (p.email.isNotEmpty) {
+                        _emailController.text = p.email;
+                      }
+                    });
+                  },
+                ),
+                const SizedBox(height: 16),
+              ],
+
+              // SELF
+              if (isSelf) ...[
+                _fieldLabel('Patient full name', required: true),
+                TextFormField(
+                  controller: _fullNameController,
+                  readOnly: !staff, // patient locks own name
+                  style: AppTextStyles.inputText,
+                  validator: (v) =>
+                      Validators.validateName(v, fieldName: 'Full name'),
+                  decoration: _deco(
+                    staff ? 'Patient full name' : 'Loaded from your profile',
+                    Icons.person_outline,
+                    locked: !staff,
+                  ),
+                ),
+                if (!staff)
+                  Padding(
+                    padding: const EdgeInsets.only(top: 4, left: 4),
+                    child: Text(
+                      '🔒 Locked — you are the patient.',
+                      style: AppTextStyles.labelSmall
+                          .copyWith(color: AppColors.textSecondary),
+                    ),
+                  ),
+              ],
+
+              // GUARDIAN
+              if (isGuardian) ...[
+                _fieldLabel("Child / minor's full name", required: true),
+                TextFormField(
+                  controller: _childNameController,
+                  style: AppTextStyles.inputText,
+                  textCapitalization: TextCapitalization.words,
+                  validator: (v) => v == null || v.trim().isEmpty
+                      ? "Enter the child's full name"
+                      : null,
+                  decoration: _deco(
+                    'e.g. Timmy Dela Cruz',
+                    Icons.child_care_outlined,
+                  ),
+                ),
+                Padding(
+                  padding: const EdgeInsets.only(top: 4, left: 4, bottom: 12),
+                  child: Text(
+                    'Child has no account. Parent/guardian account holds this booking.',
+                    style: AppTextStyles.labelSmall
+                        .copyWith(color: AppColors.primary),
+                  ),
+                ),
+                _fieldLabel('Parent / guardian name', required: true),
+                TextFormField(
+                  controller: _fullNameController,
+                  readOnly: !staff,
+                  style: AppTextStyles.inputText,
+                  validator: (v) =>
+                      Validators.validateName(v, fieldName: 'Guardian name'),
+                  decoration: _deco(
+                    'Parent / guardian full name',
+                    Icons.family_restroom,
+                    locked: !staff,
+                  ),
+                ),
+              ],
+
+              const SizedBox(height: 12),
+              _fieldLabel(
+                isGuardian ? 'Guardian mobile' : 'Mobile number',
+                required: true,
+              ),
+              TextFormField(
+                controller: _mobileController,
+                style: AppTextStyles.inputText,
+                keyboardType: TextInputType.phone,
+                validator: (value) {
+                  final req =
+                      Validators.required(value, fieldName: 'Mobile number');
+                  if (req != null) return req;
+                  return Validators.validatePhone(value);
                 },
+                decoration: _deco('e.g., 0917-000-0000', Icons.phone_outlined),
+              ),
+              const SizedBox(height: 12),
+              _fieldLabel(
+                isGuardian ? 'Guardian email' : 'Email',
+                required: true,
+              ),
+              TextFormField(
+                controller: _emailController,
+                style: AppTextStyles.inputText,
+                keyboardType: TextInputType.emailAddress,
+                validator: Validators.validateEmail,
+                decoration: _deco('name@example.com', Icons.email_outlined),
               ),
 
-            const SizedBox(height: AppDimensions.paddingXL),
+              const SizedBox(height: 28),
+              _sectionTitle('Appointment details'),
+              const SizedBox(height: 12),
 
-            // ── Submit Button ───────────────────────────
-            SizedBox(
-              height: 52,
-              child: FilledButton.icon(
-                onPressed: (selectedSlot == null || _isSubmitting)
-                    ? null
-                    : () => _bookAppointment(selectedSlot),
-                style: FilledButton.styleFrom(
-                  backgroundColor: AppColors.primary,
-                  foregroundColor: AppColors.textOnPrimary,
-                  disabledBackgroundColor:
-                      AppColors.primary.withValues(alpha: 0.4),
-                  shape: RoundedRectangleBorder(
-                    borderRadius:
-                        BorderRadius.circular(AppDimensions.borderRadius),
+              _fieldLabel('Doctor', required: true),
+              _doctorField(),
+              const SizedBox(height: 12),
+              _fieldLabel('Branch', required: true),
+              _branchField(),
+              const SizedBox(height: 12),
+
+              _fieldLabel('Date', required: true),
+              InkWell(
+                onTap: () => _selectDate(context),
+                borderRadius: BorderRadius.circular(12),
+                child: Container(
+                  padding:
+                      const EdgeInsets.symmetric(horizontal: 16, vertical: 16),
+                  decoration: BoxDecoration(
+                    color: AppColors.surface,
+                    border: Border.all(color: AppColors.border),
+                    borderRadius: BorderRadius.circular(12),
                   ),
-                ),
-                icon: _isSubmitting
-                    ? const SizedBox(
-                        height: 18,
-                        width: 18,
-                        child: CircularProgressIndicator(
-                          strokeWidth: 2,
-                          color: AppColors.textOnPrimary,
+                  child: Row(
+                    children: [
+                      const Icon(Icons.calendar_today_outlined,
+                          color: AppColors.primary, size: 20),
+                      const SizedBox(width: 12),
+                      Expanded(
+                        child: Text(
+                          selectedDate == null
+                              ? 'Select date'
+                              : DateFormat('EEE, MMM dd yyyy')
+                                  .format(selectedDate),
+                          style: AppTextStyles.bodyMedium.copyWith(
+                            fontWeight: FontWeight.w600,
+                            color: selectedDate != null
+                                ? AppColors.ink
+                                : AppColors.textMuted,
+                          ),
                         ),
-                      )
-                    : const Icon(Icons.event_available_rounded),
-                label: Text(
-                  _isSubmitting ? 'Booking...' : 'Book Appointment',
-                  style: const TextStyle(fontWeight: FontWeight.w700),
-                ),
-              ),
-            ),
-            const SizedBox(height: AppDimensions.paddingSmall),
-
-            SizedBox(
-              height: 46,
-              child: OutlinedButton(
-                onPressed: _isSubmitting
-                    ? null
-                    : () => Navigator.of(context).pop(),
-                style: OutlinedButton.styleFrom(
-                  foregroundColor: AppColors.textSecondary,
-                  side: const BorderSide(color: AppColors.border),
-                  shape: RoundedRectangleBorder(
-                    borderRadius:
-                        BorderRadius.circular(AppDimensions.borderRadius),
+                      ),
+                      const Icon(Icons.arrow_drop_down_rounded,
+                          color: AppColors.textSecondary),
+                    ],
                   ),
                 ),
-                child: const Text('Cancel'),
               ),
-            ),
+              const SizedBox(height: 12),
+
+              _fieldLabel('Purpose of visit', required: true),
+              TextFormField(
+                controller: _reasonController,
+                style: AppTextStyles.inputText,
+                maxLines: 2,
+                maxLength: 500,
+                validator: (v) =>
+                    Validators.required(v, fieldName: 'Purpose of visit'),
+                decoration: _deco(
+                    'e.g., Cleaning, Check-up', Icons.notes_outlined),
+              ),
+              const SizedBox(height: 12),
+
+              _fieldLabel('Additional notes'),
+              TextFormField(
+                controller: _notesController,
+                style: AppTextStyles.inputText,
+                maxLines: 3,
+                maxLength: 1000,
+                decoration: _deco(
+                    'Optional notes…', Icons.note_add_outlined),
+              ),
+
+              const SizedBox(height: 24),
+              _sectionTitle('Time'),
+              const SizedBox(height: 12),
+
+              if (selectedDate == null)
+                _banner('Select a date to load time slots.')
+              else if (availState.isLoading)
+                const Center(
+                    child: Padding(
+                  padding: EdgeInsets.all(24),
+                  child: CircularProgressIndicator(color: AppColors.primary),
+                ))
+              else if (availState.error != null)
+                _banner('Error: ${availState.error}', error: true)
+              else if (availState.slots.isEmpty)
+                _banner('No slots for this date.')
+              else
+                TimeSlotPicker(
+                  state: availState,
+                  onSlotSelected: (slot) {
+                    ref
+                        .read(availabilityNotifierProvider.notifier)
+                        .selectSlot(slot);
+                  },
+                ),
+
+              const SizedBox(height: 24),
+              SizedBox(
+                height: 52,
+                child: FilledButton.icon(
+                  onPressed: (selectedSlot == null || _isSubmitting)
+                      ? null
+                      : () => _bookAppointment(selectedSlot),
+                  style: FilledButton.styleFrom(
+                    backgroundColor: AppColors.primary,
+                    shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(12)),
+                  ),
+                  icon: _isSubmitting
+                      ? const SizedBox(
+                          width: 18,
+                          height: 18,
+                          child: CircularProgressIndicator(
+                              strokeWidth: 2, color: Colors.white),
+                        )
+                      : const Icon(Icons.event_available_rounded),
+                  label: Text(
+                    _isSubmitting ? 'Booking…' : 'Book Appointment',
+                    style: const TextStyle(fontWeight: FontWeight.w700),
+                  ),
+                ),
+              ),
+              const SizedBox(height: 8),
+              SizedBox(
+                height: 46,
+                child: OutlinedButton(
+                  onPressed:
+                      _isSubmitting ? null : () => Navigator.of(context).pop(),
+                  child: const Text('Cancel'),
+                ),
+              ),
+            ],
           ],
         ),
       ),
     );
   }
 
-  Widget _buildDoctorField() {
-    final doctorsAsync = ref.watch(doctorsListProvider);
+  Widget _doctorField() {
+    final async = ref.watch(doctorsListProvider);
     final selected = ref.watch(selectedDoctorProvider);
-
-    return doctorsAsync.when(
+    return async.when(
       loading: () => const DropdownSkeleton(label: 'Loading doctors...'),
-      error: (error, _) => DropdownError(
-        message: describeError(error, fallback: 'Failed to load doctors'),
-      ),
+      error: (e, _) => DropdownError(
+          message: describeError(e, fallback: 'Failed to load doctors')),
       data: (doctors) => DropdownButtonFormField<int>(
         initialValue: selected,
+        dropdownColor: AppColors.surface,
         style: AppTextStyles.inputText,
-        dropdownColor: AppColors.background,
-        iconEnabledColor: AppColors.textSecondary,
         isExpanded: true,
-        decoration: const InputDecoration(
-          hintText: 'Select Doctor',
-          prefixIcon: Icon(Icons.medical_services_outlined),
-        ),
-        items: doctors.map((doctor) {
-          return DropdownMenuItem<int>(
-            value: doctor.id,
-            child: Text(
-              doctor.name,
-              overflow: TextOverflow.ellipsis,
-            ),
-          );
-        }).toList(),
+        decoration: _deco('Select doctor', Icons.medical_services_outlined),
+        items: doctors
+            .map((d) => DropdownMenuItem(value: d.id, child: Text(d.name)))
+            .toList(),
         onChanged: (id) {
           ref.read(selectedDoctorProvider.notifier).state = id;
           ref.read(availabilityNotifierProvider.notifier).clearSlots();
           _fetchSlots();
         },
+        validator: (v) => v == null ? 'Doctor is required' : null,
       ),
     );
   }
 
-  Widget _buildBranchField() {
-    final branchesAsync = ref.watch(branchesListProvider);
+  Widget _branchField() {
+    final async = ref.watch(branchesListProvider);
     final selected = ref.watch(selectedBranchProvider);
-
-    return branchesAsync.when(
+    return async.when(
       loading: () => const DropdownSkeleton(label: 'Loading branches...'),
-      error: (error, _) => DropdownError(
-        message: describeError(error, fallback: 'Failed to load branches'),
-      ),
+      error: (e, _) => DropdownError(
+          message: describeError(e, fallback: 'Failed to load branches')),
       data: (branches) => DropdownButtonFormField<int>(
         initialValue: selected,
+        dropdownColor: AppColors.surface,
         style: AppTextStyles.inputText,
-        dropdownColor: AppColors.background,
-        iconEnabledColor: AppColors.textSecondary,
         isExpanded: true,
-        decoration: const InputDecoration(
-          hintText: 'Select Branch',
-          prefixIcon: Icon(Icons.location_on_outlined),
-        ),
-        items: branches.map((branch) {
-          return DropdownMenuItem<int>(
-            value: branch.id,
-            child: Text(
-              branch.name,
-              overflow: TextOverflow.ellipsis,
-            ),
-          );
-        }).toList(),
+        decoration: _deco('Select branch', Icons.location_on_outlined),
+        items: branches
+            .map((b) => DropdownMenuItem(value: b.id, child: Text(b.name)))
+            .toList(),
         onChanged: (id) {
           ref.read(selectedBranchProvider.notifier).state = id;
           ref.read(availabilityNotifierProvider.notifier).clearSlots();
           _fetchSlots();
         },
+        validator: (v) => v == null ? 'Branch is required' : null,
       ),
     );
   }
 
-  Widget _infoBanner(
-    String message, {
-    IconData icon = Icons.info_outline_rounded,
-    bool isError = false,
-  }) {
-    final color = isError ? AppColors.error : AppColors.primary;
-
-    return Container(
-      padding: const EdgeInsets.all(AppDimensions.paddingMedium),
-      decoration: BoxDecoration(
-        color: color.withValues(alpha: 0.06),
-        border: Border.all(color: color.withValues(alpha: 0.20)),
-        borderRadius: BorderRadius.circular(AppDimensions.borderRadius),
-      ),
-      child: Row(
-        crossAxisAlignment: CrossAxisAlignment.start,
+  Widget _sectionTitle(String t) => Row(
         children: [
-          Icon(icon, size: 20, color: color),
-          const SizedBox(width: 10),
-          Expanded(
-            child: Text(
-              message,
-              style: AppTextStyles.bodySmall.copyWith(
-                color: isError ? AppColors.error : AppColors.textSecondary,
-              ),
+          Container(
+            width: 4,
+            height: 18,
+            decoration: BoxDecoration(
+              gradient: AppColors.primaryGradient,
+              borderRadius: BorderRadius.circular(2),
             ),
           ),
+          const SizedBox(width: 8),
+          Text(t,
+              style: AppTextStyles.labelLarge
+                  .copyWith(color: AppColors.primaryDark)),
         ],
-      ),
-    );
-  }
+      );
 
-  Widget _sectionTitle(String title) {
-    return Row(
-      children: [
-        Container(
-          width: 4,
-          height: 18,
-          decoration: BoxDecoration(
-            gradient: AppColors.primaryGradient,
-            borderRadius: BorderRadius.circular(2),
-          ),
-        ),
-        const SizedBox(width: 8),
-        Text(
-          title,
-          style: AppTextStyles.labelLarge.copyWith(
-            color: AppColors.primaryDark,
-          ),
-        ),
-      ],
-    );
-  }
-
-  Widget _fieldLabel(String text, {bool required = false}) {
-    return Padding(
-      padding: const EdgeInsets.only(bottom: 6),
-      child: Row(
-        children: [
-          Text(
-            text,
-            style: AppTextStyles.labelMedium.copyWith(
-              color: AppColors.ink,
-              fontWeight: FontWeight.w700,
-            ),
-          ),
-          if (required) ...[
-            const SizedBox(width: 4),
-            const Text(
-              '*',
-              style: TextStyle(
-                color: AppColors.error,
-                fontWeight: FontWeight.bold,
-              ),
-            ),
+  Widget _fieldLabel(String t, {bool required = false}) => Padding(
+        padding: const EdgeInsets.only(bottom: 6),
+        child: Row(
+          children: [
+            Text(t,
+                style: AppTextStyles.labelMedium.copyWith(
+                    color: AppColors.ink, fontWeight: FontWeight.w700)),
+            if (required)
+              const Text(' *',
+                  style: TextStyle(
+                      color: AppColors.error, fontWeight: FontWeight.bold)),
           ],
-        ],
+        ),
+      );
+
+  Widget _banner(String m, {bool error = false}) {
+    final c = error ? AppColors.error : AppColors.primary;
+    return Container(
+      padding: const EdgeInsets.all(12),
+      decoration: BoxDecoration(
+        color: c.withValues(alpha: 0.06),
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: c.withValues(alpha: 0.2)),
+      ),
+      child: Text(m, style: AppTextStyles.bodySmall.copyWith(color: c)),
+    );
+  }
+}
+
+class _RelationCard extends StatelessWidget {
+  final String title;
+  final String subtitle;
+  final IconData icon;
+  final bool selected;
+  final VoidCallback onTap;
+
+  const _RelationCard({
+    required this.title,
+    required this.subtitle,
+    required this.icon,
+    required this.selected,
+    required this.onTap,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Material(
+      color: selected ? AppColors.accentLight : AppColors.surface,
+      borderRadius: BorderRadius.circular(12),
+      child: InkWell(
+        onTap: onTap,
+        borderRadius: BorderRadius.circular(12),
+        child: Container(
+          padding: const EdgeInsets.all(14),
+          decoration: BoxDecoration(
+            borderRadius: BorderRadius.circular(12),
+            border: Border.all(
+              color: selected ? AppColors.primary : AppColors.border,
+              width: selected ? 1.5 : 1,
+            ),
+          ),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Row(
+                children: [
+                  Icon(icon,
+                      color: selected
+                          ? AppColors.primary
+                          : AppColors.textSecondary),
+                  const Spacer(),
+                  Icon(
+                    selected
+                        ? Icons.check_circle
+                        : Icons.radio_button_unchecked,
+                    size: 18,
+                    color: selected
+                        ? AppColors.primary
+                        : AppColors.textTertiary,
+                  ),
+                ],
+              ),
+              const SizedBox(height: 10),
+              Text(title,
+                  style: AppTextStyles.bodyMedium.copyWith(
+                    fontWeight: FontWeight.bold,
+                    color: selected
+                        ? AppColors.primaryDark
+                        : AppColors.textPrimary,
+                  )),
+              const SizedBox(height: 4),
+              Text(subtitle,
+                  style: AppTextStyles.labelSmall
+                      .copyWith(color: AppColors.textSecondary)),
+            ],
+          ),
+        ),
       ),
     );
   }

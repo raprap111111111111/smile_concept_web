@@ -1,5 +1,4 @@
 // lib/presentation/pages/appointments/appointment_form_page.dart
-
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:intl/intl.dart';
@@ -22,6 +21,8 @@ import 'widgets/patient_search_field.dart';
 import 'widgets/time_slot_picker.dart';
 import 'package:smile_concept_web/core/errors/error_message.dart';
 
+enum StaffPatientBookingType { registered, walkInGuest }
+
 class AppointmentFormPage extends ConsumerStatefulWidget {
   final AppointmentModel? existingAppointment;
 
@@ -39,15 +40,48 @@ class _AppointmentFormPageState extends ConsumerState<AppointmentFormPage> {
   final _formKey = GlobalKey<FormState>();
   final _reasonController = TextEditingController();
 
+  // Walk-in / Guest controllers
+  final _walkInNameController = TextEditingController();
+  final _walkInPhoneController = TextEditingController();
+  final _walkInEmailController = TextEditingController();
+  final _dependentNameController = TextEditingController();
+
+  StaffPatientBookingType _bookingType = StaffPatientBookingType.registered;
+  String _bookingFor = 'Self / Patient'; // 'Self / Patient' or 'Child / Dependent'
+
   int? _doctorId;
   int? _branchId;
   int? _userId;
   String? _selectedPatientName;
   DateTime? _selectedDate;
   String _status = 'pending';
-  bool _isSubmitting = false;
 
+  bool _isSubmitting = false;
   bool get _isEditing => widget.existingAppointment != null;
+
+  static InputDecoration _inputDeco(String hint, IconData icon) {
+    return InputDecoration(
+      hintText: hint,
+      prefixIcon: Icon(icon, color: AppColors.textSecondary),
+      isDense: true,
+      filled: true,
+      fillColor: AppColors.surface,
+      hintStyle: AppTextStyles.bodyMedium.copyWith(color: AppColors.textTertiary),
+      contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 16),
+      border: OutlineInputBorder(
+        borderRadius: BorderRadius.circular(12),
+        borderSide: const BorderSide(color: AppColors.border),
+      ),
+      enabledBorder: OutlineInputBorder(
+        borderRadius: BorderRadius.circular(12),
+        borderSide: const BorderSide(color: AppColors.border),
+      ),
+      focusedBorder: OutlineInputBorder(
+        borderRadius: BorderRadius.circular(12),
+        borderSide: const BorderSide(color: AppColors.primary, width: 1.5),
+      ),
+    );
+  }
 
   @override
   void initState() {
@@ -62,11 +96,29 @@ class _AppointmentFormPageState extends ConsumerState<AppointmentFormPage> {
       _selectedDate = appointment.startTime;
       _status = appointment.status.name;
       _selectedPatientName = appointment.user?.name;
-      _reasonController.text = appointment.reasonForVisit ?? '';
+
+      if (appointment.reasonForVisit != null) {
+        final reason = appointment.reasonForVisit!;
+        if (reason.contains('[Booking For:')) {
+          final regex = RegExp(r'\[Booking For: (.*?)\]');
+          final match = regex.firstMatch(reason);
+          if (match != null) {
+            final content = match.group(1) ?? '';
+            if (content.contains('-')) {
+              final parts = content.split('-');
+              _bookingFor = 'Child / Dependent';
+              _dependentNameController.text = parts.last.trim();
+            } else {
+              _bookingFor = content.trim();
+            }
+            _reasonController.text = reason.replaceAll(regex, '').trim();
+          }
+        } else {
+          _reasonController.text = reason;
+        }
+      }
     }
 
-    // Clear any slot selection left over from a previous booking session,
-    // otherwise _submit could silently reuse a stale slot time.
     Future.microtask(() {
       if (mounted) {
         ref.read(availabilityNotifierProvider.notifier).clearSlots();
@@ -77,13 +129,15 @@ class _AppointmentFormPageState extends ConsumerState<AppointmentFormPage> {
   @override
   void dispose() {
     _reasonController.dispose();
+    _walkInNameController.dispose();
+    _walkInPhoneController.dispose();
+    _walkInEmailController.dispose();
+    _dependentNameController.dispose();
     super.dispose();
   }
 
   Future<void> _fetchSlots() async {
-    if (_doctorId == null || _branchId == null || _selectedDate == null) {
-      return;
-    }
+    if (_doctorId == null || _branchId == null || _selectedDate == null) return;
     await ref.read(availabilityNotifierProvider.notifier).fetchSlots(
           doctorId: _doctorId!,
           branchId: _branchId!,
@@ -94,23 +148,9 @@ class _AppointmentFormPageState extends ConsumerState<AppointmentFormPage> {
   Future<void> _pickDate() async {
     final picked = await showDatePicker(
       context: context,
-      initialDate:
-          _selectedDate ?? DateTime.now().add(const Duration(days: 1)),
+      initialDate: _selectedDate ?? DateTime.now().add(const Duration(days: 1)),
       firstDate: DateTime.now(),
       lastDate: DateTime.now().add(const Duration(days: 365)),
-      builder: (context, child) {
-        return Theme(
-          data: Theme.of(context).copyWith(
-            colorScheme: const ColorScheme.light(
-              primary: AppColors.primary,
-              onPrimary: AppColors.textOnPrimary,
-              surface: AppColors.background,
-              onSurface: AppColors.ink,
-            ),
-          ),
-          child: child!,
-        );
-      },
     );
 
     if (picked == null) return;
@@ -126,8 +166,7 @@ class _AppointmentFormPageState extends ConsumerState<AppointmentFormPage> {
     final currentUser = ref.read(authStateProvider).user;
 
     final canCreateSelf = permissionService.can(Perm.appointmentCreate);
-    final canCreateForOthers =
-        permissionService.can(Perm.appointmentCreateForOthers);
+    final canCreateForOthers = permissionService.can(Perm.appointmentCreateForOthers);
     final canUpdateStatus = permissionService.can(Perm.appointmentUpdateStatus);
     final canUpdate = permissionService.can(Perm.appointmentUpdate);
     final canReschedule = permissionService.can(Perm.appointmentReschedule);
@@ -150,8 +189,15 @@ class _AppointmentFormPageState extends ConsumerState<AppointmentFormPage> {
       return;
     }
 
-    if (!_isEditing && canCreateForOthers && _userId == null) {
-      _showError('Please select a patient.');
+    // Validation for registered patient mode
+    if (!_isEditing && canCreateForOthers && _bookingType == StaffPatientBookingType.registered && _userId == null) {
+      _showError('Please select a registered patient account.');
+      return;
+    }
+
+    // Validation for walk-in mode
+    if (!_isEditing && canCreateForOthers && _bookingType == StaffPatientBookingType.walkInGuest && _walkInNameController.text.trim().isEmpty) {
+      _showError("Please enter the walk-in patient's full name.");
       return;
     }
 
@@ -161,45 +207,44 @@ class _AppointmentFormPageState extends ConsumerState<AppointmentFormPage> {
       final repo = ref.read(appointmentRepositoryProvider);
       AppointmentModel result;
 
-      final reasonForVisit = _reasonController.text.trim().isEmpty
-          ? null
-          : _reasonController.text.trim();
+      // Package reason and dependent details
+      String? finalReason = _reasonController.text.trim();
+      if (_bookingFor != 'Self / Patient') {
+        final dep = _dependentNameController.text.trim();
+        final tag = dep.isNotEmpty ? 'Child / Minor - $dep' : 'Child / Minor';
+        finalReason = '[Booking For: $tag] $finalReason'.trim();
+      }
+      if (finalReason.isEmpty) finalReason = null;
 
       if (_isEditing) {
         final existing = widget.existingAppointment!;
-        final targetUserId = canCreateForOthers
-            ? (_userId ?? existing.userId)
-            : existing.userId;
+        final targetUserId = canCreateForOthers ? (_userId ?? existing.userId) : existing.userId;
 
         final request = AppointmentRequest(
           doctorId: _doctorId ?? existing.doctorId,
           branchId: _branchId ?? existing.branchId,
-          startTime: selectedSlot != null
-              ? selectedSlot.startDateTime
-              : existing.startTime,
-          endTime: selectedSlot != null
-              ? selectedSlot.endDateTime
-              : existing.endTime,
+          startTime: selectedSlot != null ? selectedSlot.startDateTime : existing.startTime,
+          endTime: selectedSlot != null ? selectedSlot.endDateTime : existing.endTime,
           userId: targetUserId,
           status: canUpdateStatus ? _status : existing.status.name,
-          reasonForVisit: reasonForVisit,
+          reasonForVisit: finalReason,
         );
 
-        result = await repo.updateAppointment(
-          id: existing.id,
-          request: request,
-        );
+        result = await repo.updateAppointment(id: existing.id, request: request);
       } else {
-        final targetUserId = canCreateForOthers ? _userId : currentUser?.id;
+        final isWalkIn = _bookingType == StaffPatientBookingType.walkInGuest;
 
         final request = AppointmentRequest(
           doctorId: _doctorId!,
           branchId: _branchId!,
           startTime: selectedSlot!.startDateTime,
           endTime: selectedSlot.endDateTime,
-          userId: targetUserId,
+          userId: isWalkIn ? null : (canCreateForOthers ? _userId : currentUser?.id),
+          patientName: isWalkIn ? _walkInNameController.text.trim() : null,
+          patientPhone: isWalkIn ? _walkInPhoneController.text.trim() : null,
+          patientEmail: isWalkIn ? _walkInEmailController.text.trim() : null,
           status: _status,
-          reasonForVisit: reasonForVisit,
+          reasonForVisit: finalReason,
         );
 
         result = await repo.createAppointment(request);
@@ -220,18 +265,12 @@ class _AppointmentFormPageState extends ConsumerState<AppointmentFormPage> {
         content: Text(msg, style: const TextStyle(color: Colors.white)),
         backgroundColor: AppColors.error,
         behavior: SnackBarBehavior.floating,
-        shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(AppDimensions.borderRadius),
-        ),
       ),
     );
   }
 
   @override
   Widget build(BuildContext context) {
-    // main.dart still runs ThemeData.dark(); this page is designed light, so it
-    // pins the intended light theme rather than inheriting dark input styles —
-    // otherwise field text renders near-white on the white form card.
     return Theme(
       data: AppTheme.lightTheme,
       child: _buildScaffold(context),
@@ -245,15 +284,9 @@ class _AppointmentFormPageState extends ConsumerState<AppointmentFormPage> {
     final permissionService = ref.watch(permissionServiceProvider);
     final currentUser = ref.watch(authStateProvider).user;
 
-    final canCreateForOthers =
-        permissionService.can(Perm.appointmentCreateForOthers);
-    final canUpdateStatus =
-        permissionService.can(Perm.appointmentUpdateStatus);
-
-    // Reschedule-only users (patients) can change date/time + reason,
-    // but not the doctor or branch — the API strips those fields anyway.
-    final lockClinicians =
-        _isEditing && !permissionService.can(Perm.appointmentUpdate);
+    final canCreateForOthers = permissionService.can(Perm.appointmentCreateForOthers);
+    final canUpdateStatus = permissionService.can(Perm.appointmentUpdateStatus);
+    final lockClinicians = _isEditing && !permissionService.can(Perm.appointmentUpdate);
 
     final dateLabel = _selectedDate != null
         ? DateFormat('EEE, MMM dd yyyy').format(_selectedDate!)
@@ -289,7 +322,6 @@ class _AppointmentFormPageState extends ConsumerState<AppointmentFormPage> {
     );
   }
 
-  // ── HEADER ─────────────────────────────────────────────────
   Widget _buildHeader() {
     return Container(
       padding: const EdgeInsets.all(AppDimensions.paddingLarge),
@@ -297,13 +329,6 @@ class _AppointmentFormPageState extends ConsumerState<AppointmentFormPage> {
         color: AppColors.background,
         borderRadius: BorderRadius.circular(AppDimensions.borderRadiusLarge),
         border: Border.all(color: AppColors.border),
-        boxShadow: const [
-          BoxShadow(
-            color: AppColors.cardShadow,
-            blurRadius: 16,
-            offset: Offset(0, 6),
-          ),
-        ],
       ),
       child: Row(
         children: [
@@ -313,13 +338,6 @@ class _AppointmentFormPageState extends ConsumerState<AppointmentFormPage> {
             decoration: BoxDecoration(
               gradient: AppColors.primaryGradient,
               borderRadius: BorderRadius.circular(14),
-              boxShadow: [
-                BoxShadow(
-                  color: AppColors.primary.withValues(alpha: 0.25),
-                  blurRadius: 14,
-                  offset: const Offset(0, 6),
-                ),
-              ],
             ),
             child: Icon(
               _isEditing ? Icons.edit_calendar_rounded : Icons.event_available_rounded,
@@ -336,11 +354,8 @@ class _AppointmentFormPageState extends ConsumerState<AppointmentFormPage> {
                   _isEditing ? 'Edit Appointment' : 'New Appointment',
                   style: AppTextStyles.headlineSmall,
                 ),
-                const SizedBox(height: 2),
                 Text(
-                  _isEditing
-                      ? 'Update patient booking details'
-                      : 'Book a new patient appointment',
+                  _isEditing ? 'Update patient booking details' : 'Book a new patient appointment',
                   style: AppTextStyles.bodySmall,
                 ),
               ],
@@ -356,7 +371,6 @@ class _AppointmentFormPageState extends ConsumerState<AppointmentFormPage> {
     );
   }
 
-  // ── FORM CARD ──────────────────────────────────────────────
   Widget _buildFormCard({
     required AsyncValue doctorsAsync,
     required AsyncValue branchesAsync,
@@ -373,40 +387,157 @@ class _AppointmentFormPageState extends ConsumerState<AppointmentFormPage> {
         color: AppColors.background,
         borderRadius: BorderRadius.circular(AppDimensions.borderRadiusLarge),
         border: Border.all(color: AppColors.border),
-        boxShadow: const [
-          BoxShadow(
-            color: AppColors.cardShadow,
-            blurRadius: 16,
-            offset: Offset(0, 6),
-          ),
-        ],
       ),
       child: Form(
         key: _formKey,
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
-            _sectionTitle('Appointment Details'),
+            _sectionTitle('Patient Information'),
+            const SizedBox(height: AppDimensions.paddingMedium),
+
+            // ── STAFF PATIENT SELECTION ──────────────────────────
+            if (canCreateForOthers) ...[
+              // Mode Selector: Registered vs Walk-In
+              Row(
+                children: [
+                  Expanded(
+                    child: _ChoiceCard(
+                      title: 'Registered Patient',
+                      subtitle: 'Search existing patient account',
+                      icon: Icons.badge_outlined,
+                      selected: _bookingType == StaffPatientBookingType.registered,
+                      onTap: () => setState(() => _bookingType = StaffPatientBookingType.registered),
+                    ),
+                  ),
+                  const SizedBox(width: 12),
+                  Expanded(
+                    child: _ChoiceCard(
+                      title: 'Walk-In / Guest',
+                      subtitle: 'Type new patient details',
+                      icon: Icons.directions_walk_outlined,
+                      selected: _bookingType == StaffPatientBookingType.walkInGuest,
+                      onTap: () => setState(() => _bookingType = StaffPatientBookingType.walkInGuest),
+                    ),
+                  ),
+                ],
+              ),
+              const SizedBox(height: AppDimensions.paddingMedium),
+
+              // Mode 1: Registered Patient Search
+              if (_bookingType == StaffPatientBookingType.registered) ...[
+                _fieldLabel('Search Registered Patient', required: true),
+                PatientSearchField(
+                  selectedPatientId: _userId,
+                  selectedPatientName: _selectedPatientName,
+                  onPatientSelected: (PatientModel? patient) {
+                    setState(() {
+                      _userId = patient?.userId;
+                      _selectedPatientName = patient?.name;
+                    });
+                  },
+                ),
+              ],
+
+              // Mode 2: Walk-In / Unregistered Patient Inputs
+              if (_bookingType == StaffPatientBookingType.walkInGuest) ...[
+                _fieldLabel('Patient Full Name', required: true),
+                TextFormField(
+                  controller: _walkInNameController,
+                  style: AppTextStyles.bodyMedium.copyWith(color: AppColors.textPrimary),
+                  decoration: _inputDeco('e.g. Juan Dela Cruz', Icons.person_outline),
+                  validator: (v) => v == null || v.trim().isEmpty ? 'Patient name is required' : null,
+                ),
+                const SizedBox(height: AppDimensions.paddingSmall),
+                Row(
+                  children: [
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          _fieldLabel('Mobile Number'),
+                          TextFormField(
+                            controller: _walkInPhoneController,
+                            style: AppTextStyles.bodyMedium.copyWith(color: AppColors.textPrimary),
+                            decoration: _inputDeco('09XX XXX XXXX', Icons.phone_outlined),
+                          ),
+                        ],
+                      ),
+                    ),
+                    const SizedBox(width: 12),
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          _fieldLabel('Email Address'),
+                          TextFormField(
+                            controller: _walkInEmailController,
+                            style: AppTextStyles.bodyMedium.copyWith(color: AppColors.textPrimary),
+                            decoration: _inputDeco('patient@email.com', Icons.mail_outline),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ],
+                ),
+              ],
+
+              const SizedBox(height: AppDimensions.paddingMedium),
+
+              // Attendance Option: Self vs Minor / Child
+              _fieldLabel('Who is attending this appointment?', required: true),
+              Row(
+                children: [
+                  Expanded(
+                    child: _ChoiceCard(
+                      title: 'Self / Adult',
+                      subtitle: 'Patient attends for themselves',
+                      icon: Icons.person_outline,
+                      selected: _bookingFor == 'Self / Patient',
+                      onTap: () => setState(() => _bookingFor = 'Self / Patient'),
+                    ),
+                  ),
+                  const SizedBox(width: 12),
+                  Expanded(
+                    child: _ChoiceCard(
+                      title: 'Child / Dependent',
+                      subtitle: 'Parent books for minor',
+                      icon: Icons.family_restroom_outlined,
+                      selected: _bookingFor != 'Self / Patient',
+                      onTap: () => setState(() => _bookingFor = 'Child / Dependent'),
+                    ),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 12),
+
+              if (_bookingFor != 'Self / Patient') ...[
+                _fieldLabel("Child / Dependent's Full Name"),
+                TextFormField(
+                  controller: _dependentNameController,
+                  style: AppTextStyles.bodyMedium.copyWith(color: AppColors.textPrimary),
+                  decoration: _inputDeco("e.g. Timmy Dela Cruz", Icons.child_care_outlined),
+                ),
+                const SizedBox(height: AppDimensions.paddingMedium),
+              ],
+            ],
+
+            const SizedBox(height: AppDimensions.paddingLarge),
+            _sectionTitle('Clinic & Schedule'),
             const SizedBox(height: AppDimensions.paddingMedium),
 
             // ── Doctor ─────────────────────────────────────
             _fieldLabel('Doctor', required: true),
             doctorsAsync.when(
-              loading: () => const LinearProgressIndicator(color: AppColors.primary),
-              error: (error, _) => Text(
-                describeError(error, fallback: 'Failed to load doctors'),
-                style: const TextStyle(color: AppColors.error),
-              ),
+              loading: () => const LinearProgressIndicator(),
+              error: (e, _) => const Text('Error loading doctors', style: TextStyle(color: Colors.red)),
               data: (doctors) => DropdownButtonFormField<int>(
                 initialValue: _doctorId,
-                style: AppTextStyles.inputText,
-                dropdownColor: AppColors.background,
+                dropdownColor: AppColors.surface,
+                style: AppTextStyles.bodyMedium.copyWith(color: AppColors.textPrimary),
                 iconEnabledColor: AppColors.textSecondary,
                 isExpanded: true,
-                decoration: const InputDecoration(
-                  hintText: 'Select Doctor',
-                  prefixIcon: Icon(Icons.medical_services_outlined),
-                ),
+                decoration: _inputDeco('Select Doctor', Icons.medical_services_outlined),
                 items: (doctors as List).map((doctor) {
                   final id = doctor['id'] as int;
                   final name = doctor['name']?.toString() ??
@@ -421,13 +552,10 @@ class _AppointmentFormPageState extends ConsumerState<AppointmentFormPage> {
                     ? null
                     : (value) {
                         setState(() => _doctorId = value);
-                        ref
-                            .read(availabilityNotifierProvider.notifier)
-                            .clearSlots();
+                        ref.read(availabilityNotifierProvider.notifier).clearSlots();
                         _fetchSlots();
                       },
-                validator: (value) =>
-                    value == null ? 'Doctor is required' : null,
+                validator: (value) => value == null ? 'Doctor is required' : null,
               ),
             ),
             const SizedBox(height: AppDimensions.paddingMedium),
@@ -435,21 +563,15 @@ class _AppointmentFormPageState extends ConsumerState<AppointmentFormPage> {
             // ── Branch ─────────────────────────────────────
             _fieldLabel('Branch', required: true),
             branchesAsync.when(
-              loading: () => const LinearProgressIndicator(color: AppColors.primary),
-              error: (error, _) => Text(
-                describeError(error, fallback: 'Failed to load branches'),
-                style: const TextStyle(color: AppColors.error),
-              ),
+              loading: () => const LinearProgressIndicator(),
+              error: (e, _) => const Text('Error loading branches', style: TextStyle(color: Colors.red)),
               data: (branches) => DropdownButtonFormField<int>(
                 initialValue: _branchId,
-                style: AppTextStyles.inputText,
-                dropdownColor: AppColors.background,
+                dropdownColor: AppColors.surface,
+                style: AppTextStyles.bodyMedium.copyWith(color: AppColors.textPrimary),
                 iconEnabledColor: AppColors.textSecondary,
                 isExpanded: true,
-                decoration: const InputDecoration(
-                  hintText: 'Select Branch',
-                  prefixIcon: Icon(Icons.location_on_outlined),
-                ),
+                decoration: _inputDeco('Select Branch', Icons.location_on_outlined),
                 items: (branches as List).map((branch) {
                   return DropdownMenuItem<int>(
                     value: branch.id,
@@ -460,225 +582,114 @@ class _AppointmentFormPageState extends ConsumerState<AppointmentFormPage> {
                     ? null
                     : (value) {
                         setState(() => _branchId = value);
-                        ref
-                            .read(availabilityNotifierProvider.notifier)
-                            .clearSlots();
+                        ref.read(availabilityNotifierProvider.notifier).clearSlots();
                         _fetchSlots();
                       },
-                validator: (value) =>
-                    value == null ? 'Branch is required' : null,
+                validator: (value) => value == null ? 'Branch is required' : null,
               ),
             ),
-            const SizedBox(height: AppDimensions.paddingMedium),
-
-            // ── Patient ────────────────────────────────────
-            if (canCreateForOthers) ...[
-              _fieldLabel('Patient', required: true),
-              PatientSearchField(
-                selectedPatientId: _userId,
-                selectedPatientName: _selectedPatientName,
-                onPatientSelected: (PatientModel? patient) {
-                  setState(() {
-                    _userId = patient?.userId;
-                    _selectedPatientName = patient?.name;
-                  });
-                },
-              ),
-            ] else ...[
-              _fieldLabel('Patient'),
-              Container(
-                padding: const EdgeInsets.all(AppDimensions.paddingMedium),
-                decoration: BoxDecoration(
-                  color: AppColors.surface,
-                  borderRadius: BorderRadius.circular(AppDimensions.borderRadius),
-                  border: Border.all(color: AppColors.border),
-                ),
-                child: Row(
-                  children: [
-                    Container(
-                      padding: const EdgeInsets.all(6),
-                      decoration: BoxDecoration(
-                        color: AppColors.primary.withValues(alpha: 0.10),
-                        borderRadius: BorderRadius.circular(8),
-                      ),
-                      child: const Icon(
-                        Icons.person_outline_rounded,
-                        size: 18,
-                        color: AppColors.primary,
-                      ),
-                    ),
-                    const SizedBox(width: 10),
-                    Expanded(
-                      child: Text(
-                        currentUser?.name ?? 'Current user',
-                        style: AppTextStyles.bodyMedium.copyWith(
-                          color: AppColors.ink,
-                          fontWeight: FontWeight.w600,
-                        ),
-                        overflow: TextOverflow.ellipsis,
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-            ],
             const SizedBox(height: AppDimensions.paddingMedium),
 
             // ── Reason ─────────────────────────────────────
             _fieldLabel('Reason for Visit'),
             TextFormField(
               controller: _reasonController,
-              style: AppTextStyles.inputText,
-              maxLines: 3,
+              style: AppTextStyles.bodyMedium.copyWith(color: AppColors.textPrimary),
+              maxLines: 2,
               maxLength: 500,
-              decoration: const InputDecoration(
-                hintText: 'e.g., Toothache, Cleaning, Check-up',
-                prefixIcon: Icon(Icons.notes_rounded),
-              ),
+              decoration: _inputDeco('e.g., Toothache, Cleaning, Check-up', Icons.notes_rounded),
             ),
-            const SizedBox(height: AppDimensions.paddingMedium),
-
-            // ── Section: Schedule ─────────────────────────
-            _sectionTitle('Schedule'),
             const SizedBox(height: AppDimensions.paddingMedium),
 
             // ── Date ───────────────────────────────────────
             _fieldLabel('Date', required: true),
             InkWell(
               onTap: _pickDate,
-              borderRadius: BorderRadius.circular(AppDimensions.borderRadius),
+              borderRadius: BorderRadius.circular(12),
               child: Container(
-                padding: const EdgeInsets.symmetric(
-                  horizontal: 14,
-                  vertical: 16,
-                ),
+                padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 16),
                 decoration: BoxDecoration(
                   color: AppColors.surface,
                   border: Border.all(color: AppColors.border),
-                  borderRadius: BorderRadius.circular(AppDimensions.borderRadius),
+                  borderRadius: BorderRadius.circular(12),
                 ),
                 child: Row(
                   children: [
-                    const Icon(
-                      Icons.calendar_today_outlined,
-                      color: AppColors.primary,
-                      size: 20,
-                    ),
+                    const Icon(Icons.calendar_today_outlined, color: AppColors.textSecondary, size: 20),
                     const SizedBox(width: 12),
                     Expanded(
                       child: Text(
                         dateLabel,
                         style: AppTextStyles.bodyMedium.copyWith(
-                          color: _selectedDate != null
-                              ? AppColors.ink
-                              : AppColors.textMuted,
-                          fontWeight: FontWeight.w600,
+                          color: _selectedDate != null ? AppColors.textPrimary : AppColors.textTertiary,
                         ),
                       ),
                     ),
-                    const Icon(
-                      Icons.arrow_drop_down_rounded,
-                      color: AppColors.textSecondary,
-                    ),
+                    const Icon(Icons.arrow_drop_down_rounded, color: AppColors.textSecondary),
                   ],
                 ),
               ),
             ),
             const SizedBox(height: AppDimensions.paddingMedium),
 
-            // ── Time Slots ─────────────────────────────────
             if (_selectedDate != null) ...[
               _fieldLabel('Available Time Slots', required: true),
               TimeSlotPicker(
                 state: availState,
                 onSlotSelected: (slot) {
-                  ref
-                      .read(availabilityNotifierProvider.notifier)
-                      .selectSlot(slot);
+                  ref.read(availabilityNotifierProvider.notifier).selectSlot(slot);
                 },
               ),
               const SizedBox(height: AppDimensions.paddingMedium),
             ],
 
-            // ── Status (edit only) ─────────────────────────
             if (_isEditing && canUpdateStatus) ...[
               _sectionTitle('Status'),
               const SizedBox(height: AppDimensions.paddingMedium),
               _fieldLabel('Appointment Status'),
               DropdownButtonFormField<String>(
                 initialValue: _status,
-                style: AppTextStyles.inputText,
-                dropdownColor: AppColors.background,
+                dropdownColor: AppColors.surface,
+                style: AppTextStyles.bodyMedium.copyWith(color: AppColors.textPrimary),
                 iconEnabledColor: AppColors.textSecondary,
                 isExpanded: true,
-                decoration: const InputDecoration(
-                  hintText: 'Status',
-                  prefixIcon: Icon(Icons.flag_outlined),
-                ),
+                decoration: _inputDeco('Status', Icons.flag_outlined),
                 items: const [
                   DropdownMenuItem(value: 'pending', child: Text('Pending')),
                   DropdownMenuItem(value: 'confirmed', child: Text('Confirmed')),
                   DropdownMenuItem(value: 'cancelled', child: Text('Cancelled')),
                   DropdownMenuItem(value: 'completed', child: Text('Completed')),
                 ],
-                onChanged: (value) {
-                  setState(() => _status = value ?? 'pending');
-                },
+                onChanged: (value) => setState(() => _status = value ?? 'pending'),
               ),
               const SizedBox(height: AppDimensions.paddingMedium),
             ],
 
             const SizedBox(height: AppDimensions.paddingSmall),
-
-            // ── Submit Button ──────────────────────────────
             SizedBox(
               height: 52,
               child: FilledButton.icon(
                 onPressed: _isSubmitting ? null : _submit,
                 style: FilledButton.styleFrom(
                   backgroundColor: AppColors.primary,
-                  foregroundColor: AppColors.textOnPrimary,
-                  shape: RoundedRectangleBorder(
-                    borderRadius:
-                        BorderRadius.circular(AppDimensions.borderRadius),
-                  ),
+                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
                 ),
                 icon: _isSubmitting
-                    ? const SizedBox(
-                        height: 18,
-                        width: 18,
-                        child: CircularProgressIndicator(
-                          strokeWidth: 2,
-                          color: AppColors.textOnPrimary,
-                        ),
-                      )
-                    : Icon(_isEditing
-                        ? Icons.save_outlined
-                        : Icons.event_available_rounded),
-                label: Text(
-                  _isEditing ? 'Update Appointment' : 'Book Appointment',
-                  style: const TextStyle(fontWeight: FontWeight.w700),
-                ),
+                    ? const SizedBox(height: 18, width: 18, child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2))
+                    : Icon(_isEditing ? Icons.save_outlined : Icons.event_available_rounded),
+                label: Text(_isEditing ? 'Update Appointment' : 'Book Appointment', style: const TextStyle(fontWeight: FontWeight.w700)),
               ),
             ),
-
-            const SizedBox(height: AppDimensions.paddingSmall),
-
-            // ── Cancel Button ──────────────────────────────
+            const SizedBox(height: 12),
             SizedBox(
               height: 46,
               child: OutlinedButton(
-                onPressed:
-                    _isSubmitting ? null : () => Navigator.of(context).pop(),
+                onPressed: _isSubmitting ? null : () => Navigator.of(context).pop(),
                 style: OutlinedButton.styleFrom(
-                  foregroundColor: AppColors.textSecondary,
                   side: const BorderSide(color: AppColors.border),
-                  shape: RoundedRectangleBorder(
-                    borderRadius:
-                        BorderRadius.circular(AppDimensions.borderRadius),
-                  ),
+                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
                 ),
-                child: const Text('Cancel'),
+                child: const Text('Cancel', style: TextStyle(color: AppColors.textSecondary)),
               ),
             ),
           ],
@@ -687,25 +698,12 @@ class _AppointmentFormPageState extends ConsumerState<AppointmentFormPage> {
     );
   }
 
-  // ── Reusable widgets ─────────────────────────────────────
   Widget _sectionTitle(String title) {
     return Row(
       children: [
-        Container(
-          width: 4,
-          height: 18,
-          decoration: BoxDecoration(
-            gradient: AppColors.primaryGradient,
-            borderRadius: BorderRadius.circular(2),
-          ),
-        ),
+        Container(width: 4, height: 18, decoration: BoxDecoration(gradient: AppColors.primaryGradient, borderRadius: BorderRadius.circular(2))),
         const SizedBox(width: 8),
-        Text(
-          title,
-          style: AppTextStyles.labelLarge.copyWith(
-            color: AppColors.primaryDark,
-          ),
-        ),
+        Text(title, style: AppTextStyles.labelLarge.copyWith(color: AppColors.primaryDark)),
       ],
     );
   }
@@ -715,24 +713,78 @@ class _AppointmentFormPageState extends ConsumerState<AppointmentFormPage> {
       padding: const EdgeInsets.only(bottom: 6),
       child: Row(
         children: [
-          Text(
-            text,
-            style: AppTextStyles.labelMedium.copyWith(
-              color: AppColors.ink,
-              fontWeight: FontWeight.w700,
+          Text(text, style: AppTextStyles.labelMedium.copyWith(color: AppColors.ink, fontWeight: FontWeight.w700)),
+          if (required) const Text(' *', style: TextStyle(color: AppColors.error, fontWeight: FontWeight.bold)),
+        ],
+      ),
+    );
+  }
+}
+
+class _ChoiceCard extends StatelessWidget {
+  final String title;
+  final String subtitle;
+  final IconData icon;
+  final bool selected;
+  final VoidCallback onTap;
+
+  const _ChoiceCard({
+    required this.title,
+    required this.subtitle,
+    required this.icon,
+    required this.selected,
+    required this.onTap,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Material(
+      color: selected ? AppColors.accentLight : AppColors.surface,
+      borderRadius: BorderRadius.circular(12),
+      child: InkWell(
+        onTap: onTap,
+        borderRadius: BorderRadius.circular(12),
+        child: Container(
+          padding: const EdgeInsets.all(12),
+          decoration: BoxDecoration(
+            borderRadius: BorderRadius.circular(12),
+            border: Border.all(
+              color: selected ? AppColors.primary : AppColors.border,
+              width: selected ? 1.5 : 1.0,
             ),
           ),
-          if (required) ...[
-            const SizedBox(width: 4),
-            const Text(
-              '*',
-              style: TextStyle(
-                color: AppColors.error,
-                fontWeight: FontWeight.bold,
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Row(
+                children: [
+                  Icon(icon, color: selected ? AppColors.primary : AppColors.textSecondary, size: 20),
+                  const Spacer(),
+                  Icon(
+                    selected ? Icons.check_circle : Icons.radio_button_unchecked,
+                    color: selected ? AppColors.primary : AppColors.textTertiary,
+                    size: 18,
+                  ),
+                ],
               ),
-            ),
-          ],
-        ],
+              const SizedBox(height: 8),
+              Text(
+                title,
+                style: AppTextStyles.bodyMedium.copyWith(
+                  fontWeight: FontWeight.bold,
+                  color: selected ? AppColors.primaryDark : AppColors.textPrimary,
+                ),
+              ),
+              const SizedBox(height: 2),
+              Text(
+                subtitle,
+                style: AppTextStyles.labelSmall.copyWith(
+                  color: AppColors.textSecondary,
+                ),
+              ),
+            ],
+          ),
+        ),
       ),
     );
   }
