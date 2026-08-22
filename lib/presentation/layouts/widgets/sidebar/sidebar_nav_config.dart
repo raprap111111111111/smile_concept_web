@@ -153,30 +153,30 @@ class SidebarNavConfig {
         ],
       ),
 
-      // ═══ BILLING ═════════════════════════════════════════════
-      NavSection(
-        title: 'BILLING',
-        items: [
-          NavItem(
-            icon: Icons.receipt_long_outlined,
-            title: isPatient ? 'My Invoices' : 'Invoices',
-            routeName: RouteNames.invoices,
-            permissions: const [
-              Perm.invoiceViewAny,
-              Perm.invoiceView,
-            ],
-          ),
-          NavItem(
-            icon: Icons.payments_outlined,
-            title: isPatient ? 'My Payments' : 'Payments',
-            routeName: RouteNames.payments,
-            permissions: const [
-              Perm.paymentViewAny,
-              Perm.paymentView,
-            ],
-          ),
-        ],
-      ),
+      // // ═══ BILLING ═════════════════════════════════════════════
+      // NavSection(
+      //   title: 'BILLING',
+      //   items: [
+      //     NavItem(
+      //       icon: Icons.receipt_long_outlined,
+      //       title: isPatient ? 'My Invoices' : 'Invoices',
+      //       routeName: RouteNames.invoices,
+      //       permissions: const [
+      //         Perm.invoiceViewAny,
+      //         Perm.invoiceView,
+      //       ],
+      //     ),
+      //     NavItem(
+      //       icon: Icons.payments_outlined,
+      //       title: isPatient ? 'My Payments' : 'Payments',
+      //       routeName: RouteNames.payments,
+      //       permissions: const [
+      //         Perm.paymentViewAny,
+      //         Perm.paymentView,
+      //       ],
+      //     ),
+      //   ],
+      // ),
 
       // ═══ OPERATIONS ══════════════════════════════════════════
       const NavSection(
